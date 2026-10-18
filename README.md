@@ -29,6 +29,13 @@ Ou ouvrir le dossier dans Android Studio.
    ⋮ → Paramètres pour les développeurs → cocher **Sources inconnues**.
 2. Brancher le téléphone sur la golfette : PicPiste apparaît dans le lanceur Android Auto.
 
+## Tester Android Auto sur l'ordinateur
+
+1. Sur le téléphone, Android Auto → réglages développeur (voir ci-dessus) → ⋮ →
+   **Démarrer le serveur de l'unité principale**.
+2. `./tools/dhu.sh` : ouvre un écran de voiture (Desktop Head Unit de Google, 1280×720).
+   Installation : `sdkmanager "extras;google;auto"` ; la bibliothèque libc++ vient du NDK.
+
 ## Enregistrer et rejouer une journée
 
 OGN ne garde pas l'historique des positions : il faut enregistrer le jour même.
