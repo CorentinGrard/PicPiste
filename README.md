@@ -52,3 +52,18 @@ OGN ne garde pas l'historique des positions : il faut enregistrer le jour même.
 
 Réglages (⋯) → Trafic : **Démo** : trafic et golfette simulés autour de LFNL, pour essayer
 l'app sans vol (circuit, finale 30 herbe, remorqué depuis la 30 dur gauche, alertes).
+
+## CI et versions
+
+GitHub Actions (`.github/workflows/ci.yml`) lance les tests du moteur et construit l'APK
+signé à chaque push et pull request ; l'APK est dans les artefacts du run.
+
+Publier une version : `git tag v0.2 && git push origin v0.2` → l'APK `PicPiste-0.2.apk`
+apparaît dans les **Releases** GitHub, à télécharger et installer sur les téléphones.
+
+### Clé de signature
+
+Tous les APK (CI et local) sont signés avec la même clé PicPiste, pour qu'une version
+s'installe par-dessus la précédente. Elle est dans `~/.picpiste/` (`picpiste-release.jks` +
+`signing.properties`) et dans les secrets GitHub du dépôt. **En garder une copie à l'abri** :
+sans elle, plus de mise à jour possible sans désinstaller l'app sur chaque téléphone.

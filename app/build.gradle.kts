@@ -1,7 +1,22 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+/**
+ * The PicPiste signing key, from environment variables (CI) or ~/.picpiste/signing.properties
+ * (developer machine). With it, every build (local or CI, debug or release) installs over
+ * the previous one. Without it, builds fall back to the machine's debug key.
+ */
+val signing: Map<String, String> = run {
+    val keys = listOf("PICPISTE_KEYSTORE", "PICPISTE_KEYSTORE_PASSWORD", "PICPISTE_KEY_ALIAS", "PICPISTE_KEY_PASSWORD")
+    val file = File(System.getProperty("user.home"), ".picpiste/signing.properties")
+    val fromFile = Properties().apply { if (file.isFile) file.inputStream().use { load(it) } }
+    keys.mapNotNull { k -> (System.getenv(k) ?: fromFile.getProperty(k))?.let { k to it } }.toMap()
+}
+val hasSigningKey = signing.size == 4 && File(signing.getValue("PICPISTE_KEYSTORE")).isFile
 
 android {
     namespace = "fr.cvvm.picpiste"
@@ -15,15 +30,30 @@ android {
         applicationId = "fr.cvvm.picpiste"
         minSdk = 33
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1"
+        // CI passes the tag (v0.2 → 0.2) and the run number.
+        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (findProperty("versionName") as String?) ?: "0.1-dev"
+    }
+
+    signingConfigs {
+        if (hasSigningKey) {
+            create("picpiste") {
+                storeFile = File(signing.getValue("PICPISTE_KEYSTORE"))
+                storePassword = signing.getValue("PICPISTE_KEYSTORE_PASSWORD")
+                keyAlias = signing.getValue("PICPISTE_KEY_ALIAS")
+                keyPassword = signing.getValue("PICPISTE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
+        val key = if (hasSigningKey) signingConfigs.getByName("picpiste") else signingConfigs.getByName("debug")
+        debug {
+            signingConfig = key
+        }
         release {
             isMinifyEnabled = false
-            // Sideloaded club app: the debug key is enough for now.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = key
         }
     }
 
