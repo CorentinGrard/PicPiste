@@ -1,7 +1,6 @@
 package fr.cvvm.picpiste.core
 
 import fr.cvvm.picpiste.core.airfield.Airfield
-import fr.cvvm.picpiste.core.airfield.Runway
 import fr.cvvm.picpiste.core.aprs.AprsEvent
 import fr.cvvm.picpiste.core.aprs.AprsParser
 import fr.cvvm.picpiste.core.cart.AlertEngine
@@ -16,7 +15,8 @@ import fr.cvvm.picpiste.core.traffic.FlightStatus
 import fr.cvvm.picpiste.core.traffic.TrafficSettings
 import fr.cvvm.picpiste.core.traffic.TrafficTracker
 
-data class CartState(val pos: Vec2, val accuracyM: Double?, val runway: Runway?, val timeMs: Long)
+/** [onRunway]: in the runway zone (the three runways and the grass between them). */
+data class CartState(val pos: Vec2, val accuracyM: Double?, val onRunway: Boolean, val timeMs: Long)
 
 /** Everything a screen needs to draw one frame. */
 data class Snapshot(
@@ -75,8 +75,7 @@ class PicPisteEngine(
 
     fun onCartPosition(geo: GeoPoint, accuracyM: Double?, timeMs: Long) {
         val pos = airfield.frame.toLocal(geo)
-        val runway = presence.update(pos, accuracyM, timeMs)
-        cart = CartState(pos, accuracyM, runway, timeMs)
+        cart = CartState(pos, accuracyM, presence.update(pos, accuracyM, timeMs), timeMs)
     }
 
     fun onCartPositionLost() {
@@ -101,7 +100,7 @@ class PicPisteEngine(
             landed = landed,
             connection = connection,
             cart = cart,
-            alert = AlertEngine.evaluate(cart?.runway, aircraft),
+            alert = AlertEngine.evaluate(cart?.onRunway == true, aircraft),
         )
     }
 }

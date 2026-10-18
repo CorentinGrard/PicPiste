@@ -89,7 +89,7 @@ vitesse, vario et cap :
 | ❔ **Signal perdu** | Pas de trame depuis > 60 s (dernière position affichée, grisée) |
 
 Pour « En finale » et « Dans le circuit » : **ETA estimée** (distance / vitesse sol) et
-**piste probable** (selon l'axe d'approche ; 3 pistes parallèles à distinguer : herbe, dur droite, dur gauche).
+**sens d'atterrissage** (12 ou 30) d'après la route suivie. On n'essaie pas de deviner laquelle des 3 pistes parallèles (40 à 50 m d'écart) : on affiche « Finale 30 », pas « Finale 30 herbe ». Pour un aéronef posé, la piste est connue (position au sol) : « herbe, fin de piste ».
 
 ### 4.1a Trafic affiché
 **Tout le trafic OGN** autour du terrain, pas seulement le club : planeurs, remorqueurs,
@@ -104,9 +104,9 @@ visiteurs, ULM… chacun avec une icône par type et sa **position en direct**.
   du circuit, pas besoin de modèle de relief en v1).
 
 ### 4.1b Golfette sur piste : indication et alerte
-La golfette circule **partout** sur le terrain. Les trois pistes (herbe, dur droite, dur gauche) sont des
-**zones** (rectangles : seuils + largeur + petite marge). Le GPS du téléphone situe la
-golfette par rapport à ces zones. Deux niveaux, pas plus :
+La golfette circule **partout** sur le terrain. Les trois pistes **et l'herbe entre elles** forment
+**une seule zone piste** : dès que la golfette passe le bord sud de la 30 dur gauche, elle est « sur la piste » jusqu'à ce qu'elle ressorte au nord de la piste en herbe (une traversée = une seule alerte). Le GPS du téléphone situe la
+golfette par rapport à cette zone. Deux niveaux, pas plus :
 
 | Situation | Réaction |
 |---|---|
@@ -126,7 +126,7 @@ golfette par rapport à ces zones. Deux niveaux, pas plus :
 Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 
 - **Liste « Arrivées »** triée par imminence :
-  `🔴 F-CXYZ (AB) — Finale 30 herbe — 40 s`
+  `🔴 F-CXYZ (AB) — Finale 30 — 40 s`
   `🔄 F-CKLM (12) — Circuit — ~2 min`
   `↩️ F-CABC — Retour — 4 km, 450 m`
 - **Bordure rouge** quand la golfette est sur une piste ; **bandeau + son** seulement si
@@ -135,7 +135,7 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 - **Vue radar** (écran principal, v1) : vue de dessus **fixe**, **orientée selon l'axe des
   pistes** (pas de rotation, pas de zoom pendant la conduite). Fond de carte épuré : pistes herbe et dur,
   taxiways, hangars, club-house et zone du starter ; golfette au centre ou position réelle, aéronefs en icônes colorées par
-  statut avec étiquette (CN). Rayon ≈ 5 km, 2 ou 3 niveaux de zoom fixes au maximum.
+  statut avec étiquette (CN). Zoom au pincement (300 m à 6 km), plus un bouton qui passe d'un niveau préréglé à l'autre (700 m, 1,5 km, 4 km).
 
 ### 4.3 App téléphone
 

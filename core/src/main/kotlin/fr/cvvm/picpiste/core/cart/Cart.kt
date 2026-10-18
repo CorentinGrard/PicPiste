@@ -1,7 +1,7 @@
 package fr.cvvm.picpiste.core.cart
 
 import fr.cvvm.picpiste.core.airfield.Airfield
-import fr.cvvm.picpiste.core.airfield.Runway
+import fr.cvvm.picpiste.core.airfield.number
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
@@ -9,9 +9,10 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * Tells whether the cart (the phone's GPS) is on a runway.
+ * Tells whether the cart (the phone's GPS) is in the runway zone: the three runways and the
+ * grass between them, taken as one ([Airfield.runwayZone]).
  *
- * Entering needs the cart inside a runway outline (plus [enterMarginM]); leaving needs it
+ * Entering needs the cart inside the zone (plus [enterMarginM]); leaving needs it
  * [exitMarginM] outside for [exitDelayMs], so the red border does not flicker when the
  * cart drives along the edge (phone GPS is good to about 5 m).
  */
@@ -22,30 +23,28 @@ class RunwayPresenceDetector(
     private val exitDelayMs: Long = 2_000,
     private val maxAccuracyM: Double = 30.0,
 ) {
-    var current: Runway? = null
+    var onRunway: Boolean = false
         private set
     private var outsideSinceMs: Long? = null
 
-    fun update(pos: Vec2, accuracyM: Double?, timeMs: Long): Runway? {
-        if (accuracyM != null && accuracyM > maxAccuracyM) return current // too vague to decide
+    fun update(pos: Vec2, accuracyM: Double?, timeMs: Long): Boolean {
+        if (accuracyM != null && accuracyM > maxAccuracyM) return onRunway // too vague to decide
 
-        val cur = current
-        if (cur != null) {
-            if (cur.outline.containsWithin(pos, exitMarginM)) {
+        if (onRunway) {
+            if (airfield.inRunwayZone(pos, exitMarginM)) {
                 outsideSinceMs = null
-                return cur
+                return true
             }
             val since = outsideSinceMs ?: timeMs.also { outsideSinceMs = it }
-            if (timeMs - since < exitDelayMs) return cur
-            current = null
+            if (timeMs - since < exitDelayMs) return true
             outsideSinceMs = null
         }
-        current = airfield.runways.firstOrNull { it.outline.containsWithin(pos, enterMarginM) }
-        return current
+        onRunway = airfield.inRunwayZone(pos, enterMarginM)
+        return onRunway
     }
 
     fun reset() {
-        current = null
+        onRunway = false
         outsideSinceMs = null
     }
 }
@@ -54,7 +53,6 @@ enum class AlertLevel { NONE, ON_RUNWAY, DANGER }
 
 data class CartAlert(
     val level: AlertLevel,
-    val cartRunway: Runway? = null,
     val threat: AircraftState? = null,
     /** "Planeur en finale 30 herbe" */
     val title: String = "",
@@ -71,21 +69,22 @@ data class CartAlert(
 }
 
 /**
- * Spec §4.1b: off a runway, nothing. On a runway with no traffic, a red border only.
+ * Spec §4.1b: off the runways, nothing. In the runway zone with no traffic, a red border only.
  * On a runway while someone is in the circuit, on final or taking off: banner and sound.
  */
 object AlertEngine {
     private val THREATS = setOf(FlightStatus.FINAL, FlightStatus.TAKEOFF, FlightStatus.CIRCUIT)
 
-    fun evaluate(cartRunway: Runway?, aircraft: List<AircraftState>): CartAlert {
-        if (cartRunway == null) return CartAlert.NONE
+    fun evaluate(cartOnRunway: Boolean, aircraft: List<AircraftState>): CartAlert {
+        if (!cartOnRunway) return CartAlert.NONE
         val threat = aircraft
             .filter { !it.signalLost && it.status in THREATS }
             .minWithOrNull(compareBy<AircraftState>({ priority(it.status) }, { it.etaS ?: Double.MAX_VALUE }))
-            ?: return CartAlert(AlertLevel.ON_RUNWAY, cartRunway)
+            ?: return CartAlert(AlertLevel.ON_RUNWAY)
 
         val noun = threat.identity.type.label
-        val where = if (threat.runway != null && threat.runwayEnd != null) " " + threat.runway.label(threat.runwayEnd) else ""
+        // Only the direction: from the air we cannot tell which of the three parallel runways.
+        val where = threat.runwayEnd?.let { " ${it.number}" } ?: ""
         val title = when (threat.status) {
             FlightStatus.FINAL -> "$noun en finale$where"
             FlightStatus.TAKEOFF -> "Décollage en cours$where"
@@ -96,7 +95,6 @@ object AlertEngine {
         val spokenEta = threat.etaS?.takeIf { threat.status != FlightStatus.TAKEOFF }?.let(::spokenEta)
         return CartAlert(
             level = AlertLevel.DANGER,
-            cartRunway = cartRunway,
             threat = threat,
             title = title,
             detail = "$who — dégagez la piste",

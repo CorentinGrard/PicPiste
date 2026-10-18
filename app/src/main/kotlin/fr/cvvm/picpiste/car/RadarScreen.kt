@@ -9,13 +9,15 @@ import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
+import androidx.car.app.model.CarIcon
+import androidx.core.graphics.drawable.IconCompat
+import fr.cvvm.picpiste.R
 import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import fr.cvvm.picpiste.core.Snapshot
-import fr.cvvm.picpiste.data.Prefs
 import fr.cvvm.picpiste.render.CarOverlay
 import fr.cvvm.picpiste.render.RadarRenderer
 import fr.cvvm.picpiste.repository
@@ -24,7 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * Main car screen. The template only carries the action strip (zoom, posés);
+ * Main car screen. The template only carries the buttons (posés, zoom);
  * everything else is drawn on the map surface, as in the design.
  */
 class RadarScreen(carContext: CarContext) : Screen(carContext) {
@@ -50,6 +52,11 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
 
         override fun onStableAreaChanged(stableArea: Rect) = Unit
 
+        /** Pinch on the car screen (hosts that support it); the map stays centred on the field. */
+        override fun onScale(focusX: Float, focusY: Float, scaleFactor: Float) {
+            if (scaleFactor > 0f) repo.prefs.zoomBy(scaleFactor.toDouble())
+        }
+
         override fun onSurfaceDestroyed(container: SurfaceContainer) {
             surface = null
         }
@@ -63,7 +70,7 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
 
             override fun onStart(owner: LifecycleOwner) {
                 job = lifecycleScope.launch {
-                    combine(repo.snapshot, repo.prefs.zoom) { s, _ -> s }.collect {
+                    combine(repo.snapshot, repo.prefs.zoomRadiusM) { s, _ -> s }.collect {
                         last = it
                         draw()
                     }
@@ -77,17 +84,7 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
     }
 
     override fun onGetTemplate(): Template {
-        val radius = Prefs.ZOOM_RADII_M[repo.prefs.zoom.value]
         val strip = ActionStrip.Builder()
-            .addAction(
-                Action.Builder()
-                    .setTitle(Prefs.zoomLabel(radius))
-                    .setOnClickListener {
-                        repo.prefs.cycleZoom()
-                        invalidate()
-                    }
-                    .build(),
-            )
             .addAction(
                 Action.Builder()
                     .setTitle("Posés")
@@ -95,8 +92,29 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
                     .build(),
             )
             .build()
-        return NavigationTemplate.Builder().setActionStrip(strip).build()
+        // Map buttons: zoom in and out; PAN lets hosts send pinch gestures.
+        val mapStrip = ActionStrip.Builder()
+            .addAction(Action.PAN)
+            .addAction(
+                Action.Builder()
+                    .setIcon(icon(R.drawable.ic_zoom_in))
+                    .setOnClickListener { repo.prefs.zoomBy(1.5) }
+                    .build(),
+            )
+            .addAction(
+                Action.Builder()
+                    .setIcon(icon(R.drawable.ic_zoom_out))
+                    .setOnClickListener { repo.prefs.zoomBy(1 / 1.5) }
+                    .build(),
+            )
+            .build()
+        return NavigationTemplate.Builder()
+            .setActionStrip(strip)
+            .setMapActionStrip(mapStrip)
+            .build()
     }
+
+    private fun icon(res: Int) = CarIcon.Builder(IconCompat.createWithResource(carContext, res)).build()
 
     private fun draw() {
         val container = surface ?: return
@@ -119,7 +137,7 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
             overlay.drawPanel(canvas, area.left.toFloat(), area.top.toFloat(), panelW, area.height().toFloat(), last, dp)
             val mapLeft = area.left + panelW
             val mapW = area.right - mapLeft
-            val radius = Prefs.ZOOM_RADII_M[repo.prefs.zoom.value]
+            val radius = repo.prefs.zoomRadiusM.value
             renderer.draw(canvas, mapLeft, area.top.toFloat(), mapW, area.height().toFloat(), last, radius, dp)
             overlay.drawBanner(canvas, mapLeft, area.top.toFloat(), mapW, last, dp)
             overlay.drawRunwayBorder(canvas, w, h, last, dp)

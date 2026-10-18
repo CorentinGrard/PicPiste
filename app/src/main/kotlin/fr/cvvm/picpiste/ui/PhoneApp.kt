@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,7 +72,7 @@ private val Condensed = FontFamily.SansSerif
 fun PhoneApp(repo: TrafficRepository) {
     MaterialTheme(colorScheme = darkColorScheme(background = c(Palette.BG), surface = c(Palette.SURFACE))) {
         val snap by repo.snapshot.collectAsStateWithLifecycle()
-        val zoom by repo.prefs.zoom.collectAsStateWithLifecycle()
+        val radius by repo.prefs.zoomRadiusM.collectAsStateWithLifecycle()
         val source by repo.prefs.source.collectAsStateWithLifecycle()
         val replay by repo.replay.collectAsStateWithLifecycle()
         var selected by rememberSaveable { mutableStateOf<String?>(null) }
@@ -90,8 +91,8 @@ fun PhoneApp(repo: TrafficRepository) {
                     Text(it, color = c(Palette.CIRCUIT), fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp))
                 }
                 Box(Modifier.fillMaxWidth().weight(1.15f)) {
-                    Radar(repo, snap, Prefs.ZOOM_RADII_M[zoom], selected) { selected = it }
-                    ZoomButton(Prefs.zoomLabel(Prefs.ZOOM_RADII_M[zoom]), Modifier.align(Alignment.TopEnd).padding(12.dp)) {
+                    Radar(repo, snap, radius, selected, onZoom = { repo.prefs.zoomBy(it) }) { selected = it }
+                    ZoomButton(Prefs.zoomLabel(radius), Modifier.align(Alignment.TopEnd).padding(12.dp)) {
                         repo.prefs.cycleZoom()
                     }
                     if (snap.alert.level == AlertLevel.DANGER) AlertBanner(snap)
@@ -150,12 +151,16 @@ private fun Pill(text: String, dot: Color? = null) {
 }
 
 @Composable
-private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, selected: String?, onSelect: (String?) -> Unit) {
+private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, selected: String?, onZoom: (Double) -> Unit, onSelect: (String?) -> Unit) {
     val renderer = remember { RadarRenderer(repo.airfield) }
     val density = LocalDensity.current.density
     Canvas(
         Modifier
             .fillMaxSize()
+            // Pinch to zoom (the map stays centred on the field, it never pans).
+            .pointerInput(Unit) {
+                detectTransformGestures { _, _, zoom, _ -> if (zoom != 1f) onZoom(zoom.toDouble()) }
+            }
             .pointerInput(Unit) {
                 detectTapGestures { pos ->
                     val hit = renderer.hits.minByOrNull { (it.x - pos.x) * (it.x - pos.x) + (it.y - pos.y) * (it.y - pos.y) }

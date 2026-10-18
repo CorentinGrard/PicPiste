@@ -63,6 +63,29 @@ class Airfield(val config: AirfieldConfig) {
     val windsocks = config.windsocks.map { frame.toLocal(it.geo()) }
     val starter: Vec2? = config.starter?.let { frame.toLocal(it.geo()) }
 
+    /**
+     * Where the cart counts as "on the runway": the three runways plus the strips of grass
+     * between them. Crossing from the south edge of dur gauche to the north edge of herbe
+     * is one single runway crossing, not three.
+     */
+    val runwayZone: List<Polygon> = buildList {
+        runways.forEach { add(it.outline) }
+        val byY = runways.map { rw ->
+            val xs = rw.outline.points.map { it.x }
+            val ys = rw.outline.points.map { it.y }
+            doubleArrayOf(xs.min(), xs.max(), ys.min(), ys.max())
+        }.sortedBy { it[2] }
+        for ((low, high) in byY.zipWithNext()) {
+            val x0 = maxOf(low[0], high[0])
+            val x1 = minOf(low[1], high[1])
+            val y0 = low[3]
+            val y1 = high[2]
+            if (x1 > x0 && y1 > y0) add(Polygon(listOf(Vec2(x0, y0), Vec2(x1, y0), Vec2(x1, y1), Vec2(x0, y1))))
+        }
+    }
+
+    fun inRunwayZone(p: Vec2, marginM: Double = 0.0): Boolean = runwayZone.any { it.containsWithin(p, marginM) }
+
     fun runway(id: String): Runway? = runways.firstOrNull { it.id == id }
 
     /** The runway whose centreline is closest to [p], with that lateral distance. */
@@ -108,7 +131,7 @@ class Runway(val config: RunwayConfig, frame: LocalFrame) {
     fun landingDir(end: RunwayEnd) = if (end == RunwayEnd.R12) dir12 else dir12 * -1.0
     fun heading(end: RunwayEnd) = if (end == RunwayEnd.R12) heading12 else heading30
 
-    /** "30 herbe", "12 dur gauche"… */
+    /** "30 herbe", "12 dur gauche"… (where it landed: known from the position on the ground). */
     fun label(end: RunwayEnd) = "${end.number} $name"
 
     /** Which third of the runway [p] is in, seen from an aircraft landing towards [end]. */

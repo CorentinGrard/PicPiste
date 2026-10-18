@@ -10,6 +10,7 @@ import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -46,7 +47,7 @@ class EngineScenarioTest {
 
         val finals = seen.mapNotNull { it.second }.filter { it.status == FlightStatus.FINAL }
         assertTrue(finals.all { it.runway?.id == "herbe" && it.runwayEnd == RunwayEnd.R30 }, finals.map { it.statusText }.distinct().toString())
-        assertEquals("Finale 30 herbe", finals.first().statusText)
+        assertEquals("Finale 30", finals.first().statusText)
 
         val landed = seen.last { it.second?.status == FlightStatus.LANDED }.second!!
         assertNotNull(landed.landedAtMs)
@@ -102,18 +103,18 @@ class EngineScenarioTest {
         run(300, cartAt = { onHerbe }) { _, snap ->
             levels += snap.alert.level
             if (snap.alert.level == AlertLevel.DANGER) titles += snap.alert.title
-            assertEquals("herbe", snap.cart?.runway?.id)
+            assertTrue(snap.cart?.onRunway == true)
         }
         assertTrue(AlertLevel.ON_RUNWAY in levels)
         assertTrue(AlertLevel.DANGER in levels)
-        assertTrue("Planeur en finale 30 herbe" in titles, titles.toString())
+        assertTrue("Planeur en finale 30" in titles, titles.toString())
     }
 
     @Test
     fun cartOffRunwayNeverAlerts() {
         val apron = Vec2(lfnl.starter!!.x - 200, lfnl.starter!!.y - 40)
         run(420, cartAt = { apron }) { _, snap ->
-            assertNull(snap.cart?.runway)
+            assertTrue(snap.cart?.onRunway == false)
             assertEquals(AlertLevel.NONE, snap.alert.level)
         }
     }
@@ -123,16 +124,46 @@ class EngineScenarioTest {
         val d = RunwayPresenceDetector(lfnl)
         val rw = lfnl.runway("dur-gauche")!!
         val mid = (rw.threshold12 + rw.threshold30) * 0.5
-        val normal = Vec2(-rw.dir12.y, rw.dir12.x) // left of the 12 direction
-        assertEquals(rw, d.update(mid, 4.0, 0))
-        // Just outside the edge (inside the exit margin): still on it.
-        val edge = mid + normal * (halfWidth(rw, mid, normal) + 5)
-        assertEquals(rw, d.update(edge, 4.0, 1_000))
+        val south = Vec2(rw.dir12.y, -rw.dir12.x) // right of the 12 direction = away from the other runways
+        assertTrue(d.update(mid, 4.0, 0))
+        // Just outside the south edge (inside the exit margin): still on it.
+        val edge = mid + south * (halfWidth(rw, mid, south) + 5)
+        assertTrue(d.update(edge, 4.0, 1_000))
         // Well outside, but only for a moment: still on it.
-        val out = mid + normal * (halfWidth(rw, mid, normal) + 30)
-        assertEquals(rw, d.update(out, 4.0, 2_000))
-        assertEquals(rw, d.update(out, 4.0, 3_000))
-        assertNull(d.update(out, 4.0, 4_500))
+        val out = mid + south * (halfWidth(rw, mid, south) + 30)
+        assertTrue(d.update(out, 4.0, 2_000))
+        assertTrue(d.update(out, 4.0, 3_000))
+        assertFalse(d.update(out, 4.0, 4_500))
+    }
+
+    @Test
+    fun crossingAllThreeRunwaysIsOneSingleCrossing() {
+        val d = RunwayPresenceDetector(lfnl)
+        val gauche = lfnl.runway("dur-gauche")!!
+        val herbe = lfnl.runway("herbe")!!
+        // Drive north (+y) across the middle of the field, 1 m per step, from 40 m south of dur gauche
+        // to 40 m north of herbe.
+        val x = (gauche.threshold12.x + gauche.threshold30.x) / 2
+        val y0 = gauche.outline.points.minOf { it.y } - 40
+        val y1 = herbe.outline.points.maxOf { it.y } + 40
+        var changes = 0
+        var last = false
+        var t = 0L
+        var y = y0
+        while (y <= y1) {
+            val on = d.update(Vec2(x, y), 4.0, t)
+            if (on != last) changes++
+            last = on
+            y += 1.0
+            t += 500
+        }
+        repeat(10) { d.update(Vec2(x, y1), 4.0, t); t += 500 }
+        if (d.onRunway != last) changes++
+        assertEquals(2, changes, "entered and left exactly once")
+        assertFalse(d.onRunway)
+        // The grass between dur droite and herbe counts as runway.
+        val gap = Vec2(x, (lfnl.runway("dur-droite")!!.outline.points.maxOf { it.y } + herbe.outline.points.minOf { it.y }) / 2)
+        assertTrue(lfnl.inRunwayZone(gap))
     }
 
     private fun halfWidth(rw: fr.cvvm.picpiste.core.airfield.Runway, mid: Vec2, normal: Vec2): Double {
