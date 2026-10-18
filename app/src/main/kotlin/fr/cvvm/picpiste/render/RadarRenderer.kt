@@ -22,6 +22,11 @@ import kotlin.math.min
  * (through Compose) and the Android Auto surface use the same code.
  */
 class RadarRenderer(private val airfield: Airfield) {
+    private companion object {
+        const val STARTER_LENGTH_M = 30.0
+        const val STARTER_WIDTH_M = 14.0
+    }
+
     data class Hit(val address: String, val x: Float, val y: Float)
 
     /** Screen positions of the aircraft drawn last, for tap handling on the phone. */
@@ -134,18 +139,12 @@ class RadarRenderer(private val airfield: Airfield) {
         }
 
         // Runways
-        val cartRunway = snap.cart?.runway
         for (rw in airfield.runways) {
             fill.color = if (rw.isGrass) Palette.GRASS else Palette.PAVED
             canvas.drawPath(polyPath(rw.outline), fill)
             if (rw.isGrass) {
                 stroke.color = Palette.GRASS_EDGE
                 stroke.strokeWidth = 1 * dp
-                canvas.drawPath(path, stroke)
-            }
-            if (rw === cartRunway) {
-                stroke.color = Palette.RED
-                stroke.strokeWidth = 3 * dp
                 canvas.drawPath(path, stroke)
             }
         }
@@ -180,47 +179,19 @@ class RadarRenderer(private val airfield: Airfield) {
             canvas.drawText("30", sx(pb), sy(pb) + 4.5f * dp, text)
         }
 
-        airfield.starter?.let { drawStarter(canvas, it, dp, big = rwPx > 160 * dp) }
+        airfield.starter?.let { drawStarter(canvas, it) }
     }
 
-    private fun drawStarter(canvas: Canvas, p: Vec2, dp: Float, big: Boolean) {
-        val x = sx(p)
-        val y = sy(p)
-        if (!big) {
-            fill.color = Palette.TEXT
-            canvas.drawCircle(x, y, 4 * dp, fill)
-            return
-        }
-        val w = 78 * dp
-        val h = 22 * dp
-        rect.set(x - w / 2, y - h / 2, x + w / 2, y + h / 2)
-        fill.color = Palette.STARTER_FILL
-        canvas.drawRoundRect(rect, h / 2, h / 2, fill)
-        stroke.color = Palette.STARTER_EDGE
-        stroke.strokeWidth = 1 * dp
-        canvas.drawRoundRect(rect, h / 2, h / 2, stroke)
-        val bx = rect.left + h / 2
-        fill.color = Palette.TEXT
-        canvas.drawCircle(bx, y, 8 * dp, fill)
-        // flag
-        fill.color = Palette.MAP_BG
-        path.reset()
-        path.moveTo(bx - 2.5f * dp, y + 4.5f * dp)
-        path.lineTo(bx - 2.5f * dp, y - 4.5f * dp)
-        path.lineTo(bx + 4 * dp, y - 4.5f * dp)
-        path.lineTo(bx + 2 * dp, y - 2 * dp)
-        path.lineTo(bx + 4 * dp, y + 0.5f * dp)
-        path.lineTo(bx - 1.5f * dp, y + 0.5f * dp)
-        path.lineTo(bx - 1.5f * dp, y + 4.5f * dp)
-        path.close()
-        canvas.drawPath(path, fill)
-        text.typeface = sansBold
-        text.textSize = 9.5f * dp
-        text.letterSpacing = 0.15f
-        text.color = Palette.TEXT
-        text.textAlign = Paint.Align.LEFT
-        canvas.drawText("STARTER", bx + 12 * dp, y + 3.4f * dp, text)
-        text.letterSpacing = 0f
+    /** The starter: a plain box like the hangars, aligned with the runways (local axes = screen axes). */
+    private fun drawStarter(canvas: Canvas, p: Vec2) {
+        val halfLong = maxOf((STARTER_LENGTH_M / 2 * scale).toFloat(), 3f)
+        val halfWide = maxOf((STARTER_WIDTH_M / 2 * scale).toFloat(), 2f)
+        rect.set(sx(p) - halfLong, sy(p) - halfWide, sx(p) + halfLong, sy(p) + halfWide)
+        fill.color = Palette.HANGAR
+        canvas.drawRect(rect, fill)
+        stroke.color = Palette.HANGAR_EDGE
+        stroke.strokeWidth = 1f
+        canvas.drawRect(rect, stroke)
     }
 
     private fun drawTraffic(canvas: Canvas, snap: Snapshot, dp: Float, selected: String?) {

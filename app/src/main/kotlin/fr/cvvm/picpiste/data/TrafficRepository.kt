@@ -14,10 +14,13 @@ import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.aprs.AprsClient
 import fr.cvvm.picpiste.core.aprs.AprsEvent
+import fr.cvvm.picpiste.core.aprs.AprsParser
 import fr.cvvm.picpiste.core.ddb.DdbRepository
 import fr.cvvm.picpiste.core.ddb.DeviceDatabase
 import fr.cvvm.picpiste.core.demo.DemoTraffic
 import fr.cvvm.picpiste.core.geo.GeoPoint
+import fr.cvvm.picpiste.core.replay.Recording
+import fr.cvvm.picpiste.core.replay.ReplayClock
 import fr.cvvm.picpiste.core.traffic.TrafficSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +35,12 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.Writer
+import java.time.LocalDate
+import java.time.ZoneId
+
+/** What the replay is playing, for the top bar. */
+data class ReplayInfo(val file: String?, val nowMs: Long?, val message: String?)
 
 /**
  * Runs the PicPiste engine for the whole app. The phone screen and the Android Auto
@@ -49,15 +58,25 @@ class TrafficRepository(private val context: Context) {
     private var liveDdb: DeviceDatabase = DeviceDatabase.EMPTY
     private val speaker = AlertSpeaker(context)
 
+    /** Wall clock, or the replay's virtual clock. */
+    @Volatile
+    private var clock: () -> Long = System::currentTimeMillis
+
     private val _snapshot = MutableStateFlow(engine.snapshot(System.currentTimeMillis()))
     val snapshot: StateFlow<Snapshot> = _snapshot.asStateFlow()
+
+    private val _replay = MutableStateFlow(ReplayInfo(null, null, null))
+    val replay: StateFlow<ReplayInfo> = _replay.asStateFlow()
+
+    /** Recorded days: written here by the app, or copied here with adb to replay them. */
+    val recordingsDir: File get() = File(context.getExternalFilesDir(null), "recordings").apply { mkdirs() }
 
     private var users = 0
     private var job: Job? = null
     private var listening = false
 
     private val locationListener = LocationListener { loc: Location ->
-        if (prefs.demo.value) return@LocationListener
+        if (prefs.source.value != Source.LIVE) return@LocationListener
         val geo = GeoPoint(loc.latitude, loc.longitude)
         val acc = if (loc.hasAccuracy()) loc.accuracy.toDouble() else null
         scope.launch { engine.onCartPosition(geo, acc, System.currentTimeMillis()) }
@@ -89,18 +108,24 @@ class TrafficRepository(private val context: Context) {
         job = scope.launch {
             launch { loadDdb() }
             launch {
-                prefs.demo.collectLatest { demo ->
+                prefs.source.collectLatest { source ->
+                    clock = System::currentTimeMillis
+                    _replay.value = ReplayInfo(null, null, null)
                     engine = PicPisteEngine(airfield, settings()).apply { ddb = liveDdb }
-                    if (demo) runDemo() else runLive()
+                    when (source) {
+                        Source.LIVE -> runLive()
+                        Source.DEMO -> runDemo()
+                        Source.REPLAY -> runReplay()
+                    }
                 }
             }
             launch {
                 while (true) {
-                    val now = System.currentTimeMillis()
+                    val now = clock()
                     engine.settings = settings()
                     val snap = engine.snapshot(now)
                     _snapshot.value = snap
-                    speaker.update(snap.alert, prefs.sound.value, now)
+                    speaker.update(snap.alert, prefs.sound.value, System.currentTimeMillis())
                     delay(500)
                 }
             }
@@ -122,15 +147,36 @@ class TrafficRepository(private val context: Context) {
         }
         Log.i(TAG, "OGN device database: ${db.size} devices")
         liveDdb = db
-        if (!prefs.demo.value) engine.ddb = db
+        if (prefs.source.value != Source.DEMO) engine.ddb = db
     }
 
     private suspend fun runLive() {
         val ref = airfield.reference
         val client = AprsClient(AprsClient.rangeFilter(ref.lat, ref.lon, 30))
-        client.connectForever().collect { e ->
-            if (e is AprsEvent.Disconnected) Log.i(TAG, "OGN disconnected: ${e.reason}")
-            engine.onAprsEvent(e)
+        var day: LocalDate? = null
+        var out: Writer? = null
+        try {
+            client.connectForever().collect { e ->
+                if (e is AprsEvent.Disconnected) Log.i(TAG, "OGN disconnected: ${e.reason}")
+                engine.onAprsEvent(e)
+                if (e is AprsEvent.Line && prefs.record.value) {
+                    val b = AprsParser.parse(e.text)
+                    if (b != null && !b.noTrack) {
+                        val today = LocalDate.now(ZoneId.of("Europe/Paris"))
+                        if (today != day) {
+                            out?.close()
+                            day = today
+                            out = File(recordingsDir, "${airfield.icao}-$today.tsv").let { java.io.FileWriter(it, true).buffered() }
+                        }
+                        withContext(Dispatchers.IO) {
+                            Recording.write(out!!, e.receivedAtMs, e.text)
+                            out!!.flush()
+                        }
+                    }
+                }
+            }
+        } finally {
+            withContext(Dispatchers.IO) { out?.close() }
         }
     }
 
@@ -145,6 +191,43 @@ class TrafficRepository(private val context: Context) {
             demo.beaconsAt(since, now).forEach { engine.onLine(it, now) }
             engine.onCartPosition(airfield.frame.toGeo(demo.cartAt(since)), 4.0, now)
             delay(1000)
+        }
+    }
+
+    /** Plays the most recent recording, with the demo cart driving on the grass runway. */
+    private suspend fun runReplay() {
+        val file = withContext(Dispatchers.IO) {
+            recordingsDir.listFiles { f -> f.name.endsWith(".tsv") }?.maxByOrNull { it.name }
+        }
+        if (file == null) {
+            _replay.value = ReplayInfo(null, null, "Aucun enregistrement dans ${recordingsDir.path}")
+            return
+        }
+        val entries = withContext(Dispatchers.IO) { file.bufferedReader().use { Recording.read(it).toList() } }
+        val replay = ReplayClock(entries, prefs.replaySpeed.value)
+        if (replay.isEmpty) {
+            _replay.value = ReplayInfo(file.name, null, "Enregistrement vide")
+            return
+        }
+        clock = { replay.nowMs }
+        engine.onAprsEvent(AprsEvent.Connected("rejeu"))
+        val demo = DemoTraffic(airfield)
+        var last = System.currentTimeMillis()
+        while (true) {
+            val now = System.currentTimeMillis()
+            replay.speed = prefs.replaySpeed.value
+            replay.advance(now - last).forEach { (t, line) -> engine.onLine(line, t) }
+            last = now
+            val t = replay.nowMs
+            engine.onCartPosition(airfield.frame.toGeo(demo.cartAt(t - replay.startMs)), 4.0, t)
+            _replay.value = ReplayInfo(file.name, t, null)
+            if (replay.isFinished) {
+                delay(5_000)
+                engine = PicPisteEngine(airfield, settings()).apply { ddb = liveDdb }
+                replay.restart()
+                last = System.currentTimeMillis()
+            }
+            delay(200)
         }
     }
 

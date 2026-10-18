@@ -5,47 +5,82 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/** Where the traffic comes from. */
+enum class Source(val label: String) {
+    LIVE("En direct"),
+    DEMO("Démo"),
+    REPLAY("Rejeu"),
+}
+
 /** Per-phone settings. Nothing here is shared with other drivers. */
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("picpiste", Context.MODE_PRIVATE)
 
-    private val _demo = MutableStateFlow(sp.getBoolean(KEY_DEMO, false))
+    private val _source = MutableStateFlow(
+        runCatching { Source.valueOf(sp.getString(KEY_SOURCE, null) ?: "") }.getOrNull()
+            ?: if (sp.getBoolean(KEY_DEMO_OLD, false)) Source.DEMO else Source.LIVE,
+    )
     private val _sound = MutableStateFlow(sp.getBoolean(KEY_SOUND, true))
+    private val _record = MutableStateFlow(sp.getBoolean(KEY_RECORD, false))
     private val _ceiling = MutableStateFlow(sp.getInt(KEY_CEILING, 400))
-    private val _zoom = MutableStateFlow(sp.getInt(KEY_ZOOM, 1))
+    private val _zoom = MutableStateFlow(sp.getInt(KEY_ZOOM, 1).coerceIn(0, ZOOM_RADII_M.lastIndex))
+    private val _replaySpeed = MutableStateFlow(sp.getInt(KEY_REPLAY_SPEED, 4))
 
-    /** Made-up traffic and cart instead of the live OGN feed. */
-    val demo: StateFlow<Boolean> = _demo.asStateFlow()
+    val source: StateFlow<Source> = _source.asStateFlow()
     val sound: StateFlow<Boolean> = _sound.asStateFlow()
+    /** Save the live OGN beacons of the day, to replay and tune the engine later. */
+    val record: StateFlow<Boolean> = _record.asStateFlow()
     /** Display ceiling, metres above the field. */
     val ceilingAglM: StateFlow<Int> = _ceiling.asStateFlow()
     /** Index into [ZOOM_RADII_M]. */
     val zoom: StateFlow<Int> = _zoom.asStateFlow()
+    val replaySpeed: StateFlow<Int> = _replaySpeed.asStateFlow()
 
-    fun setDemo(v: Boolean) = put(KEY_DEMO, v) { _demo.value = v }
-    fun setSound(v: Boolean) = put(KEY_SOUND, v) { _sound.value = v }
-    fun setCeiling(v: Int) = put(KEY_CEILING, v) { _ceiling.value = v }
-    fun cycleZoom() = ((zoom.value + 1) % ZOOM_RADII_M.size).let { v -> put(KEY_ZOOM, v) { _zoom.value = v } }
+    fun setSource(v: Source) {
+        sp.edit().putString(KEY_SOURCE, v.name).apply()
+        _source.value = v
+    }
 
-    private fun put(key: String, v: Any, after: () -> Unit) {
-        sp.edit().apply {
-            when (v) {
-                is Boolean -> putBoolean(key, v)
-                is Int -> putInt(key, v)
-            }
-        }.apply()
-        after()
+    fun setSound(v: Boolean) {
+        sp.edit().putBoolean(KEY_SOUND, v).apply()
+        _sound.value = v
+    }
+
+    fun setRecord(v: Boolean) {
+        sp.edit().putBoolean(KEY_RECORD, v).apply()
+        _record.value = v
+    }
+
+    fun setCeiling(v: Int) {
+        sp.edit().putInt(KEY_CEILING, v).apply()
+        _ceiling.value = v
+    }
+
+    fun setReplaySpeed(v: Int) {
+        sp.edit().putInt(KEY_REPLAY_SPEED, v).apply()
+        _replaySpeed.value = v
+    }
+
+    fun cycleZoom() {
+        val v = (zoom.value + 1) % ZOOM_RADII_M.size
+        sp.edit().putInt(KEY_ZOOM, v).apply()
+        _zoom.value = v
     }
 
     companion object {
-        private const val KEY_DEMO = "demo"
+        private const val KEY_SOURCE = "source"
+        private const val KEY_DEMO_OLD = "demo"
         private const val KEY_SOUND = "sound"
+        private const val KEY_RECORD = "record"
         private const val KEY_CEILING = "ceiling"
         private const val KEY_ZOOM = "zoom"
+        private const val KEY_REPLAY_SPEED = "replaySpeed"
 
         /** Radar zoom levels: metres from the centre to the nearest edge of the map. */
         val ZOOM_RADII_M = listOf(700.0, 1_500.0, 4_000.0)
+        val REPLAY_SPEEDS = listOf(1, 4, 10)
 
-        fun zoomLabel(radiusM: Double) = if (radiusM < 1000) "${radiusM.toInt()} m" else "${(radiusM / 1000).let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }} km"
+        fun zoomLabel(radiusM: Double) =
+            if (radiusM < 1000) "${radiusM.toInt()} m" else "${(radiusM / 1000).let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString().replace('.', ',') }} km"
     }
 }

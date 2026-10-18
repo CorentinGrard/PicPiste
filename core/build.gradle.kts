@@ -25,3 +25,12 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+// Records a flying day around LFNL: ./gradlew :core:record  (Ctrl-C to stop)
+tasks.register<JavaExec>("record") {
+    group = "picpiste"
+    description = "Records live OGN beacons around LFNL into recordings/"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("fr.cvvm.picpiste.core.replay.RecordMainKt")
+    args(rootProject.file("recordings").absolutePath)
+}

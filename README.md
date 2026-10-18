@@ -29,7 +29,19 @@ Ou ouvrir le dossier dans Android Studio.
    ⋮ → Paramètres pour les développeurs → cocher **Sources inconnues**.
 2. Brancher le téléphone sur la golfette : PicPiste apparaît dans le lanceur Android Auto.
 
+## Enregistrer et rejouer une journée
+
+OGN ne garde pas l'historique des positions : il faut enregistrer le jour même.
+
+- Sur le téléphone : Réglages (⋯) → **Enregistrer la journée** (en direct). Le fichier va
+  dans `Android/data/fr.cvvm.picpiste/files/recordings/`.
+- Sur un PC ou un serveur, sans téléphone : `./gradlew :core:record` (Ctrl-C pour arrêter),
+  fichiers dans `recordings/`. Pour rejouer sur le téléphone :
+  `adb push recordings/LFNL-2026-10-25.tsv /sdcard/Android/data/fr.cvvm.picpiste/files/recordings/`
+- Réglages → Trafic : **Rejeu** (×1, ×4, ×10) rejoue le dernier enregistrement, avec une
+  golfette simulée qui va sur la piste en herbe.
+
 ## Mode démo
 
-Réglages (⋯) → **Mode démo** : trafic et golfette simulés autour de LFNL, pour essayer
+Réglages (⋯) → Trafic : **Démo** : trafic et golfette simulés autour de LFNL, pour essayer
 l'app sans vol (circuit, finale 30 herbe, remorqué depuis la 30 dur gauche, alertes).

@@ -56,6 +56,8 @@ import fr.cvvm.picpiste.core.cart.formatEta
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
 import fr.cvvm.picpiste.data.Prefs
+import fr.cvvm.picpiste.data.ReplayInfo
+import fr.cvvm.picpiste.data.Source
 import fr.cvvm.picpiste.data.TrafficRepository
 import fr.cvvm.picpiste.render.Palette
 import fr.cvvm.picpiste.render.RadarRenderer
@@ -70,7 +72,8 @@ fun PhoneApp(repo: TrafficRepository) {
     MaterialTheme(colorScheme = darkColorScheme(background = c(Palette.BG), surface = c(Palette.SURFACE))) {
         val snap by repo.snapshot.collectAsStateWithLifecycle()
         val zoom by repo.prefs.zoom.collectAsStateWithLifecycle()
-        val demo by repo.prefs.demo.collectAsStateWithLifecycle()
+        val source by repo.prefs.source.collectAsStateWithLifecycle()
+        val replay by repo.replay.collectAsStateWithLifecycle()
         var selected by rememberSaveable { mutableStateOf<String?>(null) }
         var showSettings by rememberSaveable { mutableStateOf(false) }
         val onRunway = snap.alert.level != AlertLevel.NONE
@@ -82,7 +85,10 @@ fun PhoneApp(repo: TrafficRepository) {
                 .then(if (onRunway) Modifier.border(8.dp, c(Palette.RED)) else Modifier),
         ) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                TopBar(snap, demo, onSettings = { showSettings = true })
+                TopBar(snap, source, replay, onSettings = { showSettings = true })
+                replay.message?.let {
+                    Text(it, color = c(Palette.CIRCUIT), fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp))
+                }
                 Box(Modifier.fillMaxWidth().weight(1.15f)) {
                     Radar(repo, snap, Prefs.ZOOM_RADII_M[zoom], selected) { selected = it }
                     ZoomButton(Prefs.zoomLabel(Prefs.ZOOM_RADII_M[zoom]), Modifier.align(Alignment.TopEnd).padding(12.dp)) {
@@ -103,14 +109,18 @@ fun PhoneApp(repo: TrafficRepository) {
 }
 
 @Composable
-private fun TopBar(snap: Snapshot, demo: Boolean, onSettings: () -> Unit) {
+private fun TopBar(snap: Snapshot, source: Source, replay: ReplayInfo, onSettings: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text("PicPiste", color = c(Palette.TEXT), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        if (demo) Pill("Démo", c(Palette.CIRCUIT))
+        when (source) {
+            Source.DEMO -> Pill("Démo", c(Palette.CIRCUIT))
+            Source.REPLAY -> Pill(replay.nowMs?.let { "Rejeu " + hhmm(it) } ?: "Rejeu", c(Palette.CIRCUIT))
+            Source.LIVE -> Unit
+        }
         val fresh = snap.connection.lastLineAtMs?.let { snap.timeMs - it < 60_000 } == true
         Pill(
             text = when {
@@ -334,8 +344,10 @@ private fun Stat(label: String, value: String, sub: String, modifier: Modifier) 
 
 @Composable
 private fun SettingsDialog(repo: TrafficRepository, onDismiss: () -> Unit) {
-    val demo by repo.prefs.demo.collectAsStateWithLifecycle()
+    val source by repo.prefs.source.collectAsStateWithLifecycle()
     val sound by repo.prefs.sound.collectAsStateWithLifecycle()
+    val record by repo.prefs.record.collectAsStateWithLifecycle()
+    val speed by repo.prefs.replaySpeed.collectAsStateWithLifecycle()
     val ceiling by repo.prefs.ceilingAglM.collectAsStateWithLifecycle()
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -343,7 +355,24 @@ private fun SettingsDialog(repo: TrafficRepository, onDismiss: () -> Unit) {
         title = { Text("Réglages") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SettingSwitch("Mode démo", "Trafic et golfette simulés, pour essayer sans vol.", demo) { repo.prefs.setDemo(it) }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Trafic", color = c(Palette.TEXT), fontSize = 16.sp)
+                    Choice(Source.entries.map { it.label }, source.ordinal) { repo.prefs.setSource(Source.entries[it]) }
+                    Text(
+                        when (source) {
+                            Source.LIVE -> "Flux OGN en direct autour de LFNL."
+                            Source.DEMO -> "Trafic et golfette simulés, pour essayer sans vol."
+                            Source.REPLAY -> "Rejoue le dernier jour enregistré, avec une golfette simulée sur la piste en herbe."
+                        },
+                        color = c(Palette.MUTED), fontSize = 13.sp,
+                    )
+                    if (source == Source.REPLAY) {
+                        Choice(Prefs.REPLAY_SPEEDS.map { "×$it" }, Prefs.REPLAY_SPEEDS.indexOf(speed).coerceAtLeast(0)) {
+                            repo.prefs.setReplaySpeed(Prefs.REPLAY_SPEEDS[it])
+                        }
+                    }
+                }
+                SettingSwitch("Enregistrer la journée", "En direct, garde les positions OGN du jour pour les rejouer.", record) { repo.prefs.setRecord(it) }
                 SettingSwitch("Alerte vocale", "Annonce quand la golfette est sur une piste et qu'un planeur est dans le circuit.", sound) { repo.prefs.setSound(it) }
                 Column {
                     Text("Plafond d'affichage : $ceiling m sol", color = c(Palette.TEXT), fontSize = 16.sp)
@@ -357,6 +386,31 @@ private fun SettingsDialog(repo: TrafficRepository, onDismiss: () -> Unit) {
         },
     )
 }
+
+@Composable
+private fun Choice(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(c(Palette.MAP_BG)).padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        options.forEachIndexed { i, label ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (i == selected) c(Palette.SURFACE_2) else Color.Transparent)
+                    .clickable { onSelect(i) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, color = if (i == selected) c(Palette.TEXT) else c(Palette.MUTED), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+private fun hhmm(ms: Long): String =
+    java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.of("Europe/Paris")).let { "%02d:%02d".format(it.hour, it.minute) }
 
 @Composable
 private fun SettingSwitch(title: String, sub: String, checked: Boolean, onChange: (Boolean) -> Unit) {
