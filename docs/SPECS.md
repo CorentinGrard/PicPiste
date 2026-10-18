@@ -82,7 +82,7 @@ vitesse, vario et cap :
 | 🟠 **Décollage** | Au sol sur une piste, accélère (> 30 km/h) → **piste occupée** |
 | 🛫 **Remorquage** | Monte, < 1 500 m AGL, avec le remorqueur à proximité (lancement au remorqueur uniquement à LFNL) |
 | 🛩️ **Remorqueur en descente** | Remorqueur largué, descend vers le terrain (affiché comme une arrivée) |
-| ↩️ **Retour** | < 5 km, se rapproche, sous le plafond (300 m AGL) : rejoint le circuit |
+| ↩️ **Retour** | < 5 km, se rapproche, sous le plafond (400 m AGL) : rejoint le circuit |
 | 🔄 **Dans le circuit** | < 3 km, < 350 m AGL (vent arrière / étape de base) |
 | 🔴 **En finale** | Aligné sur l'axe d'une piste (±30°), < 2,5 km du seuil, < 200 m AGL, descend |
 | 🟢 **Posé** | Vitesse sol < 10 km/h, altitude ≈ terrain, sur l'emprise du terrain |
@@ -94,9 +94,9 @@ Pour « En finale » et « Dans le circuit » : **ETA estimée** (distance / vit
 ### 4.1a Trafic affiché
 **Tout le trafic OGN** autour du terrain, pas seulement le club : planeurs, remorqueurs,
 visiteurs, ULM… chacun avec une icône par type et sa **position en direct**.
-- Filtre par défaut : aéronefs **sous 300 m AGL** dans le rayon du radar, plus tout ce
-  qui est au sol sur le terrain. Plafond réglable. Le terrain étant à ~200 m d'altitude,
-  cela correspond à **~500 m QNH** — valeur validée.
+- Filtre par défaut : aéronefs **sous 400 m AGL** dans le rayon du radar, plus tout ce
+  qui est au sol sur le terrain. Plafond réglable. Le terrain étant à 182 m d’altitude,
+  cela correspond à **~580 m QNH** — valeur validée (un peu au-dessus du circuit pour voir arriver les planeurs plus tôt).
 - Sous ce plafond, près du terrain, il n'y a que du trafic **de circuit** : arrivées,
   circuit, finale, décollage, remorquage, posés. Pas de statut « en vol local » ni
   « vache » : ce qui est plus haut ou plus loin n'est pas affiché.
@@ -159,7 +159,7 @@ Fichier de config (JSON, éditable dans l'app, partageable par QR code) :
     téléphone). Le résultat est exporté dans le fichier de config.
 - Géométrie de départ : OpenStreetMap (pistes, taxiways, parking, hangars, manche à air). Le
   **starter** n'est pas dans OSM : au sud du bout 30 de la dur gauche, placé à la main.
-- Altitude terrain : ~200 m (valeur exacte à prendre sur la carte VAC).
+- Altitude terrain : **182 m**.
 - Infrastructures dessinées sur le radar : taxiways, hangars, club-house, zone du starter
   (polygones, relevés comme les pistes).
 - Pas de liste de flotte : l'identification vient d'OGN (§3).
@@ -263,10 +263,10 @@ Store), terrain (LFNL, 3 pistes parallèles 12/30 (herbe, dur droite, dur gauche
 FLARM (tous les planeurs), couverture (récepteur OGN du club), planche (PicBoard).
 
 Réglées en v0.3 : source (direct APRS, push), alerte à l'entrée sur piste (la golfette
-circule partout), trafic (tout OGN, < 300 m AGL par défaut), téléphones (celui de chaque
+circule partout), trafic (tout OGN, < 400 m AGL par défaut), téléphones (celui de chaque
 conducteur ; app non diffusée avant d'être prête), pas de liste de flotte (OGN seul).
 
-Réglées en v0.4 : plafond 300 m AGL (~500 m QNH), bordure rouge sur piste sans son,
+Réglées en v0.4 : plafond 400 m AGL (~580 m QNH, terrain à 182 m), bordure rouge sur piste sans son,
 alerte uniquement golfette sur piste + trafic dans le circuit, pas de pré-alerte,
 coordonnées des pistes OSM + relevé GPS sur place.
 
