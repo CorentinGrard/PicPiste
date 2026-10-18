@@ -26,6 +26,9 @@ class DemoTraffic(private val airfield: Airfield) {
             (dist / avgMs * 1000).toLong().coerceAtLeast(1000)
         }
         val flyMs = segMs.sum()
+
+        /** Time from the start to reach waypoint [index]. */
+        fun timeTo(index: Int): Long = segMs.take(index).sum()
         val durationMs = flyMs + holdAtEndMs
 
         /** Position at [t] ms after the start, null before the start. */
@@ -112,7 +115,8 @@ class DemoTraffic(private val airfield: Airfield) {
     private val actors: List<Actor> = listOf(
         Actor("DD0A01", AircraftType.GLIDER, Path(circuitTo30(2_600.0, 3_000.0, herbe.threshold30.y, herbe.threshold30.x), 120_000), startMs = 0),
         Actor("DD0A02", AircraftType.TOW_PLANE, tugPath, startMs = 90_000),
-        Actor("DD0A03", AircraftType.GLIDER, tugPath, startMs = 90_000, stopAfterMs = 150_000, delayMs = 2_500),
+        // Towed glider: same path a little behind, silent from the release point (index 6, above the ceiling).
+        Actor("DD0A03", AircraftType.GLIDER, tugPath, startMs = 90_000, stopAfterMs = tugPath.timeTo(6), delayMs = 2_500),
         Actor("DD0A04", AircraftType.GLIDER, Path(circuitTo30(-1_800.0, 3_600.0, herbe.threshold30.y, herbe.threshold30.x), 90_000), startMs = 200_000),
     )
 
@@ -127,6 +131,24 @@ class DemoTraffic(private val airfield: Airfield) {
             DdbDevice("DD0A04", "F", "Duo Discus", "F-CABC", "PS"),
         ),
     )
+
+    /**
+     * Where a pretend cart is, to try the runway border and alert away from the field:
+     * every 2 minutes it waits at the starter, drives onto the grass runway, parks there, comes back.
+     */
+    fun cartAt(sinceStartMs: Long): Vec2 {
+        val parked = airfield.starter?.let { Vec2(it.x - 60, it.y - 25) } ?: Vec2(gauche.threshold30.x, gauche.threshold30.y - 60)
+        val onHerbe = herbe.threshold30 - herbe.dir12 * (herbe.length * 0.6)
+        val t = (sinceStartMs % 120_000) / 1000.0
+        fun lerp(a: Vec2, b: Vec2, f: Double) = a + (b - a) * f.coerceIn(0.0, 1.0)
+        return when {
+            t < 30 -> parked
+            t < 45 -> lerp(parked, onHerbe, (t - 30) / 15)
+            t < 100 -> onHerbe
+            t < 115 -> lerp(onHerbe, parked, (t - 100) / 15)
+            else -> parked
+        }
+    }
 
     /** Beacons for every demo aircraft at [timeMs], [sinceStartMs] after the demo started. */
     fun beaconsAt(sinceStartMs: Long, timeMs: Long): List<String> {

@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "PicPiste"
-include(":core")
+include(":core", ":app")
