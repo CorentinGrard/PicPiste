@@ -15,8 +15,7 @@ au point de départ. Son conducteur a besoin de savoir, sans sortir son téléph
 1. **Qui va se poser, et quand** → anticiper le prochain dépannage.
 2. **Si un planeur est en finale** → ne pas être sur (ou près de) la piste à ce moment-là.
 3. **Où est tout le trafic** autour du terrain, en direct → vue d'ensemble de l'activité.
-4. **Qui s'est posé où** → aller chercher le bon planeur au bon endroit (y compris
-   une vache proche).
+4. **Qui s'est posé où** → aller chercher le bon planeur au bon endroit.
 
 ### Hors objectifs (v1)
 - Pas d'outil de contrôle aérien ni d'aide à la séparation : **information seulement**,
@@ -83,35 +82,35 @@ vitesse, vario et cap :
 | 🟠 **Décollage** | Au sol sur une piste, accélère (> 30 km/h) → **piste occupée** |
 | 🛫 **Remorquage** | Monte, < 1 500 m AGL, avec le remorqueur à proximité (lancement au remorqueur uniquement à LFNL) |
 | 🛩️ **Remorqueur en descente** | Remorqueur largué, descend vers le terrain (affiché comme une arrivée) |
-| ✈️ **En vol local** | En l'air, < 10 km du terrain |
-| 🌍 **En vol (loin)** | En l'air, > 10 km |
-| ↩️ **Retour** | < 5 km, se rapproche, < 600 m AGL |
+| ↩️ **Retour** | < 5 km, se rapproche, sous le plafond (300 m AGL) : rejoint le circuit |
 | 🔄 **Dans le circuit** | < 3 km, < 350 m AGL (vent arrière / étape de base) |
 | 🔴 **En finale** | Aligné sur l'axe d'une piste (±30°), < 2,5 km du seuil, < 200 m AGL, descend |
 | 🟢 **Posé** | Vitesse sol < 10 km/h, altitude ≈ terrain, sur l'emprise du terrain |
-| 🐄 **Vache** | Posé hors du terrain → position + lien navigation pour le dépannage |
 | ❔ **Signal perdu** | Pas de trame depuis > 60 s (dernière position affichée, grisée) |
 
 Pour « En finale » et « Dans le circuit » : **ETA estimée** (distance / vitesse sol) et
-**piste probable** (selon l'axe d'approche ; pistes parallèles herbe / dur à distinguer).
+**piste probable** (selon l'axe d'approche ; 3 pistes parallèles à distinguer : herbe, dur droite, dur gauche).
 
 ### 4.1a Trafic affiché
 **Tout le trafic OGN** autour du terrain, pas seulement le club : planeurs, remorqueurs,
 visiteurs, ULM… chacun avec une icône par type et sa **position en direct**.
 - Filtre par défaut : aéronefs **sous 300 m AGL** dans le rayon du radar, plus tout ce
   qui est au sol sur le terrain. Plafond réglable. Le terrain étant à ~200 m d'altitude,
-  cela correspond à **~500 m QNH** — valeur validée (couvre les retours et le circuit).
+  cela correspond à **~500 m QNH** — valeur validée.
+- Sous ce plafond, près du terrain, il n'y a que du trafic **de circuit** : arrivées,
+  circuit, finale, décollage, remorquage, posés. Pas de statut « en vol local » ni
+  « vache » : ce qui est plus haut ou plus loin n'est pas affiché.
 - AGL = altitude GPS de la trame − altitude du terrain (terrain quasi plat à l'échelle
   du circuit, pas besoin de modèle de relief en v1).
 
 ### 4.1b Golfette sur piste : indication et alerte
-La golfette circule **partout** sur le terrain. Les deux pistes (herbe et dur) sont des
+La golfette circule **partout** sur le terrain. Les trois pistes (herbe, dur droite, dur gauche) sont des
 **zones** (rectangles : seuils + largeur + petite marge). Le GPS du téléphone situe la
 golfette par rapport à ces zones. Deux niveaux, pas plus :
 
 | Situation | Réaction |
 |---|---|
-| Golfette **sur une piste**, rien dans le circuit | **Indication visuelle seulement** : bordure rouge autour de l'écran + nom de la piste (« Sur piste herbe »). Pas de son, pas de bandeau. |
+| Golfette **sur une piste**, rien dans le circuit | **Indication visuelle seulement** : bordure rouge autour de l’écran, rien d’autre (pas de libellé, pas de son, pas de bandeau). |
 | Golfette **sur une piste** **et** un aéronef dans le circuit, en finale ou en décollage | **Alerte** : son + bandeau rouge « Planeur en finale — 40 s » (ou « Circuit — ~2 min », « Décollage en cours »). Répétée tant que les deux conditions restent vraies ; s'arrête dès que la golfette sort de la piste. |
 | Golfette **hors piste** | Rien de particulier : l'info reste sur le radar et la liste « Arrivées ». |
 
@@ -127,16 +126,15 @@ golfette par rapport à ces zones. Deux niveaux, pas plus :
 Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 
 - **Liste « Arrivées »** triée par imminence :
-  `🔴 F-CXYZ (AB) — Finale 28 — 40 s`
+  `🔴 F-CXYZ (AB) — Finale 30 herbe — 40 s`
   `🔄 F-CKLM (12) — Circuit — ~2 min`
   `↩️ F-CABC — Retour — 4 km, 450 m`
 - **Bordure rouge** quand la golfette est sur une piste ; **bandeau + son** seulement si
   en plus un aéronef est dans le circuit, en finale ou en décollage (§4.1b).
-- **Liste « Posés »** : derniers planeurs posés, avec position (début/milieu/fin de piste,
-  ou vache) → tap = guidage vers lui (ouverture Google Maps/Waze pour les vaches).
+- **Liste « Posés »** : derniers planeurs posés, avec position (début/milieu/fin de piste) → tap = position sur le radar.
 - **Vue radar** (écran principal, v1) : vue de dessus **fixe**, **orientée selon l'axe des
-  pistes** (pas de rotation, pas de zoom pendant la conduite). Pistes herbe et dur
-  dessinées, golfette au centre ou position réelle, aéronefs en icônes colorées par
+  pistes** (pas de rotation, pas de zoom pendant la conduite). Fond de carte épuré : pistes herbe et dur,
+  taxiways, hangars, club-house et zone du starter ; golfette au centre ou position réelle, aéronefs en icônes colorées par
   statut avec étiquette (CN). Rayon ≈ 5 km, 2 ou 3 niveaux de zoom fixes au maximum.
 
 ### 4.3 App téléphone
@@ -152,14 +150,18 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 Fichier de config (JSON, éditable dans l'app, partageable par QR code) :
 - Terrain : **LFNL** (Saint-Martin-de-Londres, CVVM), position, altitude, contour de
   l'emprise.
-- Pistes : **deux pistes parallèles, une en herbe et une en dur**. Seuils (coordonnées),
+- Pistes : **trois pistes parallèles 12/30 : « herbe » (nord), « dur droite » (milieu), « dur gauche » (sud)**. Seuils (coordonnées),
   QFU, longueur, largeur, revêtement ; piste en service (manuel ou **auto-détectée**
   d'après les derniers atterrissages).
   - **Source des coordonnées** : pré-remplies depuis OpenStreetMap (contours des pistes
     LFNL), puis **vérifiées sur place** avec un mode « relevé » : on roule jusqu'à chaque
     coin de piste avec la golfette et on appuie sur « enregistrer ce point » (GPS du
     téléphone). Le résultat est exporté dans le fichier de config.
+- Géométrie de départ : OpenStreetMap (pistes, taxiways, parking, hangars, manche à air). Le
+  **starter** n'est pas dans OSM : au sud du bout 30 de la dur gauche, placé à la main.
 - Altitude terrain : ~200 m (valeur exacte à prendre sur la carte VAC).
+- Infrastructures dessinées sur le radar : taxiways, hangars, club-house, zone du starter
+  (polygones, relevés comme les pistes).
 - Pas de liste de flotte : l'identification vient d'OGN (§3).
 
 ## 5. Exigences non fonctionnelles
@@ -226,7 +228,7 @@ d'Android Auto, une fois par téléphone.
 |---|---|
 | **v0.1 – prototype** | Client OGN + moteur de statuts, app téléphone (liste + carte). Validation sur le terrain un week-end de vol. |
 | **v1 – MVP golfette** | Android Auto : radar fixe orienté pistes, listes Arrivées / Posés, alerte à l’entrée sur piste, config terrain. |
-| **v2** | Piste en service auto-détectée, vaches avec guidage. |
+| **v2** | Piste en service auto-détectée. |
 | **v3 (option)** | Passerelle via le serveur PicBoard (nom du pilote, écran club-house). |
 
 Projet perso (développeur seul) : périmètre v1 volontairement réduit.
@@ -257,7 +259,7 @@ Projet perso (développeur seul) : périmètre v1 volontairement réduit.
 ## 11. Questions ouvertes
 
 Réglées en v0.2 : écran golfette (Android Auto intégré), distribution (APK hors Play
-Store), terrain (LFNL, pistes parallèles herbe + dur), lancement (remorqueur seul),
+Store), terrain (LFNL, 3 pistes parallèles 12/30 (herbe, dur droite, dur gauche)), lancement (remorqueur seul),
 FLARM (tous les planeurs), couverture (récepteur OGN du club), planche (PicBoard).
 
 Réglées en v0.3 : source (direct APRS, push), alerte à l'entrée sur piste (la golfette
