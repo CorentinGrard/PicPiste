@@ -92,12 +92,19 @@ private const val SURVEY_MAX_AGE_MS = 10_000L
  * @param incoming a file opened with PicPiste from another app, to import.
  */
 @Composable
-fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: () -> Unit, onClose: () -> Unit) {
+fun AirfieldEditor(
+    repo: TrafficRepository,
+    incoming: Uri?,
+    onIncomingHandled: () -> Unit,
+    /** Things to check, shown under the airfield name (after an OpenStreetMap import). */
+    initialWarnings: List<String> = emptyList(),
+    onClose: () -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val current by repo.airfields.current.collectAsStateWithLifecycle()
     val fix by repo.phoneFix.collectAsStateWithLifecycle()
-    val state = remember { EditorState(current.config) }
+    val state = remember { EditorState(current.config).apply { warnings = initialWarnings } }
 
     var menu by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<EditorDialog?>(null) }
@@ -356,7 +363,7 @@ private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -
 @Composable
 private fun RoundButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     Box(
-        Modifier.size(44.dp).clip(CircleShape).background(c(Palette.SURFACE_2)).clickable(enabled = enabled, onClick = onClick),
+        Modifier.size(48.dp).clip(CircleShape).background(c(Palette.SURFACE_2)).clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = if (enabled) c(Palette.TEXT) else c(Palette.FAINT), fontSize = 20.sp, fontWeight = FontWeight.Bold) }
 }
@@ -386,7 +393,7 @@ private fun Chip(
         else -> Palette.TEXT
     }
     Box(
-        modifier.height(44.dp).clip(RoundedCornerShape(12.dp)).background(c(bg)).clickable(enabled = enabled, onClick = onClick)
+        modifier.height(48.dp).clip(RoundedCornerShape(12.dp)).background(c(bg)).clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) { Text(label, color = c(fg), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
@@ -502,7 +509,7 @@ private fun AddDialog(onDismiss: () -> Unit, onAdd: (NewShape, atGps: Boolean) -
                 NewShape.entries.forEach { kind ->
                     Text(
                         kind.label, fontSize = 17.sp,
-                        modifier = Modifier.fillMaxWidth().clickable { onAdd(kind, atGps) }.padding(vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { onAdd(kind, atGps) }.padding(vertical = 14.dp),
                     )
                 }
             }

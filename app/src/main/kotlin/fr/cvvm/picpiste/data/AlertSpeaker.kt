@@ -13,9 +13,10 @@ import java.util.Locale
 
 /**
  * Says the alert out loud (through the car speakers when Android Auto is connected).
- * Speaks when an alert starts or changes, then repeats every [repeatMs] while it lasts.
+ * Speaks only for a danger (not a caution): when it starts or changes, then every [repeatMs]
+ * while the cart stays on the runway.
  */
-class AlertSpeaker(context: Context, private val repeatMs: Long = 15_000) {
+class AlertSpeaker(context: Context, private val repeatMs: Long = 30_000) {
     private val audio = context.getSystemService(AudioManager::class.java)
     private val attributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)

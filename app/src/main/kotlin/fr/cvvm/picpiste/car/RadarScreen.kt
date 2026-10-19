@@ -153,6 +153,10 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
             renderer.colors = colors
             overlay.colors = colors
             canvas.drawColor(colors.BG)
+            if (!repo.airfields.configured.value) {
+                overlay.drawSetupMessage(canvas, area.left.toFloat(), area.top.toFloat(), area.width().toFloat(), area.height().toFloat(), dp)
+                return
+            }
             val panelW = (area.width() * 0.31f).coerceIn(260 * dp, 420 * dp)
             overlay.drawPanel(canvas, area.left.toFloat(), area.top.toFloat(), panelW, area.height().toFloat(), last, dp)
             val mapLeft = area.left + panelW

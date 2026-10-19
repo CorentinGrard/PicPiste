@@ -120,10 +120,12 @@ class TrafficRepository(private val context: Context) {
             launch { loadDdb() }
             launch {
                 // A new source or a new airfield: start over with a fresh engine.
-                combine(prefs.source, airfields.current) { s, a -> s to a }.collectLatest { (source, field) ->
+                combine(prefs.source, airfields.current, airfields.configured) { s, a, ok -> Triple(s, a, ok) }.collectLatest { (source, field, configured) ->
                     clock = System::currentTimeMillis
                     _replay.value = ReplayInfo(null, null, null)
                     engine = PicPisteEngine(field, settings()).apply { ddb = liveDdb }
+                    // No airfield chosen yet (welcome screen): no traffic, no network.
+                    if (!configured) return@collectLatest
                     when (source) {
                         Source.LIVE -> runLive()
                         Source.DEMO -> runDemo()

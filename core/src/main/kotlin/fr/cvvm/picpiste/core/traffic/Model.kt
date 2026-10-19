@@ -87,6 +87,9 @@ data class AircraftState(
 
     /** "Final 22", "Circuit", "Returning · 2.4 km · 290 m"… */
     val statusText: String
+        get() = if (signalLost) Texts.current.signalLost(liveStatusText) else liveStatusText
+
+    private val liveStatusText: String
         get() = when (status) {
             // Direction only ("Finale 14", not "14L"): parallel runways are too close to tell apart from the air.
             FlightStatus.FINAL, FlightStatus.TAKEOFF -> direction?.let { "${status.label} $it" } ?: status.label
@@ -101,6 +104,19 @@ data class AircraftState(
 
 /** [retryInMs]: when offline, how long before the next attempt (null while connecting). */
 data class ConnectionState(val connected: Boolean, val retryInMs: Long?, val lastLineAtMs: Long?) {
+    /**
+     * Data is flowing. The OGN server sends a line at least every 20 s even when nothing flies,
+     * so a longer silence means the link is broken: an empty circuit then proves nothing.
+     */
+    fun isLive(nowMs: Long): Boolean = connected && lastLineAtMs != null && nowMs - lastLineAtMs < STALE_AFTER_MS
+
+    /** How long since the last line, when connected but silent. */
+    fun silentForMs(nowMs: Long): Long? = lastLineAtMs?.let { nowMs - it }?.takeIf { connected && it >= STALE_AFTER_MS }
+
+    companion object {
+        const val STALE_AFTER_MS = 60_000L
+    }
+
     val text: String
         get() = when {
             connected -> Texts.current.connected

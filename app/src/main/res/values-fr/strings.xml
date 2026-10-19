@@ -8,7 +8,6 @@
     <string name="theme_light">Clair</string>
     <string name="theme_dark">Sombre</string>
     <string name="ogn">OGN</string>
-    <string name="ogn_silent">OGN · muet</string>
     <string name="offline">Hors ligne</string>
     <string name="tab_arrivals">Arrivées · %1$d</string>
     <string name="tab_landed">Posés · %1$d</string>
@@ -41,7 +40,7 @@
     <string name="source_demo_hint">Trafic et golfette simulés, pour essayer sans vol.</string>
     <string name="source_replay_hint">Rejoue le dernier jour enregistré, avec une golfette simulée sur la piste principale.</string>
     <string name="theme">Thème</string>
-    <string name="theme_hint">Auto suit le téléphone. Clair : pour le plein soleil. Android Auto suit le jour / nuit de la voiture.</string>
+    <string name="theme_hint">Auto : clair le jour, sombre du coucher au lever du soleil au terrain. Android Auto suit le jour / nuit de la voiture.</string>
     <string name="record_day">Enregistrer la journée</string>
     <string name="record_day_hint">En direct, garde les positions OGN du jour pour les rejouer.</string>
     <string name="voice_alert">Alerte vocale</string>
@@ -120,4 +119,19 @@
     <string name="at_map_centre">Au centre de la carte</string>
     <string name="at_my_position">À ma position (GPS)</string>
     <string name="checked">✓ %1$s</string>
+    <string name="seconds_short">%1$d s</string>
+    <string name="ogn_no_data_for">OGN · rien depuis %1$s</string>
+    <string name="no_data_list">Pas de données OGN — regardez le ciel.</string>
+    <string name="car_no_data">Pas de données OGN</string>
+    <string name="car_look_sky">Regardez le ciel</string>
+    <string name="car_setup">Ouvrez PicPiste sur le téléphone pour choisir le terrain.</string>
+    <string name="welcome_title">Bienvenue dans PicPiste</string>
+    <string name="welcome_text">Sur quel terrain roule la golfette ? Entrez son code OACI : les pistes viennent d\'OpenStreetMap, vous pourrez les corriger ensuite dans Réglages → Modifier.</string>
+    <string name="welcome_code_label">Code OACI (par ex. LFPT)</string>
+    <string name="welcome_continue">Continuer</string>
+    <string name="welcome_open_file">Ouvrir un fichier terrain</string>
+    <string name="welcome_file_hint">Un fichier terrain partagé par un autre chauffeur du club.</string>
+    <string name="welcome_check_title">Vérifiez le terrain</string>
+    <string name="welcome_check_now">Vérifier maintenant</string>
+    <string name="welcome_later">Plus tard</string>
 </resources>

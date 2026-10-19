@@ -9,7 +9,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -64,9 +64,11 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.Snapshot
+import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.cart.AlertLevel
 import fr.cvvm.picpiste.core.cart.formatEta
 import fr.cvvm.picpiste.core.cart.formatKm
+import fr.cvvm.picpiste.core.geo.Sun
 import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
@@ -79,6 +81,7 @@ import fr.cvvm.picpiste.render.Colors
 import fr.cvvm.picpiste.render.Palette
 import fr.cvvm.picpiste.render.RadarRenderer
 import fr.cvvm.picpiste.ui.editor.AirfieldEditor
+import kotlinx.coroutines.delay
 
 private fun c(argb: Int) = Color(argb)
 
@@ -92,7 +95,15 @@ private val Condensed = FontFamily.SansSerif
 @Composable
 fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: () -> Unit = {}) {
     val theme by repo.prefs.theme.collectAsStateWithLifecycle()
-    val colors = if (theme.isDark(isSystemInDarkTheme())) Colors.DARK else Colors.LIGHT
+    val airfield by repo.airfields.current.collectAsStateWithLifecycle()
+    // Auto theme: light while the sun is up at the airfield, checked every minute.
+    val daylight by produceState(isDaylightAt(airfield), airfield) {
+        while (true) {
+            value = isDaylightAt(airfield)
+            delay(60_000)
+        }
+    }
+    val colors = if (theme.isDark(daylight)) Colors.DARK else Colors.LIGHT
     SideEffect { Palette.current = colors }
     val view = LocalView.current
     LaunchedEffect(colors.isDark) {
@@ -111,10 +122,25 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
     }
     MaterialTheme(colorScheme = scheme) {
         var editing by rememberSaveable { mutableStateOf(false) }
+        // After the welcome screen imported from OpenStreetMap: what to check, offered once.
+        var toCheck by rememberSaveable { mutableStateOf<List<String>?>(null) }
+        var editorWarnings by rememberSaveable { mutableStateOf(emptyList<String>()) }
+        val configured by repo.airfields.configured.collectAsStateWithLifecycle()
         if (incoming != null) editing = true
         if (editing) {
-            AirfieldEditor(repo, incoming, onIncomingHandled, onClose = { editing = false })
+            AirfieldEditor(repo, incoming, onIncomingHandled, editorWarnings, onClose = { editing = false; editorWarnings = emptyList() })
             return@MaterialTheme
+        }
+        if (!configured) {
+            Welcome(repo) { warnings -> if (warnings.isNotEmpty()) toCheck = warnings }
+            return@MaterialTheme
+        }
+        toCheck?.let { warnings ->
+            CheckAirfieldDialog(
+                warnings,
+                onCheck = { toCheck = null; editorWarnings = warnings; editing = true },
+                onLater = { toCheck = null },
+            )
         }
         val snap by repo.snapshot.collectAsStateWithLifecycle()
         val radius by repo.prefs.zoomRadiusM.collectAsStateWithLifecycle()
@@ -140,7 +166,7 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
                     ZoomButton(Prefs.zoomLabel(radius), Modifier.align(Alignment.TopEnd).padding(12.dp)) {
                         repo.prefs.cycleZoom()
                     }
-                    if (snap.alert.level == AlertLevel.DANGER) AlertBanner(snap)
+                    if (snap.alert.level == AlertLevel.DANGER || snap.alert.level == AlertLevel.CAUTION) AlertBanner(snap)
                 }
                 Lists(snap, Modifier.weight(1f)) { selected = it }
             }
@@ -169,17 +195,18 @@ private fun TopBar(snap: Snapshot, source: Source, replay: ReplayInfo, onSetting
             Source.REPLAY -> Pill(replay.nowMs?.let { stringResource(R.string.replay_at, hhmm(it)) } ?: stringResource(R.string.source_replay), c(Palette.CIRCUIT))
             Source.LIVE -> Unit
         }
-        val fresh = snap.connection.lastLineAtMs?.let { snap.timeMs - it < 60_000 } == true
+        val live = snap.connection.isLive(snap.timeMs)
+        val silentMs = snap.connection.silentForMs(snap.timeMs)
         Pill(
             text = when {
-                snap.connection.connected && fresh -> stringResource(R.string.ogn)
-                snap.connection.connected -> stringResource(R.string.ogn_silent)
+                live -> stringResource(R.string.ogn)
+                silentMs != null -> stringResource(R.string.ogn_no_data_for, silence(silentMs))
                 else -> stringResource(R.string.offline)
             },
-            dot = if (snap.connection.connected && fresh) c(Palette.OK) else c(Palette.RED),
+            dot = if (live) c(Palette.OK) else c(Palette.RED),
         )
         Box(
-            Modifier.size(44.dp).clip(CircleShape).background(c(Palette.SURFACE_2)).clickable(onClick = onSettings),
+            Modifier.size(52.dp).clip(CircleShape).background(c(Palette.SURFACE_2)).clickable(onClick = onSettings),
             contentAlignment = Alignment.Center,
         ) { Text("⋯", color = c(Palette.TEXT), fontSize = 22.sp, fontWeight = FontWeight.Bold) }
     }
@@ -235,16 +262,45 @@ private fun ZoomButton(label: String, modifier: Modifier, onClick: () -> Unit) {
 @Composable
 private fun AlertBanner(snap: Snapshot) {
     val a = snap.alert
+    // Red (and voice) when it is close; amber while the glider is still far in the circuit.
+    val danger = a.level == AlertLevel.DANGER
+    val bg = if (danger) Palette.BANNER else Palette.CAUTION_BANNER
+    val fg = c(if (danger) Palette.ON_BANNER else Palette.ON_CAUTION)
     Row(
-        Modifier.fillMaxWidth().background(c(Palette.BANNER)).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().background(c(bg)).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(a.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)
-            Text(a.detail, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(a.title, color = fg, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+            Text(a.detail, color = fg, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text(a.eta, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold, fontFamily = Condensed)
+        Text(a.eta, color = fg, fontSize = 34.sp, fontWeight = FontWeight.Bold, fontFamily = Condensed)
     }
+}
+
+@Composable
+private fun CheckAirfieldDialog(warnings: List<String>, onCheck: () -> Unit, onLater: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onLater,
+        title = { Text(stringResource(R.string.welcome_check_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                warnings.forEach { Text("• $it", fontSize = 15.sp) }
+            }
+        },
+        confirmButton = { TextButton(onClick = onCheck) { Text(stringResource(R.string.welcome_check_now)) } },
+        dismissButton = { TextButton(onClick = onLater) { Text(stringResource(R.string.welcome_later)) } },
+    )
+}
+
+/** Sun above the horizon at the airfield right now. */
+fun isDaylightAt(airfield: Airfield, nowMs: Long = System.currentTimeMillis()): Boolean =
+    Sun.isDaylight(airfield.reference.lat, airfield.reference.lon, nowMs)
+
+/** "45 s", "3 min": how long the OGN feed has been silent. */
+@Composable
+private fun silence(ms: Long): String = (ms / 1000).let { s ->
+    if (s < 120) stringResource(R.string.seconds_short, s.toInt()) else stringResource(R.string.minutes_short, (s / 60).toInt())
 }
 
 @Composable
@@ -269,7 +325,7 @@ private fun Lists(snap: Snapshot, modifier: Modifier, onSelect: (String) -> Unit
                 Box(
                     Modifier
                         .weight(1f)
-                        .height(40.dp)
+                        .height(48.dp)
                         .clip(RoundedCornerShape(9.dp))
                         .background(if (tab == i) c(Palette.SURFACE_2) else Color.Transparent)
                         .clickable { tab = i },
@@ -281,9 +337,19 @@ private fun Lists(snap: Snapshot, modifier: Modifier, onSelect: (String) -> Unit
         }
         val items = if (tab == 0) snap.arrivals else snap.landed
         if (items.isEmpty()) {
+            // An empty circuit only means something while OGN data is flowing.
+            val live = snap.connection.isLive(snap.timeMs)
             Text(
-                stringResource(if (tab == 0) R.string.empty_arrivals else R.string.empty_landed),
-                color = c(Palette.MUTED), fontSize = 15.sp, modifier = Modifier.padding(8.dp),
+                stringResource(
+                    when {
+                        tab == 1 -> R.string.empty_landed
+                        live -> R.string.empty_arrivals
+                        else -> R.string.no_data_list
+                    },
+                ),
+                color = c(if (tab == 0 && !live) Palette.CIRCUIT else Palette.MUTED),
+                fontSize = 15.sp, fontWeight = if (tab == 0 && !live) FontWeight.Bold else FontWeight.Normal,
+                modifier = Modifier.padding(8.dp),
             )
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
@@ -471,7 +537,7 @@ private fun Choice(options: List<String>, selected: Int, onSelect: (Int) -> Unit
             Box(
                 Modifier
                     .weight(1f)
-                    .height(36.dp)
+                    .height(48.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(if (i == selected) c(Palette.SURFACE_2) else Color.Transparent)
                     .clickable { onSelect(i) },

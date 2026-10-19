@@ -22,9 +22,9 @@ enum class Theme(@StringRes val labelRes: Int) {
     DARK(R.string.theme_dark),
     ;
 
-    /** Whether this setting means dark colours, given the phone's own dark theme. */
-    fun isDark(systemDark: Boolean) = when (this) {
-        AUTO -> systemDark
+    /** Whether this setting means dark colours. Auto: dark from sunset to sunrise at the airfield. */
+    fun isDark(daylight: Boolean) = when (this) {
+        AUTO -> !daylight
         LIGHT -> false
         DARK -> true
     }

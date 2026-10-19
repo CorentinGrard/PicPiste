@@ -2,7 +2,6 @@ package fr.cvvm.picpiste.ui
 
 import android.Manifest
 import android.content.Intent
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -31,8 +30,8 @@ class MainActivity : ComponentActivity() {
         // Used as a dashboard in the cart: keep the screen on while visible.
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         // Right colours from the first frame, before the theme setting is collected.
-        val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        Palette.current = if (repository.prefs.theme.value.isDark(systemDark)) Colors.DARK else Colors.LIGHT
+        val daylight = isDaylightAt(repository.airfields.current.value)
+        Palette.current = if (repository.prefs.theme.value.isDark(daylight)) Colors.DARK else Colors.LIGHT
         if (savedInstanceState == null) incoming.value = airfieldUri(intent)
         setContent { PhoneApp(repository, incoming.value) { incoming.value = null } }
         askPermissions.launch(

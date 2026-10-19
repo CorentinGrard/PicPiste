@@ -7,7 +7,7 @@ Spécifications : [docs/SPECS.md](docs/SPECS.md)
 ## Structure
 
 - `core/` — Kotlin pur, sans Android, testé : flux OGN (APRS), base OGN DDB, terrain (tout
-  terrain : import OpenStreetMap, édition ; LFNL intégré par défaut),
+  terrain : choisi à l'accueil, import OpenStreetMap, édition ; LFNL intégré),
   moteur de statuts (décollage, remorquage, retour, circuit, finale, posé), golfette sur piste,
   alertes, trafic de démo.
 - `app/` — l'app Android : écran téléphone (Compose) et écran Android Auto (catégorie
@@ -52,7 +52,9 @@ OGN ne garde pas l'historique des positions : il faut enregistrer le jour même.
 
 ## Changer de terrain
 
-Réglages (⋯) → Terrain → **Modifier** :
+Au premier lancement, l'accueil demande le code OACI du terrain (LFNL est intégré, les
+autres viennent d'OpenStreetMap) ou un fichier terrain partagé. Ensuite, Réglages (⋯) →
+Terrain → **Modifier** :
 
 - ⋯ → **Chercher un terrain par son code** (ex. LFLE) : dessin OpenStreetMap, à vérifier.
 - Toucher une piste, un seuil, un hangar… pour le sélectionner ; glisser ses points.
@@ -60,7 +62,7 @@ Réglages (⋯) → Terrain → **Modifier** :
 - **Enregistrer** : le radar et les alertes utilisent ce terrain.
 - ⋯ → **Partager** envoie `PicPiste-XXXX.json` ; l'autre conducteur l'ouvre avec PicPiste
   (ou ⋯ → Importer un fichier), vérifie, puis enregistre.
-- ⋯ → **Revenir au terrain intégré** remet LFNL.
+- ⋯ → **Revenir au terrain intégré** prend LFNL.
 
 ## Mode démo
 

@@ -44,6 +44,11 @@ class Colors(
     /** Background of an arrival card when that aircraft is the danger. */
     val DANGER_FILL: Int,
     val BANNER: Int,
+    /** Text on the red banner. */
+    val ON_BANNER: Int,
+    /** Amber banner: someone in the circuit, not close yet. */
+    val CAUTION_BANNER: Int,
+    val ON_CAUTION: Int,
     val OK: Int,
     val TAKEOFF: Int,
     val CIRCUIT: Int,
@@ -99,6 +104,9 @@ class Colors(
             RED_TEXT = rgb("#FF7B71"),
             DANGER_FILL = rgb("#3A1512"),
             BANNER = rgb("#C8251B"),
+            ON_BANNER = rgb("#FFFFFF"),
+            CAUTION_BANNER = rgb("#FFC53D"),
+            ON_CAUTION = rgb("#0B0E12"),
             OK = rgb("#3DDC97"),
             TAKEOFF = rgb("#F472D0"),
             CIRCUIT = rgb("#FFC53D"),
@@ -138,6 +146,9 @@ class Colors(
             RED_TEXT = rgb("#B91C14"),
             DANGER_FILL = rgb("#FDE2DF"),
             BANNER = rgb("#C8251B"),
+            ON_BANNER = rgb("#FFFFFF"),
+            CAUTION_BANNER = rgb("#F5B82E"),
+            ON_CAUTION = rgb("#0B0E12"),
             OK = rgb("#087443"),
             TAKEOFF = rgb("#B81F86"),
             CIRCUIT = rgb("#865500"),
@@ -181,6 +192,9 @@ object Palette {
     val RED get() = current.RED
     val RED_TEXT get() = current.RED_TEXT
     val BANNER get() = current.BANNER
+    val ON_BANNER get() = current.ON_BANNER
+    val CAUTION_BANNER get() = current.CAUTION_BANNER
+    val ON_CAUTION get() = current.ON_CAUTION
     val OK get() = current.OK
     val CIRCUIT get() = current.CIRCUIT
     val LANDED get() = current.LANDED

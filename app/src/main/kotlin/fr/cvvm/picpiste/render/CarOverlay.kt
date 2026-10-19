@@ -51,17 +51,19 @@ class CarOverlay(private val context: Context) {
         y = drawSection(canvas, context.getString(R.string.car_arrivals), x0, y, dp)
         val maxRows = ((top + height - y - 110 * dp) / (68 * dp)).toInt().coerceIn(1, 5)
         if (snap.arrivals.isEmpty()) {
+            // "Circuit clear" only while OGN data is flowing; otherwise an empty list proves nothing.
+            val live = snap.connection.isLive(snap.timeMs)
             rect.set(x0, y, x1, y + 58 * dp)
             fill.color = colors.SURFACE
             canvas.drawRoundRect(rect, 10 * dp, 10 * dp, fill)
             text.typeface = sansBold
             text.textSize = 18 * dp
-            text.color = colors.OK
-            canvas.drawText(context.getString(R.string.circuit_clear), x0 + 14 * dp, y + 25 * dp, text)
+            text.color = if (live) colors.OK else colors.CIRCUIT
+            canvas.drawText(context.getString(if (live) R.string.circuit_clear else R.string.car_no_data), x0 + 14 * dp, y + 25 * dp, text)
             text.typeface = sans
             text.textSize = 13 * dp
             text.color = colors.MUTED
-            canvas.drawText(context.getString(R.string.nobody_in_circuit), x0 + 14 * dp, y + 45 * dp, text)
+            canvas.drawText(context.getString(if (live) R.string.nobody_in_circuit else R.string.car_look_sky), x0 + 14 * dp, y + 45 * dp, text)
             y += 68 * dp
         } else {
             for (a in snap.arrivals.take(maxRows)) {
@@ -115,11 +117,11 @@ class CarOverlay(private val context: Context) {
 
     private fun drawConnection(canvas: Canvas, right: Float, y: Float, snap: Snapshot, dp: Float) {
         val c = snap.connection
-        val fresh = c.lastLineAtMs?.let { snap.timeMs - it < 60_000 } == true
-        val ok = c.connected && fresh
+        val ok = c.isLive(snap.timeMs)
+        val silentMs = c.silentForMs(snap.timeMs)
         val label = when {
             ok -> context.getString(R.string.ogn)
-            c.connected -> context.getString(R.string.ogn_silent)
+            silentMs != null -> context.getString(R.string.ogn_no_data_for, silence(silentMs))
             else -> context.getString(R.string.offline)
         }
         text.typeface = sans
@@ -175,12 +177,14 @@ class CarOverlay(private val context: Context) {
     /** Red banner across the top of the map while the cart is on a runway with traffic. */
     fun drawBanner(canvas: Canvas, left: Float, top: Float, width: Float, snap: Snapshot, dp: Float) {
         val alert = snap.alert
-        if (alert.level != AlertLevel.DANGER) return
+        if (alert.level != AlertLevel.DANGER && alert.level != AlertLevel.CAUTION) return
+        // Red when close (with voice), amber while the glider is still far in the circuit.
+        val danger = alert.level == AlertLevel.DANGER
         val h = 92 * dp
-        fill.color = colors.BANNER
+        fill.color = if (danger) colors.BANNER else colors.CAUTION_BANNER
         canvas.drawRect(left, top, left + width, top + h, fill)
         val pad = 22 * dp
-        text.color = 0xFFFFFFFF.toInt()
+        text.color = if (danger) colors.ON_BANNER else colors.ON_CAUTION
         text.typeface = condensedBold
         text.textSize = 56 * dp
         text.textAlign = Paint.Align.RIGHT
@@ -205,6 +209,22 @@ class CarOverlay(private val context: Context) {
         stroke.color = colors.RED
         stroke.strokeWidth = w
         canvas.drawRect(w / 2, w / 2, width - w / 2, height - w / 2, stroke)
+    }
+
+    /** "45 s", "3 min": how long the OGN feed has been silent. */
+    private fun silence(ms: Long): String = (ms / 1000).toInt().let { s ->
+        if (s < 120) context.getString(R.string.seconds_short, s) else context.getString(R.string.minutes_short, s / 60)
+    }
+
+    /** No airfield chosen yet: the car cannot do anything useful, say where to choose it. */
+    fun drawSetupMessage(canvas: Canvas, left: Float, top: Float, width: Float, height: Float, dp: Float) {
+        text.typeface = sansBold
+        text.textSize = 28 * dp
+        text.color = colors.TEXT
+        text.textAlign = Paint.Align.CENTER
+        val msg = TextUtils.ellipsize(context.getString(R.string.car_setup), text, width - 48 * dp, TextUtils.TruncateAt.END)
+        canvas.drawText(msg, 0, msg.length, left + width / 2, top + height / 2, text)
+        text.textAlign = Paint.Align.LEFT
     }
 
     private fun minutesAgo(ms: Long): String = (ms / 60_000).toInt().let {

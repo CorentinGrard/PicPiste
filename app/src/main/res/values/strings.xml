@@ -10,7 +10,6 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="ogn">OGN</string>
-    <string name="ogn_silent">OGN · silent</string>
     <string name="offline">Offline</string>
     <string name="tab_arrivals">Arrivals · %1$d</string>
     <string name="tab_landed">Landed · %1$d</string>
@@ -43,7 +42,7 @@
     <string name="source_demo_hint">Simulated traffic and cart, to try it without flights.</string>
     <string name="source_replay_hint">Replays the last recorded day, with a simulated cart on the main runway.</string>
     <string name="theme">Theme</string>
-    <string name="theme_hint">Auto follows the phone. Light: for full sun. Android Auto follows the car\'s day / night.</string>
+    <string name="theme_hint">Auto: light by day, dark from sunset to sunrise at the airfield. Android Auto follows the car\'s day / night.</string>
     <string name="record_day">Record the day</string>
     <string name="record_day_hint">When live, keeps the day\'s OGN positions to replay them.</string>
     <string name="voice_alert">Voice alert</string>
@@ -122,4 +121,19 @@
     <string name="at_map_centre">At the map centre</string>
     <string name="at_my_position">At my position (GPS)</string>
     <string name="checked">✓ %1$s</string>
+    <string name="seconds_short">%1$d s</string>
+    <string name="ogn_no_data_for">OGN · no data for %1$s</string>
+    <string name="no_data_list">No OGN data — look at the sky.</string>
+    <string name="car_no_data">No OGN data</string>
+    <string name="car_look_sky">Look at the sky</string>
+    <string name="car_setup">Open PicPiste on the phone to choose the airfield.</string>
+    <string name="welcome_title">Welcome to PicPiste</string>
+    <string name="welcome_text">Which airfield does the cart drive on? Enter its ICAO code: the runways come from OpenStreetMap, and you can correct them later in Settings → Edit.</string>
+    <string name="welcome_code_label">ICAO code (e.g. LFPT)</string>
+    <string name="welcome_continue">Continue</string>
+    <string name="welcome_open_file">Open an airfield file</string>
+    <string name="welcome_file_hint">An airfield file shared by another driver of your club.</string>
+    <string name="welcome_check_title">Check the airfield</string>
+    <string name="welcome_check_now">Check now</string>
+    <string name="welcome_later">Later</string>
 </resources>

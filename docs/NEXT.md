@@ -46,6 +46,12 @@
   Auto, alertes écrites et vocales, messages d'import et de l'éditeur). Ajouter une langue :
   un `values-xx/strings.xml` et un objet dans `core/i18n/Texts.kt`.
 
+- **Accueil et alertes** : écran d'accueil au premier lancement (code OACI ; LFNL intégré, sans
+  OSM ; ou fichier) ; plus de terrain par défaut. Alerte graduée (orange sans son si le posé est
+  à plus de 90 s, rouge + voix sinon, voix toutes les 30 s). Planeur perdu en finale ou dans le
+  circuit : alerte encore 3 min. Plus jamais « Circuit libre » sans données OGN. Pastille
+  « OGN · rien depuis … ». Thème Auto selon le soleil au terrain. Cibles tactiles ≥ 48 dp.
+
 ## Reste à faire
 
 - **Mode clair en plein soleil** : à essayer dehors, ajuster les couleurs si besoin

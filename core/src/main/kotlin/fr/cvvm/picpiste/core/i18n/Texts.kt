@@ -35,6 +35,9 @@ sealed class Texts(val locale: Locale) {
     abstract fun takingOff(direction: String?): String
     abstract fun inCircuit(aircraft: String): String
     abstract fun clearRunway(who: String): String
+
+    /** "Glider on final 30 · signal lost" */
+    abstract fun signalLost(what: String): String
     abstract val caution: String
     abstract fun spokenSeconds(s: Int): String
     abstract fun spokenMinutes(min: Int): String
@@ -140,6 +143,7 @@ sealed class Texts(val locale: Locale) {
         override fun takingOff(direction: String?) = "Taking off" + (direction?.let { " $it" } ?: "")
         override fun inCircuit(aircraft: String) = "$aircraft in the circuit"
         override fun clearRunway(who: String) = "$who — clear the runway"
+        override fun signalLost(what: String) = "$what · signal lost"
         override val caution = "Caution"
         override fun spokenSeconds(s: Int) = "$s seconds"
         override fun spokenMinutes(min: Int) = if (min == 1) "1 minute" else "$min minutes"
@@ -241,6 +245,7 @@ sealed class Texts(val locale: Locale) {
         override fun takingOff(direction: String?) = "Décollage en cours" + (direction?.let { " $it" } ?: "")
         override fun inCircuit(aircraft: String) = "$aircraft dans le circuit"
         override fun clearRunway(who: String) = "$who — dégagez la piste"
+        override fun signalLost(what: String) = "$what · signal perdu"
         override val caution = "Attention"
         override fun spokenSeconds(s: Int) = "$s secondes"
         override fun spokenMinutes(min: Int) = if (min == 1) "1 minute" else "$min minutes"

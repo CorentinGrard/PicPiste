@@ -8,8 +8,9 @@ Statut : **brouillon validé sur le fond** — plus de question bloquante (voir 
 **L'app vaut pour n'importe quel terrain** : nombre de pistes quelconque, orientations
 quelconques (pistes parallèles, croisées ou en V), numéros quelconques (« 04/22 », « 14L/32R »…).
 Rien dans le code ni dans l'interface ne doit supposer une orientation ou un numéro de piste
-précis. LFNL (Saint-Martin-de-Londres, club CVVM) n'est que le terrain intégré par défaut
-et le terrain de test (§4.4).
+précis. Aucun terrain par défaut : au premier lancement, l'écran d'accueil demande le code OACI
+(ou un fichier terrain partagé). LFNL (Saint-Martin-de-Londres, club CVVM) est intégré à l'app
+(pas de requête OpenStreetMap pour lui) et sert de terrain de test (§4.4).
 
 ---
 
@@ -146,8 +147,16 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
   `🔴 F-CXYZ (AB) — Finale <sens> — 40 s`
   `🔄 F-CKLM (KL) — Circuit — ~2 min`
   `↩️ F-CABC — Retour — 4 km, 450 m`
-- **Bordure rouge** quand la golfette est sur une piste ; **bandeau + son** seulement si
-  en plus un aéronef est dans le circuit, en finale ou en décollage (§4.1b).
+- **Bordure rouge** quand la golfette est sur une piste (§4.1b). En plus :
+  - **bandeau orange, sans son** : un aéronef dans le circuit, à plus de 90 s du posé ;
+  - **bandeau rouge + voix** : finale, décollage, ou posé dans moins de 90 s. La voix
+    répète toutes les 30 s tant que la golfette reste sur la piste.
+  - Un planeur **perdu par OGN** (signal coupé) alors qu'il était en finale ou dans le circuit,
+    en vol, compte encore 3 min (« · signal perdu ») : bas en finale, il passe souvent sous
+    l'horizon du récepteur.
+- **Pas de données OGN** (aucune ligne depuis 60 s, le serveur en envoie au moins toutes les
+  20 s) : jamais « Circuit libre » ; à la place « Pas de données OGN — regardez le ciel »,
+  et la pastille dit « OGN · rien depuis 2 min » ou « Hors ligne ».
 - **Liste « Posés »** : derniers planeurs posés, avec position (début/milieu/fin de piste) → tap = position sur le radar.
 - **Vue radar** (écran principal, v1) : vue de dessus **fixe**, **orientée selon l'axe de
   la piste principale** (la plus longue ; pas de rotation pendant la conduite). Les autres
@@ -200,13 +209,16 @@ Contenu d'un terrain :
 - Infrastructures dessinées sur le radar : taxiways, hangars, club-house, zone du starter
   (polygones, relevés comme les pistes).
 - Pas de liste de flotte : l'identification vient d'OGN (§3).
-- **Terrain intégré par défaut : LFNL** (`core/src/main/resources/airfields/LFNL.json`,
-  dessiné depuis OSM puis corrigé à la main). C'est la seule donnée propre au club.
+- **Terrain intégré : LFNL** (`core/src/main/resources/airfields/LFNL.json`, dessiné depuis
+  OSM puis corrigé à la main), utilisé tel quel si on tape LFNL à l'accueil. Ce n'est pas un
+  défaut : sans terrain choisi, l'app montre l'écran d'accueil et ne se connecte pas.
 
 ### 4.5 Thème clair / sombre
 
 L'app a un **mode clair** en plus du sombre :
-- Réglage **Thème : Auto / Clair / Sombre** (Auto = thème du téléphone), sur le téléphone.
+- Réglage **Thème : Auto / Clair / Sombre** sur le téléphone. Auto = clair du lever au coucher
+  du soleil **au terrain** (calculé), sombre la nuit : plus sûr en plein soleil que le mode
+  sombre programmé du téléphone.
 - **Android Auto** : suivre le jour / nuit de la voiture (`CarContext.isDarkMode`), pas le
   réglage du téléphone.
 - Mode clair pensé pour le **plein soleil** dans la golfette : fond clair, contrastes forts,

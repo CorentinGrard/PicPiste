@@ -85,7 +85,8 @@ class PicPisteEngine(
     fun snapshot(nowMs: Long): Snapshot {
         val aircraft = tracker.snapshot(nowMs)
         val arrivals = aircraft
-            .filter { it.status.isArrival && !it.signalLost }
+            // Silent gliders that were landing stay listed (greyed) while they may still land.
+            .filter { (it.status.isArrival && !it.signalLost) || AlertEngine.isRecentlyLost(it) }
             .sortedWith(compareBy({ if (it.status == FlightStatus.FINAL) 0 else 1 }, { it.etaS ?: Double.MAX_VALUE }))
         val landed = aircraft
             .filter { it.landedAtMs != null && (it.status == FlightStatus.LANDED || it.status == FlightStatus.ON_GROUND) }

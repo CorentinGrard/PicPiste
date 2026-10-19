@@ -10,8 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 
 /**
- * The airfield this phone uses: the one saved from the editor, else the bundled one ([BUNDLED]).
- * Kept in one JSON file, the same format that is shared with other drivers.
+ * The airfield this phone uses, kept in one JSON file (the same format that is shared with other
+ * drivers). Until the driver picks one on the welcome screen, [configured] is false and the app
+ * shows that screen; [current] then holds the bundled airfield only so the engine has something.
  */
 class AirfieldStore(context: Context) {
     private val file = File(context.filesDir, "airfield.json")
@@ -19,8 +20,10 @@ class AirfieldStore(context: Context) {
     private val _current = MutableStateFlow(load())
     val current: StateFlow<Airfield> = _current.asStateFlow()
 
-    /** True when the phone uses the airfield that ships with the app. */
-    val isBundled: Boolean get() = !file.isFile
+    private val _configured = MutableStateFlow(file.isFile)
+
+    /** The driver has chosen an airfield (welcome screen, editor or file). */
+    val configured: StateFlow<Boolean> = _configured.asStateFlow()
 
     private fun load(): Airfield {
         if (file.isFile) {
@@ -38,12 +41,11 @@ class AirfieldStore(context: Context) {
         tmp.writeText(text)
         if (!tmp.renameTo(file)) error("Cannot write ${file.path}")
         _current.value = airfield
+        _configured.value = true
     }
 
-    fun resetToBundled() {
-        file.delete()
-        _current.value = Airfield.bundled(BUNDLED)
-    }
+    /** Uses the airfield shipped with the app (saved like any other). */
+    fun resetToBundled() = save(Airfield.bundledConfig(BUNDLED))
 
     companion object {
         const val BUNDLED = Airfield.BUNDLED

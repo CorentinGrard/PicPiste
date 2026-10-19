@@ -150,8 +150,12 @@ class Airfield(val config: AirfieldConfig) {
 
         fun encode(config: AirfieldConfig): String = json.encodeToString(AirfieldConfig.serializer(), config) + "\n"
 
-        /** The airfield bundled in the app, used until the driver sets up their own. */
+        /** The airfield shipped inside the app: chosen on the welcome screen without asking OpenStreetMap. */
         const val BUNDLED = "LFNL"
+
+        /** The bundled config for [code], or null when the app does not ship that airfield. */
+        fun bundledConfigOrNull(code: String): AirfieldConfig? =
+            code.trim().uppercase().takeIf { it == BUNDLED }?.let(::bundledConfig)
 
         /** Loads a bundled airfield from the core resources, e.g. [BUNDLED]. */
         fun bundled(icao: String): Airfield = Airfield(bundledConfig(icao))
