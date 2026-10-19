@@ -39,6 +39,10 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
     private var last: Snapshot = repo.snapshot.value
     private var job: Job? = null
 
+    /** Glider picked in the "Posés" list, highlighted on the radar for a while. */
+    private var selected: String? = null
+    private var selectedAtMs = 0L
+
     private val callback = object : SurfaceCallback {
         override fun onSurfaceAvailable(container: SurfaceContainer) {
             surface = container
@@ -88,7 +92,7 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
             .addAction(
                 Action.Builder()
                     .setTitle("Posés")
-                    .setOnClickListener { screenManager.push(LandedScreen(carContext)) }
+                    .setOnClickListener { screenManager.push(LandedScreen(carContext, ::showOnRadar)) }
                     .build(),
             )
             .build()
@@ -112,6 +116,14 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
             .setActionStrip(strip)
             .setMapActionStrip(mapStrip)
             .build()
+    }
+
+    private fun showOnRadar(address: String) {
+        selected = address
+        selectedAtMs = System.currentTimeMillis()
+        // Zoom out if the glider would be off screen.
+        val a = last.aircraft.firstOrNull { it.address == address } ?: return
+        if (a.distanceM > repo.prefs.zoomRadiusM.value * 0.85) repo.prefs.setZoomRadius(a.distanceM * 1.25)
     }
 
     private fun icon(res: Int) = CarIcon.Builder(IconCompat.createWithResource(carContext, res)).build()
@@ -138,11 +150,16 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
             val mapLeft = area.left + panelW
             val mapW = area.right - mapLeft
             val radius = repo.prefs.zoomRadiusM.value
-            renderer.draw(canvas, mapLeft, area.top.toFloat(), mapW, area.height().toFloat(), last, radius, dp)
+            if (selected != null && System.currentTimeMillis() - selectedAtMs > SELECTION_MS) selected = null
+            renderer.draw(canvas, mapLeft, area.top.toFloat(), mapW, area.height().toFloat(), last, radius, dp, selected)
             overlay.drawBanner(canvas, mapLeft, area.top.toFloat(), mapW, last, dp)
             overlay.drawRunwayBorder(canvas, w, h, last, dp)
         } finally {
             s.unlockCanvasAndPost(canvas)
         }
+    }
+
+    private companion object {
+        const val SELECTION_MS = 60_000L
     }
 }

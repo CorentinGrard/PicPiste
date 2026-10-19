@@ -222,6 +222,11 @@ class RadarRenderer(private val airfield: Airfield) {
                 fill.alpha = 255
             }
 
+            if (selected == a.address) {
+                stroke.color = Palette.TEXT
+                stroke.strokeWidth = 2.5f * dp
+                canvas.drawCircle(x, y, 18 * dp, stroke)
+            }
             drawIcon(canvas, a, x, y, color, dp)
             drawTag(canvas, a, x + 14 * dp, y, color, dp, selected == a.address)
             newHits += Hit(a.address, x, y)

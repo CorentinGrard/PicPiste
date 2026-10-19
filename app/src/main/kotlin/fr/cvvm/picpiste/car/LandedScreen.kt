@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-/** "Posés": today's landings, most recent first (car list template). */
-class LandedScreen(carContext: CarContext) : Screen(carContext) {
+/** "Posés": today's landings, most recent first (car list template). Tap a row to see it on the radar. */
+class LandedScreen(carContext: CarContext, private val onPick: (address: String) -> Unit) : Screen(carContext) {
     private val repo = carContext.repository
     private var job: Job? = null
 
@@ -50,6 +50,10 @@ class LandedScreen(carContext: CarContext) : Screen(carContext) {
                 Row.Builder()
                     .setTitle("${a.identity.label} — ${a.landedText ?: "posé"}")
                     .addText(listOf(who, ago).filter { it.isNotEmpty() }.joinToString(" · "))
+                    .setOnClickListener {
+                        onPick(a.address)
+                        screenManager.pop()
+                    }
                     .build(),
             )
         }
