@@ -1,4 +1,4 @@
-# PicPiste — Spécifications (v0.4, brouillon pour review)
+# PicPiste — Spécifications (v0.5, brouillon pour review)
 
 > App Android + Android Auto pour la golfette du club : voir où sont les planeurs,
 > qui va se poser, et dégager la piste à temps.
@@ -142,7 +142,7 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 - Carte (OpenStreetMap) avec tous les aéronefs, étiquettes, traînée des 2 dernières minutes.
 - Même liste « Arrivées / Posés ».
 - Fiche aéronef : immat, CN, altitude, vario, vitesse, dernier contact.
-- Réglages : terrain, pistes et piste en service, seuils d'alertes, son on/off,
+- Réglages : terrain, pistes, seuils d'alertes, son on/off,
   plafond d'affichage (AGL).
 
 ### 4.4 Configuration terrain
@@ -153,8 +153,9 @@ avec le mode « relevé » ci-dessous, et partageable par QR code.
 - Terrain : **LFNL** (Saint-Martin-de-Londres, CVVM), position, altitude, contour de
   l'emprise.
 - Pistes : **trois pistes parallèles 12/30 : « herbe » (nord), « dur droite » (milieu), « dur gauche » (sud)**. Seuils (coordonnées),
-  QFU, longueur, largeur, revêtement ; piste en service (manuel ou **auto-détectée**
-  d'après les derniers atterrissages).
+  QFU, longueur, largeur, revêtement. **Pas de « piste en service »** : remorqueur et
+  planeurs utilisent parfois des pistes ou des sens différents à quelques minutes
+  d'écart ; chaque aéronef reçoit sa piste et son sens d'après sa propre trajectoire (§4.1).
   - **Source des coordonnées** : OpenStreetMap ne sert qu'à tracer un **premier contour**
     du terrain (pistes LFNL). En v2, ce contour est corrigé depuis l'app avec le mode
     « relevé » : on roule jusqu'à chaque coin de piste ou de zone avec la golfette et on
@@ -231,7 +232,7 @@ d'Android Auto, une fois par téléphone.
 |---|---|
 | **v0.1 – prototype** | Client OGN + moteur de statuts, app téléphone (liste + carte). Validation sur le terrain un week-end de vol. |
 | **v1 – MVP golfette** | Android Auto : radar fixe orienté pistes, listes Arrivées / Posés, alerte à l’entrée sur piste, terrain intégré (contour OSM). |
-| **v2** | Terrain et zones éditables dans l'app (pistes, taxiways, starter…) avec le mode « relevé » GPS, partage par QR code ; piste en service auto-détectée. |
+| **v2** | Terrain et zones éditables dans l'app (pistes, taxiways, starter…) avec le mode « relevé » GPS, partage par QR code. |
 | **v3 (option)** | Passerelle via le serveur PicBoard (nom du pilote, écran club-house). |
 
 Projet perso (développeur seul) : périmètre v1 volontairement réduit.
@@ -272,5 +273,9 @@ conducteur ; app non diffusée avant d'être prête), pas de liste de flotte (OG
 Réglées en v0.4 : plafond 400 m AGL (~580 m QNH, terrain à 182 m), bordure rouge sur piste sans son,
 alerte uniquement golfette sur piste + trafic dans le circuit, pas de pré-alerte,
 coordonnées des pistes OSM + relevé GPS sur place.
+
+Réglée en v0.5 : pas de « piste en service » (ni manuelle ni auto-détectée) : remorqueur et
+planeurs peuvent utiliser des pistes différentes à quelques minutes d'écart ; la piste et le
+sens viennent de la trajectoire de chaque aéronef.
 
 Plus de question bloquante : la spec est prête pour démarrer le prototype v0.1.
