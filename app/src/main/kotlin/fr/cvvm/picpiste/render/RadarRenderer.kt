@@ -8,10 +8,13 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.airfield.Airfield
+import fr.cvvm.picpiste.core.airfield.Runway
+import fr.cvvm.picpiste.core.airfield.RunwayEnd
 import fr.cvvm.picpiste.core.aprs.AircraftType
 import fr.cvvm.picpiste.core.cart.formatEta
 import fr.cvvm.picpiste.core.geo.Polygon
 import fr.cvvm.picpiste.core.geo.Vec2
+import fr.cvvm.picpiste.core.geo.angleDiffDeg
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
 import kotlin.math.atan2
@@ -21,7 +24,7 @@ import kotlin.math.min
  * Draws the fixed, runway-aligned radar on any Android canvas: the phone screen
  * (through Compose) and the Android Auto surface use the same code.
  */
-class RadarRenderer(private val airfield: Airfield) {
+class RadarRenderer {
     private companion object {
         const val STARTER_LENGTH_M = 30.0
         const val STARTER_WIDTH_M = 14.0
@@ -33,10 +36,18 @@ class RadarRenderer(private val airfield: Airfield) {
     var hits: List<Hit> = emptyList()
         private set
 
-    /** Middle of the three runways: the radar is centred on it. */
-    private val fieldCentre: Vec2 = airfield.runways
-        .map { (it.threshold12 + it.threshold30) * 0.5 }
-        .reduce { a, b -> a + b } * (1.0 / airfield.runways.size)
+    /** The airfield of the frame being drawn (it changes when the user picks another one). */
+    private var airfield: Airfield? = null
+    private var fieldCentre = Vec2(0.0, 0.0)
+    private var runwayLabels: List<Pair<Vec2, String>> = emptyList()
+    private var labelsForScale = -1f
+
+    private fun use(a: Airfield) {
+        if (a === airfield) return
+        airfield = a
+        fieldCentre = a.centre
+        labelsForScale = -1f
+    }
 
     private val condensedBold = Typeface.create("sans-serif-condensed", Typeface.BOLD)
     private val sans = Typeface.create("sans-serif", Typeface.NORMAL)
@@ -82,6 +93,7 @@ class RadarRenderer(private val airfield: Airfield) {
         fill.color = Palette.MAP_BG
         canvas.drawRect(left, top, left + width, top + height, fill)
 
+        use(snap.airfield)
         cx = left + width / 2
         cy = top + height / 2
         scale = (min(width, height) / 2 / radiusM).toFloat()
@@ -118,6 +130,7 @@ class RadarRenderer(private val airfield: Airfield) {
     }
 
     private fun drawAirfield(canvas: Canvas, snap: Snapshot, dp: Float) {
+        val airfield = snap.airfield
         // Boundary
         fill.color = Palette.BOUNDARY_FILL
         canvas.drawPath(polyPath(airfield.boundary), fill)
@@ -167,19 +180,39 @@ class RadarRenderer(private val airfield: Airfield) {
             text.textSize = 13 * dp
             text.color = Palette.MUTED
             text.textAlign = Paint.Align.CENTER
-            // Parallel runways share their numbers: one "12" and one "30", beside the whole group.
-            val off = (14 * dp / scale).toDouble()
-            val dir = airfield.runways.first().dir12
-            val midY = airfield.runways.map { (it.threshold12.y + it.threshold30.y) / 2 }.average()
-            val a = airfield.runways.minBy { it.threshold12 dot dir }.threshold12
-            val b = airfield.runways.maxBy { it.threshold30 dot dir }.threshold30
-            val pa = Vec2(a.x, midY) - dir * off
-            val pb = Vec2(b.x, midY) + dir * off
-            canvas.drawText("12", sx(pa), sy(pa) + 4.5f * dp, text)
-            canvas.drawText("30", sx(pb), sy(pb) + 4.5f * dp, text)
+            if (labelsForScale != scale) {
+                runwayLabels = runwayLabels(airfield, (14 * dp / scale).toDouble())
+                labelsForScale = scale
+            }
+            for ((p, label) in runwayLabels) canvas.drawText(label, sx(p), sy(p) + 4.5f * dp, text)
         }
 
         airfield.starter?.let { drawStarter(canvas, it) }
+    }
+
+    /**
+     * Parallel runways share their numbers: one "12" and one "30" beside the whole group,
+     * direction only (no L/R). Crossing runways each get their own pair.
+     */
+    private fun runwayLabels(airfield: Airfield, offM: Double): List<Pair<Vec2, String>> {
+        val groups = mutableListOf<MutableList<Runway>>()
+        for (rw in airfield.runways) {
+            groups.firstOrNull { angleDiffDeg(it[0].headingA, rw.headingA) < 15 }?.add(rw)
+                ?: groups.add(mutableListOf(rw))
+        }
+        return groups.flatMap { g ->
+            val dir = g[0].dirA
+            val normal = Vec2(-dir.y, dir.x)
+            val mid = g.map { (it.thresholdA + it.thresholdB) * 0.5 }.reduce { a, b -> a + b } * (1.0 / g.size)
+            val across = mid dot normal
+            fun onAxis(p: Vec2) = dir * (p dot dir) + normal * across
+            val a = onAxis(g.minBy { it.thresholdA dot dir }.thresholdA) - dir * offM
+            val b = onAxis(g.maxBy { it.thresholdB dot dir }.thresholdB) + dir * offM
+            listOf(
+                a to g[0].direction(RunwayEnd.A),
+                b to g[0].direction(RunwayEnd.B),
+            )
+        }
     }
 
     /** The starter: a plain box like the hangars, aligned with the runways (local axes = screen axes). */
@@ -237,7 +270,7 @@ class RadarRenderer(private val airfield: Airfield) {
     private fun drawIcon(canvas: Canvas, a: AircraftState, x: Float, y: Float, color: Int, dp: Float) {
         val size = (if (a.status.isAirborne || a.status == FlightStatus.TAKEOFF) 26 else 22) * dp
         val angle = a.fix.trackDeg?.let { track ->
-            val d = airfield.frame.directionOf(track)
+            val d = airfield!!.frame.directionOf(track)
             Math.toDegrees(atan2(d.x, d.y)).toFloat() // screen y is flipped: up = +y local
         } ?: 0f
         canvas.save()
@@ -326,7 +359,7 @@ class RadarRenderer(private val airfield: Airfield) {
         fill.alpha = 230
         canvas.drawRoundRect(rect, 8 * dp, 8 * dp, fill)
         fill.alpha = 255
-        val d = airfield.frame.directionOf(0.0)
+        val d = airfield!!.frame.directionOf(0.0)
         val angle = Math.toDegrees(atan2(d.x, d.y)).toFloat()
         canvas.save()
         canvas.translate(x + 16 * dp, y + 16 * dp)

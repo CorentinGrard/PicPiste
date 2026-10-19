@@ -1,9 +1,15 @@
-# PicPiste — Spécifications (v0.5, brouillon pour review)
+# PicPiste — Spécifications (v0.7, brouillon pour review)
 
 > App Android + Android Auto pour la golfette du club : voir où sont les planeurs,
 > qui va se poser, et dégager la piste à temps.
 
 Statut : **brouillon validé sur le fond** — plus de question bloquante (voir §11).
+
+**L'app vaut pour n'importe quel terrain** : nombre de pistes quelconque, orientations
+quelconques (pistes parallèles, croisées ou en V), numéros quelconques (« 04/22 », « 14L/32R »…).
+Rien dans le code ni dans l'interface ne doit supposer une orientation ou un numéro de piste
+précis. LFNL (Saint-Martin-de-Londres, club CVVM) n'est que le terrain intégré par défaut
+et le terrain de test (§4.4).
 
 ---
 
@@ -54,7 +60,8 @@ capte ces trames et les republie gratuitement.
   au-delà de la journée.
 
 ### Couverture
-Le club a **son propre récepteur OGN** à LFNL : les planeurs sont vus jusqu'au sol,
+Hypothèse : le terrain a **un récepteur OGN** proche (c'est le cas à LFNL, où le club a le
+sien) : les planeurs sont vus jusqu'au sol,
 circuit et finale compris. Tous les planeurs du club ont un FLARM ; les données OGN
 suffisent à savoir ce qui se passe (pas besoin de la planche de vol pour les statuts).
 
@@ -80,7 +87,7 @@ vitesse, vario et cap :
 | Statut | Règle indicative (paramétrable) |
 |---|---|
 | 🟠 **Décollage** | Au sol sur une piste, accélère (> 30 km/h) → **piste occupée** |
-| 🛫 **Remorquage** | Monte, < 1 500 m AGL, avec le remorqueur à proximité (lancement au remorqueur uniquement à LFNL) |
+| 🛫 **Remorquage** | Monte, < 1 500 m AGL, avec le remorqueur à proximité (seul mode de lancement géré pour l'instant ; pas de treuil) |
 | 🛩️ **Remorqueur en descente** | Remorqueur largué, descend vers le terrain (affiché comme une arrivée) |
 | ↩️ **Retour** | < 5 km, se rapproche, sous le plafond (400 m AGL) : rejoint le circuit |
 | 🔄 **Dans le circuit** | < 3 km, < 350 m AGL (vent arrière / étape de base) |
@@ -89,14 +96,21 @@ vitesse, vario et cap :
 | ❔ **Signal perdu** | Pas de trame depuis > 60 s (dernière position affichée, grisée) |
 
 Pour « En finale » et « Dans le circuit » : **ETA estimée** (distance / vitesse sol) et
-**sens d'atterrissage** (12 ou 30) d'après la route suivie. On n'essaie pas de deviner laquelle des 3 pistes parallèles (40 à 50 m d'écart) : on affiche « Finale 30 », pas « Finale 30 herbe ». Pour un aéronef posé, la piste est connue (position au sol) : « herbe, fin de piste ».
+**sens d'atterrissage** d'après la route suivie : l'extrémité de piste (seuil) vers laquelle
+l'aéronef est aligné, quelle que soit l'orientation de la piste. Chaque aéronef est rapproché
+de **toutes** les pistes et de leurs deux sens ; on garde la mieux alignée.
+- Pistes **parallèles** (quelques dizaines de mètres d'écart) : on ne devine pas laquelle
+  depuis l'air ; on affiche le **sens seul**, sans la lettre L/C/R (« Finale <numéro> »).
+- Pistes **non parallèles** (croisées, en V) : le sens suffit à les distinguer.
+- Aéronef posé : la piste est connue (position au sol) : « <nom de piste>, fin de piste ».
 
 ### 4.1a Trafic affiché
 **Tout le trafic OGN** autour du terrain, pas seulement le club : planeurs, remorqueurs,
 visiteurs, ULM… chacun avec une icône par type et sa **position en direct**.
 - Filtre par défaut : aéronefs **sous 400 m AGL** dans le rayon du radar, plus tout ce
-  qui est au sol sur le terrain. Plafond réglable. Le terrain étant à 182 m d’altitude,
-  cela correspond à **~580 m QNH** — valeur validée (un peu au-dessus du circuit pour voir arriver les planeurs plus tôt).
+  qui est au sol sur le terrain. Plafond réglable, en hauteur au-dessus du terrain
+  (QNH = altitude terrain + plafond) — 400 m validé à LFNL : un peu au-dessus du circuit
+  pour voir arriver les planeurs plus tôt.
 - Sous ce plafond, près du terrain, il n'y a que du trafic **de circuit** : arrivées,
   circuit, finale, décollage, remorquage, posés. Pas de statut « en vol local » ni
   « vache » : ce qui est plus haut ou plus loin n'est pas affiché.
@@ -104,9 +118,12 @@ visiteurs, ULM… chacun avec une icône par type et sa **position en direct**.
   du circuit, pas besoin de modèle de relief en v1).
 
 ### 4.1b Golfette sur piste : indication et alerte
-La golfette circule **partout** sur le terrain. Les trois pistes **et l'herbe entre elles** forment
-**une seule zone piste** : dès que la golfette passe le bord sud de la 30 dur gauche, elle est « sur la piste » jusqu'à ce qu'elle ressorte au nord de la piste en herbe (une traversée = une seule alerte). Le GPS du téléphone situe la
-golfette par rapport à cette zone. Deux niveaux, pas plus :
+La golfette circule **partout** sur le terrain. La **zone piste** est l'union de toutes les
+pistes, **plus l'herbe entre deux pistes parallèles voisines** (moins de 150 m d'écart) :
+traverser un groupe de pistes parallèles d'un bord à l'autre compte pour **une seule**
+traversée, donc une seule alerte. Des pistes croisées ou en V restent des zones séparées
+(pas de « bande » entre elles). Le GPS du téléphone situe la golfette par rapport à cette
+zone. Deux niveaux, pas plus :
 
 | Situation | Réaction |
 |---|---|
@@ -126,14 +143,16 @@ golfette par rapport à cette zone. Deux niveaux, pas plus :
 Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 
 - **Liste « Arrivées »** triée par imminence :
-  `🔴 F-CXYZ (AB) — Finale 30 — 40 s`
-  `🔄 F-CKLM (12) — Circuit — ~2 min`
+  `🔴 F-CXYZ (AB) — Finale <sens> — 40 s`
+  `🔄 F-CKLM (KL) — Circuit — ~2 min`
   `↩️ F-CABC — Retour — 4 km, 450 m`
 - **Bordure rouge** quand la golfette est sur une piste ; **bandeau + son** seulement si
   en plus un aéronef est dans le circuit, en finale ou en décollage (§4.1b).
 - **Liste « Posés »** : derniers planeurs posés, avec position (début/milieu/fin de piste) → tap = position sur le radar.
-- **Vue radar** (écran principal, v1) : vue de dessus **fixe**, **orientée selon l'axe des
-  pistes** (pas de rotation, pas de zoom pendant la conduite). Fond de carte épuré : pistes herbe et dur,
+- **Vue radar** (écran principal, v1) : vue de dessus **fixe**, **orientée selon l'axe de
+  la piste principale** (la plus longue ; pas de rotation pendant la conduite). Les autres
+  pistes sont dessinées avec leur propre orientation. Numéros de piste à chaque bout de
+  chaque groupe de pistes parallèles (sens seul, sans L/C/R). Fond de carte épuré : pistes herbe et revêtues,
   taxiways, hangars, club-house et zone du starter ; golfette au centre ou position réelle, aéronefs en icônes colorées par
   statut avec étiquette (CN). Zoom au pincement (300 m à 6 km), plus un bouton qui passe d'un niveau préréglé à l'autre (700 m, 1,5 km, 4 km).
 
@@ -143,30 +162,58 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 - Même liste « Arrivées / Posés ».
 - Fiche aéronef : immat, CN, altitude, vario, vitesse, dernier contact.
 - Réglages : terrain, pistes, seuils d'alertes, son on/off,
-  plafond d'affichage (AGL).
+  plafond d'affichage (AGL), thème (§4.5).
 
 ### 4.4 Configuration terrain
 
 Fichier de config (JSON). **v1** : fichier intégré à l'app, généré une fois depuis
-OpenStreetMap (`tools/osm_to_airfield.py`). **v2** : éditable dans l'app (terrain et zones),
-avec le mode « relevé » ci-dessous, et partageable par QR code.
-- Terrain : **LFNL** (Saint-Martin-de-Londres, CVVM), position, altitude, contour de
-  l'emprise.
-- Pistes : **trois pistes parallèles 12/30 : « herbe » (nord), « dur droite » (milieu), « dur gauche » (sud)**. Seuils (coordonnées),
-  QFU, longueur, largeur, revêtement. **Pas de « piste en service »** : remorqueur et
+OpenStreetMap (`tools/osm_to_airfield.py`). **v2** (Réglages → Terrain → Modifier) :
+- **Chercher un terrain par son code OACI** : l'app télécharge son dessin OpenStreetMap
+  (pistes avec leurs numéros, taxiways, parkings, hangars, manches à air, contour) et
+  l'altitude terrain (tag OSM, sinon modèle de terrain Open-Meteo, signalée « à vérifier »).
+  Serveur Overpass d'abord ; s'il est saturé, recherche Nominatim puis API OSM.
+- **Éditer** : glisser un point, ajouter / supprimer un point, déplacer tout un élément,
+  ajouter une piste, un hangar, un parking, un taxiway, la manche à air, le starter ;
+  nom, revêtement et numéros des pistes ; code, nom et altitude du terrain ; annuler.
+- **Partager** : le terrain est un fichier JSON (`PicPiste-<code>.json`) envoyé par la feuille
+  de partage Android (messagerie, mail, Drive) ou enregistré dans un fichier. **Importer** :
+  ouvrir ce fichier avec PicPiste, ou Terrain → Importer un fichier. Le terrain importé
+  s'affiche dans l'éditeur et ne remplace celui du téléphone qu'après « Enregistrer ».
+- QR code : abandonné, un terrain fait 10 à 30 ko, trop pour un QR code lisible.
+Contenu d'un terrain :
+- Code OACI, nom, **altitude terrain** (sert au calcul de toutes les hauteurs AGL), point de
+  référence, contour de l'emprise.
+- **Pistes : autant qu'il faut, d'orientations quelconques.** Pour chacune : nom libre
+  (celui que le club utilise : « herbe », « revêtue nord »…), revêtement (herbe / revêtue),
+  contour, et ses **deux extrémités** avec leur numéro (« 04 », « 22 », « 14L »…) et la
+  position du seuil. Extrémité A = le plus petit numéro.
+  **Pas de « piste en service »** : remorqueur et
   planeurs utilisent parfois des pistes ou des sens différents à quelques minutes
   d'écart ; chaque aéronef reçoit sa piste et son sens d'après sa propre trajectoire (§4.1).
   - **Source des coordonnées** : OpenStreetMap ne sert qu'à tracer un **premier contour**
-    du terrain (pistes LFNL). En v2, ce contour est corrigé depuis l'app avec le mode
-    « relevé » : on roule jusqu'à chaque coin de piste ou de zone avec la golfette et on
-    appuie sur « enregistrer ce point » (GPS du téléphone). Le résultat remplace le
-    contour OSM dans le fichier de config.
-- Géométrie de départ (v1) : OpenStreetMap (pistes, taxiways, parking, hangars, manche à air). Le
-  **starter** n'est pas dans OSM : au sud du bout 30 de la dur gauche, placé à la main.
-- Altitude terrain : **182 m**.
+    du terrain. En v2, ce contour est corrigé depuis l'app avec le mode
+    « relevé » : on sélectionne une piste ou une zone, on roule jusqu'à chacun de ses coins
+    avec la golfette et on appuie sur « Placer ce point ici » (GPS du téléphone, refusé
+    au-delà de ±15 m) ; l'éditeur passe alors au point suivant.
+- Géométrie de départ : OpenStreetMap (pistes, taxiways, parking, hangars, manche à air). Le
+  **starter** n'est pas dans OSM : placé à la main dans l'éditeur (ou relevé au GPS).
 - Infrastructures dessinées sur le radar : taxiways, hangars, club-house, zone du starter
   (polygones, relevés comme les pistes).
 - Pas de liste de flotte : l'identification vient d'OGN (§3).
+- **Terrain intégré par défaut : LFNL** (`core/src/main/resources/airfields/LFNL.json`,
+  dessiné depuis OSM puis corrigé à la main). C'est la seule donnée propre au club.
+
+### 4.5 Thème clair / sombre (à faire)
+
+L'app est aujourd'hui **sombre uniquement**. Il faut un **mode clair** :
+- Réglage **Thème : Auto / Clair / Sombre** (Auto = thème du téléphone), sur le téléphone.
+- **Android Auto** : suivre le jour / nuit de la voiture (`CarContext.isDarkMode`), pas le
+  réglage du téléphone.
+- Mode clair pensé pour le **plein soleil** dans la golfette : fond clair, contrastes forts,
+  couleurs de statut (finale rouge, circuit jaune…) toujours lisibles et distinctes sur fond
+  clair ; la bordure et le bandeau rouges restent aussi visibles qu'en sombre.
+- Tous les écrans : radar (téléphone et voiture), listes, fiche aéronef, réglages, éditeur
+  de terrain.
 
 ## 5. Exigences non fonctionnelles
 
@@ -203,7 +250,7 @@ avec le mode « relevé » ci-dessous, et partageable par QR code.
 
 | Option | Principe | + | − |
 |---|---|---|---|
-| **1. Direct APRS (recommandé v1)** | Le téléphone ouvre lui-même la connexion `aprs.glidernet.org:14580`, filtre `r/LFNL/30` | Latence minimale (~1–2 s après le récepteur), **0 serveur**, marche même si le serveur PicBoard est en panne | Statuts calculés sur chaque téléphone ; 4G nécessaire |
+| **1. Direct APRS (recommandé v1)** | Le téléphone ouvre lui-même la connexion `aprs.glidernet.org:14580`, filtre `r/<lat>/<lon>/30` centré sur le terrain | Latence minimale (~1–2 s après le récepteur), **0 serveur**, marche même si le serveur PicBoard est en panne | Statuts calculés sur chaque téléphone ; 4G nécessaire |
 | 2. Via le serveur PicBoard | Nouveau service sur le serveur PicBoard qui relaie les **positions** de la zone LFNL en WebSocket (la chaîne actuelle ne transporte que des évènements) | Un seul « cerveau » partagé avec PicBoard ; possibilité d'afficher le nom du pilote depuis la planche | Développement côté PicBoard, auth à prévoir, un saut réseau de plus, dépendance au serveur |
 
 Recommandation : **option 1 en v1** (le flux APRS filtré sur 30 km est léger, c'est
@@ -232,7 +279,7 @@ d'Android Auto, une fois par téléphone.
 |---|---|
 | **v0.1 – prototype** | Client OGN + moteur de statuts, app téléphone (liste + carte). Validation sur le terrain un week-end de vol. |
 | **v1 – MVP golfette** | Android Auto : radar fixe orienté pistes, listes Arrivées / Posés, alerte à l’entrée sur piste, terrain intégré (contour OSM). |
-| **v2** | Terrain et zones éditables dans l'app (pistes, taxiways, starter…) avec le mode « relevé » GPS, partage par QR code. |
+| **v2** | Terrain par code OACI (OpenStreetMap), éditable dans l'app (pistes, taxiways, starter…) avec le mode « relevé » GPS, partage par fichier. |
 | **v3 (option)** | Passerelle via le serveur PicBoard (nom du pilote, écran club-house). |
 
 Projet perso (développeur seul) : périmètre v1 volontairement réduit.
@@ -263,19 +310,26 @@ Projet perso (développeur seul) : périmètre v1 volontairement réduit.
 ## 11. Questions ouvertes
 
 Réglées en v0.2 : écran golfette (Android Auto intégré), distribution (APK hors Play
-Store), terrain (LFNL, 3 pistes parallèles 12/30 (herbe, dur droite, dur gauche)), lancement (remorqueur seul),
+Store), terrain de départ (LFNL, pistes parallèles), lancement (remorqueur seul),
 FLARM (tous les planeurs), couverture (récepteur OGN du club), planche (PicBoard).
 
 Réglées en v0.3 : source (direct APRS, push), alerte à l'entrée sur piste (la golfette
 circule partout), trafic (tout OGN, < 400 m AGL par défaut), téléphones (celui de chaque
 conducteur ; app non diffusée avant d'être prête), pas de liste de flotte (OGN seul).
 
-Réglées en v0.4 : plafond 400 m AGL (~580 m QNH, terrain à 182 m), bordure rouge sur piste sans son,
+Réglées en v0.4 : plafond 400 m AGL, bordure rouge sur piste sans son,
 alerte uniquement golfette sur piste + trafic dans le circuit, pas de pré-alerte,
 coordonnées des pistes OSM + relevé GPS sur place.
 
 Réglée en v0.5 : pas de « piste en service » (ni manuelle ni auto-détectée) : remorqueur et
 planeurs peuvent utiliser des pistes différentes à quelques minutes d'écart ; la piste et le
 sens viennent de la trajectoire de chaque aéronef.
+
+Réglées en v0.6 : terrain par code OACI depuis OpenStreetMap, éditeur avec relevé GPS,
+partage par fichier JSON (pas de QR code : trop de données).
+
+Réglées en v0.7 : l'app vaut pour **tout terrain** (pistes multiples, orientations et
+numéros quelconques, rien de propre à LFNL hors du fichier terrain intégré) ; **mode clair**
+à ajouter (§4.5).
 
 Plus de question bloquante : la spec est prête pour démarrer le prototype v0.1.

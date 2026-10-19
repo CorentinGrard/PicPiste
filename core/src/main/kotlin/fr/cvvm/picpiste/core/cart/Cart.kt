@@ -1,7 +1,6 @@
 package fr.cvvm.picpiste.core.cart
 
 import fr.cvvm.picpiste.core.airfield.Airfield
-import fr.cvvm.picpiste.core.airfield.number
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
@@ -83,8 +82,8 @@ object AlertEngine {
             ?: return CartAlert(AlertLevel.ON_RUNWAY)
 
         val noun = threat.identity.type.label
-        // Only the direction: from the air we cannot tell which of the three parallel runways.
-        val where = threat.runwayEnd?.let { " ${it.number}" } ?: ""
+        // Only the direction: from the air we cannot tell parallel runways apart.
+        val where = threat.direction?.let { " $it" } ?: ""
         val title = when (threat.status) {
             FlightStatus.FINAL -> "$noun en finale$where"
             FlightStatus.TAKEOFF -> "Décollage en cours$where"

@@ -6,6 +6,7 @@ import fr.cvvm.picpiste.core.aprs.AprsFormatter
 import fr.cvvm.picpiste.core.ddb.DdbDevice
 import fr.cvvm.picpiste.core.ddb.DeviceDatabase
 import fr.cvvm.picpiste.core.geo.Vec2
+import fr.cvvm.picpiste.core.geo.angleDiffDeg
 import kotlin.math.max
 
 /**
@@ -15,6 +16,7 @@ import kotlin.math.max
  * Scenario (repeats every [periodMs]): a glider joins the circuit and lands on 30 herbe,
  * a tow takes off from 30 dur gauche and the tug comes back to land on 30 dur droite,
  * a second glider comes back from the north and lands on 30 herbe.
+ * On another airfield, everything happens on the main runway, landing on its B end.
  */
 class DemoTraffic(private val airfield: Airfield) {
     private data class Wp(val x: Double, val y: Double, val aglM: Double, val kmh: Double)
@@ -69,41 +71,52 @@ class DemoTraffic(private val airfield: Airfield) {
         val delayMs: Long = 0,
     )
 
-    private val herbe = airfield.runway("herbe")!!
-    private val droite = airfield.runway("dur-droite")!!
-    private val gauche = airfield.runway("dur-gauche")!!
+    /** The longest runway along the radar axis: the demo flies its circuit around it. */
+    private val main = airfield.runways
+        .filter { angleDiffDeg(it.headingA, airfield.config.axisBearingDeg) < 10 }
+        .maxByOrNull { it.length } ?: airfield.runways.maxBy { it.length }
+    private val herbe = airfield.runway("herbe") ?: main
+    private val droite = airfield.runway("dur-droite") ?: main
+    private val gauche = airfield.runway("dur-gauche") ?: main
+
+    // The circuit was drawn for LFNL (runways about 500 m long around the origin): shift it to
+    // the middle of the runways and push the base leg out for longer runways.
+    private val cx = airfield.centre.x
+    private val cy = airfield.centre.y
+    private val baseX = maxOf(cx + 1_300.0, main.thresholdB.x + 1_000.0)
+    private val downwindStartX = minOf(cx - 600.0, main.thresholdA.x - 300.0)
 
     private fun circuitTo30(startX: Double, startY: Double, rwY: Double, thresholdX: Double) = listOf(
-        Wp(startX, startY, 395.0, 100.0),
-        Wp(-300.0, 1_100.0, 300.0, 95.0),
-        Wp(-600.0, 650.0, 260.0, 95.0),
-        Wp(900.0, 650.0, 230.0, 95.0),
-        Wp(1_300.0, 350.0, 170.0, 90.0),
-        Wp(1_300.0, rwY, 140.0, 90.0),
+        Wp(cx + startX, cy + startY, 395.0, 100.0),
+        Wp(cx - 300.0, cy + 1_100.0, 300.0, 95.0),
+        Wp(downwindStartX, cy + 650.0, 260.0, 95.0),
+        Wp(cx + 900.0, cy + 650.0, 230.0, 95.0),
+        Wp(baseX, cy + 350.0, 170.0, 90.0),
+        Wp(baseX, rwY, 140.0, 90.0),
         Wp(thresholdX, rwY, 4.0, 85.0),
         Wp(thresholdX - 140, rwY, 0.0, 40.0),
         Wp(thresholdX - 230, rwY, 0.0, 3.0),
     )
 
     private val tugPath: Path = run {
-        val y = gauche.threshold30.y
-        val x0 = gauche.threshold30.x - 15
-        val yd = droite.threshold30.y
-        val xd = droite.threshold30.x
+        val y = gauche.thresholdB.y
+        val x0 = gauche.thresholdB.x - 15
+        val yd = droite.thresholdB.y
+        val xd = droite.thresholdB.x
         Path(
             listOf(
                 Wp(x0, y, 0.0, 0.5),
                 Wp(x0 - 1, y, 0.0, 0.5), // waiting at the threshold
                 Wp(x0 - 150, y, 0.0, 70.0),
                 Wp(x0 - 330, y, 3.0, 110.0),
-                Wp(-450.0, y, 80.0, 120.0),
-                Wp(-1_500.0, 250.0, 300.0, 120.0),
-                Wp(-2_600.0, 900.0, 600.0, 120.0), // release, out of the display ceiling
-                Wp(-2_000.0, 1_600.0, 420.0, 160.0),
-                Wp(-600.0, 650.0, 280.0, 150.0),
-                Wp(900.0, 650.0, 230.0, 140.0),
-                Wp(1_300.0, 300.0, 160.0, 130.0),
-                Wp(1_300.0, yd, 120.0, 120.0),
+                Wp(minOf(cx - 450.0, gauche.thresholdA.x - 100), y, 80.0, 120.0),
+                Wp(downwindStartX - 900, cy + 250.0, 300.0, 120.0),
+                Wp(downwindStartX - 2_000, cy + 900.0, 600.0, 120.0), // release, out of the display ceiling
+                Wp(downwindStartX - 1_400, cy + 1_600.0, 420.0, 160.0),
+                Wp(downwindStartX, cy + 650.0, 280.0, 150.0),
+                Wp(cx + 900.0, cy + 650.0, 230.0, 140.0),
+                Wp(baseX, cy + 300.0, 160.0, 130.0),
+                Wp(baseX, yd, 120.0, 120.0),
                 Wp(xd, yd, 4.0, 100.0),
                 Wp(xd - 200, yd, 0.0, 40.0),
                 Wp(xd - 300, yd, 0.0, 10.0),
@@ -113,11 +126,11 @@ class DemoTraffic(private val airfield: Airfield) {
     }
 
     private val actors: List<Actor> = listOf(
-        Actor("DD0A01", AircraftType.GLIDER, Path(circuitTo30(2_600.0, 3_000.0, herbe.threshold30.y, herbe.threshold30.x), 120_000), startMs = 0),
+        Actor("DD0A01", AircraftType.GLIDER, Path(circuitTo30(2_600.0, 3_000.0, herbe.thresholdB.y, herbe.thresholdB.x), 120_000), startMs = 0),
         Actor("DD0A02", AircraftType.TOW_PLANE, tugPath, startMs = 90_000),
         // Towed glider: same path a little behind, silent from the release point (index 6, above the ceiling).
         Actor("DD0A03", AircraftType.GLIDER, tugPath, startMs = 90_000, stopAfterMs = tugPath.timeTo(6), delayMs = 2_500),
-        Actor("DD0A04", AircraftType.GLIDER, Path(circuitTo30(-1_800.0, 3_600.0, herbe.threshold30.y, herbe.threshold30.x), 90_000), startMs = 200_000),
+        Actor("DD0A04", AircraftType.GLIDER, Path(circuitTo30(-1_800.0, 3_600.0, herbe.thresholdB.y, herbe.thresholdB.x), 90_000), startMs = 200_000),
     )
 
     val periodMs: Long = actors.maxOf { it.startMs + it.path.durationMs } + 30_000
@@ -137,8 +150,8 @@ class DemoTraffic(private val airfield: Airfield) {
      * every 2 minutes it waits at the starter, drives onto the grass runway, parks there, comes back.
      */
     fun cartAt(sinceStartMs: Long): Vec2 {
-        val parked = airfield.starter?.let { Vec2(it.x - 60, it.y - 25) } ?: Vec2(gauche.threshold30.x, gauche.threshold30.y - 60)
-        val onHerbe = herbe.threshold30 - herbe.dir12 * (herbe.length * 0.6)
+        val parked = airfield.starter?.let { Vec2(it.x - 60, it.y - 25) } ?: Vec2(gauche.thresholdB.x, gauche.thresholdB.y - 60)
+        val onHerbe = herbe.thresholdB - herbe.dirA * (herbe.length * 0.6)
         val t = (sinceStartMs % 120_000) / 1000.0
         fun lerp(a: Vec2, b: Vec2, f: Double) = a + (b - a) * f.coerceIn(0.0, 1.0)
         return when {

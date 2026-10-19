@@ -93,7 +93,7 @@ class TrafficTracker(
         val onIt = rw.outline.containsWithin(fix.pos, 30.0) || lateral < 40
         val end = track.lastFinal?.takeIf { it.first === rw }?.second
             ?: engine.endFromTrack(rw, track.fixes.lastOrNull()?.trackDeg)
-            ?: RunwayEnd.R30
+            ?: RunwayEnd.B
         track.landedRunway = if (onIt) rw else null
         track.landedThird = if (onIt) rw.third(fix.pos, end) else null
     }

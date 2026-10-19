@@ -6,13 +6,14 @@ Spécifications : [docs/SPECS.md](docs/SPECS.md)
 
 ## Structure
 
-- `core/` — Kotlin pur, sans Android, testé : flux OGN (APRS), base OGN DDB, terrain LFNL,
+- `core/` — Kotlin pur, sans Android, testé : flux OGN (APRS), base OGN DDB, terrain (tout
+  terrain : import OpenStreetMap, édition ; LFNL intégré par défaut),
   moteur de statuts (décollage, remorquage, retour, circuit, finale, posé), golfette sur piste,
   alertes, trafic de démo.
 - `app/` — l'app Android : écran téléphone (Compose) et écran Android Auto (catégorie
   navigation, radar dessiné sur la surface).
-- `tools/osm_to_airfield.py` — génère `core/src/main/resources/airfields/LFNL.json` depuis
-  un export OpenStreetMap (Overpass).
+- `tools/osm_to_airfield.py` — génère `core/src/main/resources/airfields/LFNL.json` (le
+  terrain intégré à l'app) depuis un export OpenStreetMap (Overpass).
 
 ## Construire et installer
 
@@ -46,12 +47,28 @@ OGN ne garde pas l'historique des positions : il faut enregistrer le jour même.
   fichiers dans `recordings/`. Pour rejouer sur le téléphone :
   `adb push recordings/LFNL-2026-10-25.tsv /sdcard/Android/data/fr.cvvm.picpiste/files/recordings/`
 - Réglages → Trafic : **Rejeu** (×1, ×4, ×10) rejoue le dernier enregistrement, avec une
-  golfette simulée qui va sur la piste en herbe.
+  golfette simulée qui va sur une piste.
+
+## Changer de terrain
+
+Réglages (⋯) → Terrain → **Modifier** :
+
+- ⋯ → **Chercher un terrain par son code** (ex. LFLE) : dessin OpenStreetMap, à vérifier.
+- Toucher une piste, un seuil, un hangar… pour le sélectionner ; glisser ses points.
+  Sur place : rouler jusqu'au point et **Placer ce point ici** (GPS du téléphone).
+- **Enregistrer** : le radar et les alertes utilisent ce terrain.
+- ⋯ → **Partager** envoie `PicPiste-XXXX.json` ; l'autre conducteur l'ouvre avec PicPiste
+  (ou ⋯ → Importer un fichier), vérifie, puis enregistre.
+- ⋯ → **Revenir au terrain intégré** remet LFNL.
 
 ## Mode démo
 
-Réglages (⋯) → Trafic : **Démo** : trafic et golfette simulés autour de LFNL, pour essayer
-l'app sans vol (circuit, finale 30 herbe, remorqué depuis la 30 dur gauche, alertes).
+Réglages (⋯) → Trafic : **Démo** : trafic et golfette simulés autour du terrain choisi, pour
+essayer l'app sans vol (circuit, finale, remorqué, alertes).
+
+## Reprise du travail
+
+Ce qui reste à faire et les points du code encore propres à LFNL : [docs/NEXT.md](docs/NEXT.md).
 
 ## CI et versions
 

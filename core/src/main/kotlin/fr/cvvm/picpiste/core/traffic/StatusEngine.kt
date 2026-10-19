@@ -150,7 +150,5 @@ class StatusEngine(private val airfield: Airfield) {
             abs(glider.altitudeM - tug.altitudeM) < TOW_MAX_ALT_DIFF_M &&
             (tug.climbMs ?: 1.0) > 0.3
 
-    fun endFromTrack(rw: Runway, trackDeg: Double?): RunwayEnd? = trackDeg?.let {
-        if (angleDiffDeg(it, rw.heading12) <= 90) RunwayEnd.R12 else RunwayEnd.R30
-    }
+    fun endFromTrack(rw: Runway, trackDeg: Double?): RunwayEnd? = trackDeg?.let(rw::endFromTrack)
 }

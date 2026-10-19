@@ -1,4 +1,5 @@
 {
+ "formatVersion": 2,
  "icao": "LFNL",
  "name": "Saint-Martin-de-Londres",
  "elevationM": 182,
@@ -12,13 +13,21 @@
    "id": "herbe",
    "name": "herbe",
    "surface": "grass",
-   "threshold12": [
-    43.8014692,
-    3.7787734
-   ],
-   "threshold30": [
-    43.7990568,
-    3.7846942
+   "ends": [
+    {
+     "ref": "12",
+     "threshold": [
+      43.8014692,
+      3.7787734
+     ]
+    },
+    {
+     "ref": "30",
+     "threshold": [
+      43.7990568,
+      3.7846942
+     ]
+    }
    ],
    "outline": [
     [
@@ -47,13 +56,21 @@
    "id": "dur-droite",
    "name": "dur droite",
    "surface": "paved",
-   "threshold12": [
-    43.8005068,
-    3.77984
-   ],
-   "threshold30": [
-    43.7985463,
-    3.7846814
+   "ends": [
+    {
+     "ref": "12",
+     "threshold": [
+      43.8005068,
+      3.77984
+     ]
+    },
+    {
+     "ref": "30",
+     "threshold": [
+      43.7985463,
+      3.7846814
+     ]
+    }
    ],
    "outline": [
     [
@@ -90,13 +107,21 @@
    "id": "dur-gauche",
    "name": "dur gauche",
    "surface": "paved",
-   "threshold12": [
-    43.8000561,
-    3.7803126
-   ],
-   "threshold30": [
-    43.7982083,
-    3.78486
+   "ends": [
+    {
+     "ref": "12",
+     "threshold": [
+      43.8000561,
+      3.7803126
+     ]
+    },
+    {
+     "ref": "30",
+     "threshold": [
+      43.7982083,
+      3.78486
+     ]
+    }
    ],
    "outline": [
     [

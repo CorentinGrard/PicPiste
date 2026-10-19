@@ -15,11 +15,13 @@ import fr.cvvm.picpiste.core.traffic.FlightStatus
 import fr.cvvm.picpiste.core.traffic.TrafficSettings
 import fr.cvvm.picpiste.core.traffic.TrafficTracker
 
-/** [onRunway]: in the runway zone (the three runways and the grass between them). */
+/** [onRunway]: in the runway zone (the runways and the grass between parallel ones). */
 data class CartState(val pos: Vec2, val accuracyM: Double?, val onRunway: Boolean, val timeMs: Long)
 
 /** Everything a screen needs to draw one frame. */
 data class Snapshot(
+    /** The airfield the positions below are measured against. */
+    val airfield: Airfield,
     val timeMs: Long,
     val aircraft: List<AircraftState>,
     /** Final first, then by estimated time to touchdown. */
@@ -94,6 +96,7 @@ class PicPisteEngine(
         // Cart fix older than 10 s: do not claim we know where it is.
         val cart = cart?.takeIf { nowMs - it.timeMs < 10_000 }
         return Snapshot(
+            airfield = airfield,
             timeMs = nowMs,
             aircraft = aircraft,
             arrivals = arrivals,

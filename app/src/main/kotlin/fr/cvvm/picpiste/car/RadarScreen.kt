@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
  */
 class RadarScreen(carContext: CarContext) : Screen(carContext) {
     private val repo = carContext.repository
-    private val renderer = RadarRenderer(repo.airfield)
+    private val renderer = RadarRenderer()
     private val overlay = CarOverlay()
 
     private var surface: SurfaceContainer? = null

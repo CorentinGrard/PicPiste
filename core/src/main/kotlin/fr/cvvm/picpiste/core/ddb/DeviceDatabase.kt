@@ -81,7 +81,8 @@ fun httpGet(url: String, timeoutMs: Int = 20_000): String {
     val conn = URI(url).toURL().openConnection() as HttpURLConnection
     conn.connectTimeout = timeoutMs
     conn.readTimeout = timeoutMs
-    conn.setRequestProperty("User-Agent", "PicPiste")
+    // OSM services (Nominatim, OSM API) ask apps to say who they are.
+    conn.setRequestProperty("User-Agent", "PicPiste (Android, https://github.com/CorentinGrard/PicPiste)")
     try {
         if (conn.responseCode !in 200..299) error("HTTP ${conn.responseCode}")
         return conn.inputStream.bufferedReader().use { it.readText() }

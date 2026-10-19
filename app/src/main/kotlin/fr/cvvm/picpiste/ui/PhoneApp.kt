@@ -1,5 +1,6 @@
 package fr.cvvm.picpiste.ui
 
+import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,14 +64,24 @@ import fr.cvvm.picpiste.data.TrafficRepository
 import fr.cvvm.picpiste.render.Palette
 import fr.cvvm.picpiste.render.RadarRenderer
 import fr.cvvm.picpiste.render.color
+import fr.cvvm.picpiste.ui.editor.AirfieldEditor
 import java.util.Locale
 
 private fun c(argb: Int) = Color(argb)
 private val Condensed = FontFamily.SansSerif
 
+/**
+ * @param incoming an airfield file opened with PicPiste from another app: opens the airfield editor.
+ */
 @Composable
-fun PhoneApp(repo: TrafficRepository) {
+fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: () -> Unit = {}) {
     MaterialTheme(colorScheme = darkColorScheme(background = c(Palette.BG), surface = c(Palette.SURFACE))) {
+        var editing by rememberSaveable { mutableStateOf(false) }
+        if (incoming != null) editing = true
+        if (editing) {
+            AirfieldEditor(repo, incoming, onIncomingHandled, onClose = { editing = false })
+            return@MaterialTheme
+        }
         val snap by repo.snapshot.collectAsStateWithLifecycle()
         val radius by repo.prefs.zoomRadiusM.collectAsStateWithLifecycle()
         val source by repo.prefs.source.collectAsStateWithLifecycle()
@@ -105,7 +116,9 @@ fun PhoneApp(repo: TrafficRepository) {
             val a = snap.aircraft.firstOrNull { it.address == addr }
             if (a == null) selected = null else DetailSheet(a) { selected = null }
         }
-        if (showSettings) SettingsDialog(repo) { showSettings = false }
+        if (showSettings) {
+            SettingsDialog(repo, onEditAirfield = { showSettings = false; editing = true }) { showSettings = false }
+        }
     }
 }
 
@@ -152,7 +165,7 @@ private fun Pill(text: String, dot: Color? = null) {
 
 @Composable
 private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, selected: String?, onZoom: (Double) -> Unit, onSelect: (String?) -> Unit) {
-    val renderer = remember { RadarRenderer(repo.airfield) }
+    val renderer = remember { RadarRenderer() }
     val density = LocalDensity.current.density
     Canvas(
         Modifier
@@ -348,7 +361,8 @@ private fun Stat(label: String, value: String, sub: String, modifier: Modifier) 
 }
 
 @Composable
-private fun SettingsDialog(repo: TrafficRepository, onDismiss: () -> Unit) {
+private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, onDismiss: () -> Unit) {
+    val airfield by repo.airfields.current.collectAsStateWithLifecycle()
     val source by repo.prefs.source.collectAsStateWithLifecycle()
     val sound by repo.prefs.sound.collectAsStateWithLifecycle()
     val record by repo.prefs.record.collectAsStateWithLifecycle()
@@ -360,12 +374,19 @@ private fun SettingsDialog(repo: TrafficRepository, onDismiss: () -> Unit) {
         title = { Text("Réglages") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Terrain", color = c(Palette.TEXT), fontSize = 16.sp)
+                        Text("${airfield.icao} · ${airfield.name}", color = c(Palette.MUTED), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    TextButton(onClick = onEditAirfield) { Text("Modifier") }
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Trafic", color = c(Palette.TEXT), fontSize = 16.sp)
                     Choice(Source.entries.map { it.label }, source.ordinal) { repo.prefs.setSource(Source.entries[it]) }
                     Text(
                         when (source) {
-                            Source.LIVE -> "Flux OGN en direct autour de LFNL."
+                            Source.LIVE -> "Flux OGN en direct autour de ${airfield.icao}."
                             Source.DEMO -> "Trafic et golfette simulés, pour essayer sans vol."
                             Source.REPLAY -> "Rejoue le dernier jour enregistré, avec une golfette simulée sur la piste en herbe."
                         },

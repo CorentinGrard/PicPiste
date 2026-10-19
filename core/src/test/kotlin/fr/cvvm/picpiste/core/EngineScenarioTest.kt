@@ -46,7 +46,7 @@ class EngineScenarioTest {
         assertEquals(FlightStatus.LANDED, statuses.last(), "statuses: $statuses")
 
         val finals = seen.mapNotNull { it.second }.filter { it.status == FlightStatus.FINAL }
-        assertTrue(finals.all { it.runway?.id == "herbe" && it.runwayEnd == RunwayEnd.R30 }, finals.map { it.statusText }.distinct().toString())
+        assertTrue(finals.all { it.runway?.id == "herbe" && it.runwayEnd == RunwayEnd.B }, finals.map { it.statusText }.distinct().toString())
         assertEquals("Finale 30", finals.first().statusText)
 
         val landed = seen.last { it.second?.status == FlightStatus.LANDED }.second!!
@@ -63,7 +63,7 @@ class EngineScenarioTest {
         assertTrue(FlightStatus.TOW in statuses, "statuses: $statuses")
         val takeoff = tug.first { it.status == FlightStatus.TAKEOFF && it.runway != null }
         assertEquals("dur-gauche", takeoff.runway?.id)
-        assertEquals(RunwayEnd.R30, takeoff.runwayEnd)
+        assertEquals(RunwayEnd.B, takeoff.runwayEnd)
         val final = tug.firstOrNull { it.status == FlightStatus.FINAL }
         assertNotNull(final, "statuses: $statuses")
         assertEquals("dur-droite", final.runway?.id)
@@ -97,7 +97,7 @@ class EngineScenarioTest {
     @Test
     fun cartOnHerbeGetsAlertWhileGliderInCircuitOrFinal() {
         val herbe = lfnl.runway("herbe")!!
-        val onHerbe = (herbe.threshold12 + herbe.threshold30) * 0.5
+        val onHerbe = (herbe.thresholdA + herbe.thresholdB) * 0.5
         val levels = mutableListOf<AlertLevel>()
         val titles = mutableSetOf<String>()
         run(300, cartAt = { onHerbe }) { _, snap ->
@@ -123,8 +123,8 @@ class EngineScenarioTest {
     fun runwayPresenceHasHysteresis() {
         val d = RunwayPresenceDetector(lfnl)
         val rw = lfnl.runway("dur-gauche")!!
-        val mid = (rw.threshold12 + rw.threshold30) * 0.5
-        val south = Vec2(rw.dir12.y, -rw.dir12.x) // right of the 12 direction = away from the other runways
+        val mid = (rw.thresholdA + rw.thresholdB) * 0.5
+        val south = Vec2(rw.dirA.y, -rw.dirA.x) // right of the 12 direction = away from the other runways
         assertTrue(d.update(mid, 4.0, 0))
         // Just outside the south edge (inside the exit margin): still on it.
         val edge = mid + south * (halfWidth(rw, mid, south) + 5)
@@ -143,7 +143,7 @@ class EngineScenarioTest {
         val herbe = lfnl.runway("herbe")!!
         // Drive north (+y) across the middle of the field, 1 m per step, from 40 m south of dur gauche
         // to 40 m north of herbe.
-        val x = (gauche.threshold12.x + gauche.threshold30.x) / 2
+        val x = (gauche.thresholdA.x + gauche.thresholdB.x) / 2
         val y0 = gauche.outline.points.minOf { it.y } - 40
         val y1 = herbe.outline.points.maxOf { it.y } + 40
         var changes = 0

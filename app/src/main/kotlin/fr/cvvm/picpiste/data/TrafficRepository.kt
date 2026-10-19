@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -42,6 +43,9 @@ import java.time.ZoneId
 /** What the replay is playing, for the top bar. */
 data class ReplayInfo(val file: String?, val nowMs: Long?, val message: String?)
 
+/** The phone's own GPS, whatever the traffic source: used by the airfield editor. */
+data class PhoneFix(val geo: GeoPoint, val accuracyM: Double?, val timeMs: Long)
+
 /**
  * Runs the PicPiste engine for the whole app. The phone screen and the Android Auto
  * session each [acquire] it while visible; it stops when nobody uses it.
@@ -50,11 +54,12 @@ data class ReplayInfo(val file: String?, val nowMs: Long?, val message: String?)
 @OptIn(ExperimentalCoroutinesApi::class)
 class TrafficRepository(private val context: Context) {
     val prefs = Prefs(context)
-    val airfield: Airfield = Airfield.bundled("LFNL")
+    val airfields = AirfieldStore(context)
+    private val airfield: Airfield get() = engine.airfield
 
     private val engineDispatcher = Dispatchers.Default.limitedParallelism(1)
     private val scope = CoroutineScope(SupervisorJob() + engineDispatcher)
-    private var engine = PicPisteEngine(airfield)
+    private var engine = PicPisteEngine(airfields.current.value)
     private var liveDdb: DeviceDatabase = DeviceDatabase.EMPTY
     private val speaker = AlertSpeaker(context)
 
@@ -75,11 +80,16 @@ class TrafficRepository(private val context: Context) {
     private var job: Job? = null
     private var listening = false
 
+    private val _phoneFix = MutableStateFlow<PhoneFix?>(null)
+    val phoneFix: StateFlow<PhoneFix?> = _phoneFix.asStateFlow()
+
     private val locationListener = LocationListener { loc: Location ->
-        if (prefs.source.value != Source.LIVE) return@LocationListener
         val geo = GeoPoint(loc.latitude, loc.longitude)
         val acc = if (loc.hasAccuracy()) loc.accuracy.toDouble() else null
-        scope.launch { engine.onCartPosition(geo, acc, System.currentTimeMillis()) }
+        val now = System.currentTimeMillis()
+        _phoneFix.value = PhoneFix(geo, acc, now)
+        if (prefs.source.value != Source.LIVE) return@LocationListener
+        scope.launch { engine.onCartPosition(geo, acc, now) }
     }
 
     /** Call from the main thread. */
@@ -108,10 +118,11 @@ class TrafficRepository(private val context: Context) {
         job = scope.launch {
             launch { loadDdb() }
             launch {
-                prefs.source.collectLatest { source ->
+                // A new source or a new airfield: start over with a fresh engine.
+                combine(prefs.source, airfields.current) { s, a -> s to a }.collectLatest { (source, field) ->
                     clock = System::currentTimeMillis
                     _replay.value = ReplayInfo(null, null, null)
-                    engine = PicPisteEngine(airfield, settings()).apply { ddb = liveDdb }
+                    engine = PicPisteEngine(field, settings()).apply { ddb = liveDdb }
                     when (source) {
                         Source.LIVE -> runLive()
                         Source.DEMO -> runDemo()

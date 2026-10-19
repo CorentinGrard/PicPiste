@@ -1,11 +1,14 @@
 package fr.cvvm.picpiste.ui
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.mutableStateOf
 import fr.cvvm.picpiste.repository
 
 class MainActivity : ComponentActivity() {
@@ -13,12 +16,16 @@ class MainActivity : ComponentActivity() {
         repository.onPermissionsChanged()
     }
 
+    /** An airfield file another app asked us to open (shared by another driver). */
+    private val incoming = mutableStateOf<Uri?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Used as a dashboard in the cart: keep the screen on while visible.
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        setContent { PhoneApp(repository) }
+        if (savedInstanceState == null) incoming.value = airfieldUri(intent)
+        setContent { PhoneApp(repository, incoming.value) { incoming.value = null } }
         askPermissions.launch(
             arrayOf(
                 Manifest.permission.ACCESS_FINE_LOCATION,
@@ -26,6 +33,17 @@ class MainActivity : ComponentActivity() {
                 Manifest.permission.POST_NOTIFICATIONS,
             ),
         )
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        airfieldUri(intent)?.let { incoming.value = it }
+    }
+
+    private fun airfieldUri(intent: Intent?): Uri? = when (intent?.action) {
+        Intent.ACTION_VIEW -> intent.data
+        Intent.ACTION_SEND -> intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        else -> null
     }
 
     override fun onStart() {

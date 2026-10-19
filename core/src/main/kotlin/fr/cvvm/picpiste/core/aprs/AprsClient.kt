@@ -1,6 +1,10 @@
 package fr.cvvm.picpiste.core.aprs
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -50,7 +54,16 @@ class AprsClient(
 
     /** One connection, ends (normally or with an exception) when the link drops. */
     fun connectOnce(): Flow<AprsEvent> = flow {
-        Socket().use { socket ->
+        Socket().use { socket -> coroutineScope {
+            // A blocking read does not see cancellation: close the socket so it returns at once.
+            // (The loop below only ends by throwing, which cancels this watcher too.)
+            launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    awaitCancellation()
+                } finally {
+                    runCatching { socket.close() }
+                }
+            }
             socket.connect(InetSocketAddress(host, port), 15_000)
             socket.soTimeout = READ_TIMEOUT_MS
             socket.tcpNoDelay = true
@@ -62,7 +75,12 @@ class AprsClient(
             var lastKeepalive = nowMs()
             while (true) {
                 currentCoroutineContext().ensureActive()
-                val line = reader.readLine() ?: throw EOFException("Server closed the connection")
+                val line = try {
+                    reader.readLine()
+                } catch (e: java.io.IOException) {
+                    currentCoroutineContext().ensureActive() // closed by us on cancellation: just stop
+                    throw e
+                } ?: throw EOFException("Server closed the connection")
                 val now = nowMs()
                 if (now - lastKeepalive >= KEEPALIVE_EVERY_MS) {
                     writer.write("#keepalive\r\n")
@@ -71,7 +89,7 @@ class AprsClient(
                 }
                 emit(AprsEvent.Line(line, now))
             }
-        }
+        } }
     }.flowOn(Dispatchers.IO)
 
     /** Stays connected until cancelled, reconnecting with exponential backoff. */

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Turn an Overpass JSON dump of LFNL into the PicPiste airfield config.
+"""Turn an Overpass JSON dump of LFNL into the PicPiste airfield config bundled in the app.
+
+Other airfields: the app builds them itself from their code (Réglages → Terrain).
 
 Usage: python3 -I tools/osm_to_airfield.py lfnl-osm.json > core/src/main/resources/airfields/LFNL.json
 """
@@ -47,7 +49,7 @@ def main(path):
             a, b = b, a
         runways.append({
             "id": rid, "name": name, "surface": surface,
-            "threshold12": a, "threshold30": b,
+            "ends": [{"ref": "12", "threshold": a}, {"ref": "30", "threshold": b}],
             "outline": poly(outline),
         })
 
@@ -62,6 +64,7 @@ def main(path):
                round(lon0 + east / (111320 * math.cos(math.radians(lat0))), 7)]
 
     out = {
+        "formatVersion": 2,
         "icao": "LFNL",
         "name": "Saint-Martin-de-Londres",
         "elevationM": 182,

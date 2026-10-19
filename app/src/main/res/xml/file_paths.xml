@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Airfield files shared from the editor are written here before the share sheet opens. -->
+<paths>
+    <cache-path name="exports" path="exports/" />
+</paths>

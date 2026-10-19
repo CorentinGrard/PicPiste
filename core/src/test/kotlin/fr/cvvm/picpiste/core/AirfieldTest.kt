@@ -36,15 +36,15 @@ class AirfieldTest {
         assertEquals(182.0, lfnl.elevationM)
         assertEquals(listOf("herbe", "dur droite", "dur gauche"), lfnl.runways.map { it.name })
         for (rw in lfnl.runways) {
-            assertEquals(12, runwayNumber(rw.heading12), "${rw.name} heading ${rw.heading12}")
-            assertEquals(30, runwayNumber(rw.heading30))
+            assertEquals(12, runwayNumber(rw.headingA), "${rw.name} heading ${rw.headingA}")
+            assertEquals(30, runwayNumber(rw.headingB))
             assertTrue(rw.length in 350.0..600.0, "${rw.name} length ${rw.length}")
-            assertTrue(rw.outline.contains((rw.threshold12 + rw.threshold30) * 0.5), "${rw.name} midpoint inside outline")
+            assertTrue(rw.outline.contains((rw.thresholdA + rw.thresholdB) * 0.5), "${rw.name} midpoint inside outline")
         }
         // Herbe is the northernmost (left of the 12 direction = +y), dur gauche the southernmost.
         val ys = lfnl.runways.associate { it.name to it.lateral(Vec2(0.0, 0.0)) }
-        assertTrue(lfnl.runway("herbe")!!.threshold12.y > lfnl.runway("dur-droite")!!.threshold12.y)
-        assertTrue(lfnl.runway("dur-droite")!!.threshold12.y > lfnl.runway("dur-gauche")!!.threshold12.y)
+        assertTrue(lfnl.runway("herbe")!!.thresholdA.y > lfnl.runway("dur-droite")!!.thresholdA.y)
+        assertTrue(lfnl.runway("dur-droite")!!.thresholdA.y > lfnl.runway("dur-gauche")!!.thresholdA.y)
         assertEquals(3, ys.size)
         assertNotNull(lfnl.starter)
     }
@@ -52,10 +52,10 @@ class AirfieldTest {
     @Test
     fun thirdsDependOnLandingDirection() {
         val rw = lfnl.runway("herbe")!!
-        val nearThreshold30 = rw.threshold30 - rw.dir12 * 50.0
-        assertEquals(RunwayThird.START, rw.third(nearThreshold30, RunwayEnd.R30))
-        assertEquals(RunwayThird.END, rw.third(nearThreshold30, RunwayEnd.R12))
-        assertEquals("30 herbe", rw.label(RunwayEnd.R30))
+        val nearThreshold30 = rw.thresholdB - rw.dirA * 50.0
+        assertEquals(RunwayThird.START, rw.third(nearThreshold30, RunwayEnd.B))
+        assertEquals(RunwayThird.END, rw.third(nearThreshold30, RunwayEnd.A))
+        assertEquals("30 herbe", rw.label(RunwayEnd.B))
         assertTrue(abs(rw.lateral(nearThreshold30)) < 1e-6)
     }
 }
