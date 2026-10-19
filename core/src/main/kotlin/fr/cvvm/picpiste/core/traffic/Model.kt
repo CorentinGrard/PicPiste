@@ -85,13 +85,13 @@ data class AircraftState(
 ) {
     val address get() = identity.address
 
-    /** Landing or takeoff direction, without the L/R letter: "30", "14". */
+    /** Landing or takeoff direction, without the L/R letter: "22", "14". */
     val direction: String? get() = runwayEnd?.let { end -> runway?.direction(end) }
 
-    /** "Finale 30", "Circuit", "Retour · 2,4 km · 290 m"… */
+    /** "Finale 22", "Circuit", "Retour · 2,4 km · 290 m"… */
     val statusText: String
         get() = when (status) {
-            // Direction only ("Finale 30"): parallel runways are too close to tell apart from the air.
+            // Direction only ("Finale 14", not "14L"): parallel runways are too close to tell apart from the air.
             FlightStatus.FINAL, FlightStatus.TAKEOFF -> direction?.let { "${status.label} $it" } ?: status.label
             FlightStatus.APPROACH -> "Retour · %.1f km · %d m".format(java.util.Locale.FRANCE, distanceM / 1000, fix.aglM.toInt())
             FlightStatus.LANDED -> landedText ?: status.label

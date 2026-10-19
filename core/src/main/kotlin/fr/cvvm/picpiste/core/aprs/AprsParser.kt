@@ -43,7 +43,7 @@ data class AircraftBeacon(
     val groundSpeedKmh: Double,
     /** Vertical speed, m/s (positive = climbing). */
     val climbMs: Double?,
-    /** Receiver that heard it (e.g. `LFNL`). */
+    /** Receiver that heard it (an OGN station name, often the airfield code). */
     val receiver: String?,
     /** `hhmmss` UTC time from the beacon. */
     val timeHms: String,
@@ -51,7 +51,7 @@ data class AircraftBeacon(
 
 /**
  * Parses OGN APRS aircraft beacons, e.g.
- * `FLRDD1234>OGFLR,qAS,LFNL:/123456h4347.95N/00346.92E'299/054/A=000892 !W28! id06DD1234 -019fpm +0.0rot`.
+ * `FLRDD1234>OGFLR,qAS,LFPT:/123456h4347.95N/00346.92E'299/054/A=000892 !W28! id06DD1234 -019fpm +0.0rot`.
  *
  * Returns null for server comments, receiver beacons and anything that is not an aircraft position.
  */

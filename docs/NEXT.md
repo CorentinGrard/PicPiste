@@ -8,7 +8,7 @@
   code, l'interface ou la doc, sauf le fichier terrain intégré
   (`core/src/main/resources/airfields/LFNL.json`), `tools/osm_to_airfield.py` qui le produit,
   et les tests qui le chargent.
-- **Mode clair** à ajouter (SPECS §4.5).
+- **Mode clair** (SPECS §4.5) : fait, reste l'essai en plein soleil et sur Android Auto.
 
 ## Déjà fait (v2 terrain)
 
@@ -24,56 +24,28 @@
   de fichier JSON (`ui/editor/`). Testé sur LFNL, LFNG, LFLE (pistes parallèles avec
   lettres L/R), LFPT (pistes croisées) : `core/src/test/resources/osm/`.
 
-## À faire : retirer ce qui reste propre à LFNL
+## Fait le 19 oct. 2026 (soir) : tout terrain + mode clair
 
-Chaque point : fichier, ce qui suppose LFNL, ce qu'il faut à la place.
+- **Démo** (`DemoTraffic`) construite depuis la géométrie : planeurs sur la piste principale
+  (la plus longue dans l'axe du radar), vers son extrémité B ; circuit du côté opposé aux
+  autres pistes parallèles et au starter ; remorqué depuis une autre piste (parallèle la plus
+  éloignée du circuit, sinon piste croisée, sinon la principale), le remorqueur s'y pose.
+  Golfette simulée : vers la piste principale. CN de démo en lettres (« KL »).
+- **Enregistrement PC** : `./gradlew :core:record -Pairfield=LFLE` (téléchargé depuis OSM) ou
+  `-Pairfield=terrain.json` ; défaut `Airfield.BUNDLED`.
+- Commentaires et exemples neutres (04/22, 14L/32R) ; récepteur des balises de démo = code
+  du terrain.
+- Tests `AnyAirfieldScenarioTest` : circuit/finale/posé, remorqué, alerte golfette, plafond,
+  sur LFNL, LFNG, LFLE (14L/32R) et LFPT (pistes croisées).
+- **Mode clair** : `Colors.DARK` / `Colors.LIGHT` (`render/Palette.kt`), réglage Thème
+  Auto / Clair / Sombre (`Prefs.theme`), radar et Android Auto reçoivent leurs couleurs ;
+  la voiture suit `carContext.isDarkMode`. Vérifié sur le téléphone (clair, sombre, alerte)
+  et avec le DHU (`day` / `night` dans sa console : bascule immédiate, alerte lisible en jour).
 
-1. **Démo** — `core/.../demo/DemoTraffic.kt`
-   - Cherche les pistes par leurs ids LFNL (`runway("herbe")`, `"dur-droite"`,
-     `"dur-gauche"`), sinon prend la piste principale pour tout.
-   - Circuit dessiné en coordonnées fixes pour des pistes de ~500 m autour de l'origine,
-     toujours vers l'extrémité B (`circuitTo30`), côté +y seulement.
-   - À la place : scénario construit depuis la géométrie (piste la plus longue = atterrissages,
-     une autre piste si elle existe = remorqués ; sens et côté du circuit calculés ; taille
-     du circuit proportionnelle à la piste). Doit marcher sur une piste seule, des pistes
-     parallèles, des pistes croisées. Renommer `circuitTo30`.
-   - Le CN « 12 » d'un planeur de démo (`DdbDevice(..., "12")`) : prendre un CN en lettres.
-2. **Golfette simulée** (démo et rejeu) — `DemoTraffic.cartAt` : roule vers « herbe » à
-   60 % depuis l'extrémité B. À la place : vers la piste principale. Texte du réglage
-   Rejeu dans `ui/PhoneApp.kt` (« …sur la piste en herbe ») à rendre générique.
-3. **Enregistrement sur PC** — `core/.../replay/RecordMain.kt` et `core/build.gradle.kts`
-   (tâche `record`) : `Airfield.bundled("LFNL")` en dur. À la place : code terrain en
-   argument (`./gradlew :core:record -Pairfield=LFLE`) ou fichier terrain JSON ; LFNL par
-   défaut.
-4. **Terrain par défaut** — `data/AirfieldStore.kt` (`BUNDLED = "LFNL"`) : garder LFNL comme
-   défaut, mais seulement via cette constante (c'est déjà le cas) ; le menu « Revenir au
-   terrain intégré (LFNL) » affiche le code depuis la constante — OK.
-5. **Commentaires et exemples** citant 12/30, « herbe », « dur gauche », LFNL comme si
-   c'était la règle — à reformuler avec des exemples neutres :
-   `Geo.kt` (doc de `LocalFrame`), `Airfield.kt` (`RunwayConfig.name`, `RunwayEnd`,
-   `runwayZone`, `ref`, `label`), `AirfieldEdit.kt` (`label`, `slug`), `Cart.kt`
-   (`CartAlert.title`), `Model.kt` (`direction`, `statusText`), `OsmImport.kt`
-   (`assignEnds`, `parseRefs` : garder « 12-30 » seulement comme exemple de format OSM),
-   `RadarRenderer.kt` (`runwayLabels`), `AprsParser.kt` / `AprsFormatter.kt` (récepteur
-   « LFNL » par défaut dans le formateur de démo : prendre le code du terrain),
-   `AndroidManifest.xml` (commentaire `PicPiste-LFNL.json`), éditeur
-   (`AirfieldEditor.kt` : exemples « LFNL », « herbe, dur gauche »).
-6. **Tests** : les tests moteur (`EngineScenarioTest`) ne tournent que sur LFNL. Ajouter
-   les mêmes scénarios (finale, décollage, golfette sur piste, posé) sur LFPT (pistes
-   croisées) et LFLE (14L/32R) à partir des fixtures OSM, pour prouver « tout terrain ».
+## Reste à faire
 
-## À faire : mode clair (SPECS §4.5)
-
-- Aujourd'hui toutes les couleurs sont des constantes sombres dans `render/Palette.kt`,
-  utilisées par `RadarRenderer`, `CarOverlay`, `PhoneApp.kt`, `ui/editor/*` ; le thème
-  Compose est `darkColorScheme` en dur (`PhoneApp.kt`) et `themes.xml` a un fond sombre.
-- Plan : deux palettes (sombre = l'actuelle, claire = nouvelle, contrastes plein soleil)
-  derrière une même interface ; le renderer reçoit la palette à chaque dessin.
-- Réglage `Prefs.theme` : Auto / Clair / Sombre (Auto = `isSystemInDarkTheme()`), dans la
-  boîte Réglages ; `lightColorScheme` / `darkColorScheme` selon le choix.
-- Android Auto : `carContext.isDarkMode` choisit la palette du radar voiture (et se met à
-  jour quand la voiture passe jour / nuit).
-- Vérifier sur le téléphone en plein jour, et avec le DHU (`tools/dhu.sh`) en jour et nuit.
+- **Mode clair en plein soleil** : à essayer dehors, ajuster les couleurs si besoin
+  (surtout le jaune « Circuit », foncé en ocre pour rester lisible sur blanc).
 
 ## Autres points ouverts
 

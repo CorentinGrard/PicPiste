@@ -42,16 +42,16 @@ data class AirfieldConfig(
 @Serializable
 data class RunwayConfig(
     val id: String,
-    /** How the club calls it: "herbe", "dur droite", "dur gauche". */
+    /** How the club calls it: "herbe", "dur", "nord"… */
     val name: String,
     /** "grass" or "paved". */
     val surface: String,
-    /** The two ends, A first: A is the lower designator ("12" before "30"). */
+    /** The two ends, A first: A is the lower designator ("04" before "22"). */
     val ends: List<RunwayEndConfig>,
     val outline: List<List<Double>>,
 )
 
-/** [ref] is the designator painted on the runway ("12", "30", "14L"); [threshold] is where it starts. */
+/** [ref] is the designator painted on the runway ("04", "22", "14L"); [threshold] is where it starts. */
 @Serializable
 data class RunwayEndConfig(val ref: String, val threshold: List<Double>)
 
@@ -67,7 +67,7 @@ private val json = Json {
 
 internal fun List<Double>.geo() = GeoPoint(this[0], this[1])
 
-/** The two ends of a runway. A has the lower designator (12 at LFNL), B the higher (30). */
+/** The two ends of a runway. A has the lower designator ("04" on a 04/22), B the higher ("22"). */
 enum class RunwayEnd { A, B }
 
 /** Airfield geometry in the local frame, ready for the status engine and the radar. */
@@ -95,8 +95,8 @@ class Airfield(val config: AirfieldConfig) {
 
     /**
      * Where the cart counts as "on the runway": every runway, plus the strips of grass
-     * between parallel runways next to each other. Crossing from the south edge of dur gauche
-     * to the north edge of herbe at LFNL is one single runway crossing, not three.
+     * between parallel runways next to each other. Driving across three parallel runways side
+     * by side is one single runway crossing, not three.
      */
     val runwayZone: List<Polygon> = buildList {
         runways.forEach { add(it.outline) }
@@ -149,7 +149,10 @@ class Airfield(val config: AirfieldConfig) {
 
         fun encode(config: AirfieldConfig): String = json.encodeToString(AirfieldConfig.serializer(), config) + "\n"
 
-        /** Loads a bundled airfield from the core resources, e.g. `"LFNL"`. */
+        /** The airfield bundled in the app, used until the driver sets up their own. */
+        const val BUNDLED = "LFNL"
+
+        /** Loads a bundled airfield from the core resources, e.g. [BUNDLED]. */
         fun bundled(icao: String): Airfield = Airfield(bundledConfig(icao))
 
         fun bundledConfig(icao: String): AirfieldConfig {
@@ -195,7 +198,7 @@ class Runway(val config: RunwayConfig, frame: LocalFrame) {
     fun landingDir(end: RunwayEnd) = if (end == RunwayEnd.A) dirA else dirA * -1.0
     fun heading(end: RunwayEnd) = if (end == RunwayEnd.A) headingA else headingB
 
-    /** Designator of [end]: "12", "30", "14L". */
+    /** Designator of [end]: "04", "22", "14L". */
     fun ref(end: RunwayEnd): String = config.ends[end.ordinal].ref
 
     /**
@@ -204,7 +207,7 @@ class Runway(val config: RunwayConfig, frame: LocalFrame) {
      */
     fun direction(end: RunwayEnd): String = directionOf(ref(end))
 
-    /** "30 herbe", "12 dur gauche"… (where it landed: known from the position on the ground). */
+    /** "22 herbe", "14L dur"… (where it landed: known from the position on the ground). */
     fun label(end: RunwayEnd) = "${ref(end)} $name"
 
     /** The end an aircraft rolling or flying along [trackDeg] is heading for. */
@@ -225,10 +228,10 @@ class Runway(val config: RunwayConfig, frame: LocalFrame) {
 
 enum class RunwayThird(val label: String) { START("début de piste"), MIDDLE("milieu"), END("fin de piste") }
 
-/** Rounds a heading to its runway number, for sanity checks (119° → 12). */
+/** Rounds a heading to its runway number, for sanity checks (42° → 4). */
 fun runwayNumber(headingDeg: Double): Int = ((headingDeg / 10).roundToInt().let { if (it == 0) 36 else it })
 
-/** Two-digit designator for a heading: 119° → "12", 32° → "03". */
+/** Two-digit designator for a heading: 42° → "04", 318° → "32". */
 fun runwayRef(headingDeg: Double): String = runwayNumber(headingDeg).toString().padStart(2, '0')
 
 /** "14L" → "14", "05" → "05". */

@@ -29,7 +29,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Airfield files shared by other drivers (PicPiste-LFNL.json). -->
+            <!-- Airfield files shared by other drivers (PicPiste-<code>.json). -->
             <intent-filter android:label="Terrain PicPiste">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

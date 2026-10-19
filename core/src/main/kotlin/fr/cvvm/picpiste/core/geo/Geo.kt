@@ -26,7 +26,7 @@ data class Vec2(val x: Double, val y: Double) {
 /**
  * Flat local frame centred on an airfield, rotated so the runway axis is the x axis.
  *
- * x grows along [axisBearingDeg] (from the 12 end towards the 30 end at LFNL),
+ * x grows along [axisBearingDeg] (from the main runway's A end towards its B end),
  * y grows to the left of that axis. Drawn with y up, this is the radar view.
  * Accurate to well under a metre within 10 km, which is all we need.
  */

@@ -5,18 +5,23 @@ import fr.cvvm.picpiste.core.aprs.AprsClient
 import fr.cvvm.picpiste.core.aprs.AprsEvent
 import fr.cvvm.picpiste.core.aprs.AprsParser
 import kotlinx.coroutines.runBlocking
+import fr.cvvm.picpiste.core.airfield.AirfieldDownloader
 import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * Records a flying day around LFNL from a PC or a server, without a phone:
- * `./gradlew :core:record` (stop with Ctrl-C). Writes `recordings/LFNL-<date>.tsv`.
- * Only aircraft beacons are kept; aircraft flagged no-track are dropped.
+ * Records a flying day around an airfield from a PC or a server, without a phone:
+ * `./gradlew :core:record -Pairfield=<code or file.json>` (stop with Ctrl-C).
+ * Writes `recordings/<code>-<date>.tsv`. Only aircraft beacons are kept; aircraft flagged
+ * no-track are dropped.
+ *
+ * Arguments: output directory, then the airfield: a terrain file shared from the app, a
+ * bundled code, or any other ICAO code (downloaded from OpenStreetMap). Default: the bundled one.
  */
 fun main(args: Array<String>) = runBlocking {
-    val dir = File(args.firstOrNull() ?: "recordings").apply { mkdirs() }
-    val airfield = Airfield.bundled("LFNL")
+    val dir = File(args.getOrNull(0) ?: "recordings").apply { mkdirs() }
+    val airfield = loadAirfield(args.getOrNull(1)?.takeIf { it.isNotBlank() } ?: Airfield.BUNDLED)
     val client = AprsClient(AprsClient.rangeFilter(airfield.reference.lat, airfield.reference.lon, 30))
     var day: LocalDate? = null
     var out: java.io.Writer? = null
@@ -43,5 +48,15 @@ fun main(args: Array<String>) = runBlocking {
             }
             AprsEvent.Connecting -> Unit
         }
+    }
+}
+
+private fun loadAirfield(arg: String): Airfield {
+    val file = File(arg)
+    if (file.isFile) return Airfield.parse(file.readText())
+    val code = arg.trim().uppercase()
+    return runCatching { Airfield.bundled(code) }.getOrElse {
+        println("Téléchargement du terrain $code depuis OpenStreetMap…")
+        Airfield(AirfieldDownloader().download(code).config)
     }
 }

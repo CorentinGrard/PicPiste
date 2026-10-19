@@ -70,7 +70,7 @@ fun AirfieldConfig.exists(shape: Shape): Boolean = when (shape) {
     Shape.Starter -> starter != null
 }
 
-/** "Piste herbe", "Seuil 30 herbe", "Hangar 2"… */
+/** "Piste herbe", "Seuil 22 herbe", "Hangar 2"… */
 fun AirfieldConfig.label(shape: Shape): String = when (shape) {
     Shape.Boundary -> "Contour du terrain"
     is Shape.RunwayOutline -> "Piste ${runways[shape.index].name}"
@@ -279,7 +279,7 @@ private fun AirfieldConfig.uniqueName(base: String): String {
     return generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base $it" }.first { it !in used }
 }
 
-/** "dur gauche" → "dur-gauche", "Hérbe" → "herbe". */
+/** "dur nord" → "dur-nord", "Hérbe" → "herbe". */
 fun slug(s: String): String = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD)
     .replace(Regex("\\p{M}+"), "")
     .replace(Regex("[^a-z0-9]+"), "-")

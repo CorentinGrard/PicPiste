@@ -393,7 +393,7 @@ private fun SearchDialog(initial: String, onDismiss: () -> Unit, onSearch: (Stri
         title = { Text("Chercher un terrain") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Code OACI du terrain (par ex. LFNL). Le dessin vient d'OpenStreetMap : il remplace le terrain affiché, à vérifier avant d'enregistrer.", fontSize = 14.sp)
+                Text("Code OACI du terrain (par ex. LFPT). Le dessin vient d'OpenStreetMap : il remplace le terrain affiché, à vérifier avant d'enregistrer.", fontSize = 14.sp)
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it.uppercase().filter { ch -> ch.isLetterOrDigit() }.take(7) },
@@ -454,7 +454,7 @@ private fun RunwayDialog(state: EditorState, index: Int, onDismiss: () -> Unit) 
         title = { Text("Piste") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(name, { name = it.take(30) }, label = { Text("Nom (par ex. herbe, dur gauche)") }, singleLine = true)
+                OutlinedTextField(name, { name = it.take(30) }, label = { Text("Nom (par ex. herbe, dur, nord)") }, singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Chip(if (grass) "✓ Herbe" else "Herbe", accent = grass) { grass = true }
                     Chip(if (!grass) "✓ Revêtue" else "Revêtue", accent = !grass) { grass = false }

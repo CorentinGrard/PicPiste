@@ -1,8 +1,10 @@
 package fr.cvvm.picpiste.car
 
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.car.app.CarAppService
 import androidx.car.app.Screen
+import androidx.car.app.ScreenManager
 import androidx.car.app.Session
 import androidx.car.app.validation.HostValidator
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -26,4 +28,8 @@ class RadarSession : Session() {
     }
 
     override fun onCreateScreen(intent: Intent): Screen = RadarScreen(carContext)
+
+    override fun onCarConfigurationChanged(newConfiguration: Configuration) {
+        (carContext.getCarService(ScreenManager::class.java).top as? RadarScreen)?.onDarkModeChanged()
+    }
 }

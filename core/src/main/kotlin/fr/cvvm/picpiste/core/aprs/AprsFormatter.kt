@@ -19,7 +19,7 @@ object AprsFormatter {
         groundSpeedKmh: Double,
         climbMs: Double?,
         timeMs: Long,
-        receiver: String = "LFNL",
+        receiver: String = "DEMO",
         noTrack: Boolean = false,
         stealth: Boolean = false,
     ): String {

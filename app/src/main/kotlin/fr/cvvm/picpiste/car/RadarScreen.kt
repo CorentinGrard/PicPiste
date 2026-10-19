@@ -19,6 +19,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.render.CarOverlay
+import fr.cvvm.picpiste.render.Colors
 import fr.cvvm.picpiste.render.RadarRenderer
 import fr.cvvm.picpiste.repository
 import kotlinx.coroutines.Job
@@ -128,6 +129,9 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
 
     private fun icon(res: Int) = CarIcon.Builder(IconCompat.createWithResource(carContext, res)).build()
 
+    /** The car switched between day and night: redraw now, not at the next traffic update. */
+    fun onDarkModeChanged() = draw()
+
     private fun draw() {
         val container = surface ?: return
         val s = container.surface ?: return
@@ -144,7 +148,11 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
             val area = visible ?: Rect(0, 0, container.width, container.height)
             // Sizes are designed for a 1280×720 head unit.
             val dp = (minOf(w / 1280f, h / 720f) * 1.0f).coerceAtLeast(0.6f)
-            canvas.drawColor(fr.cvvm.picpiste.render.Palette.BG)
+            // The car decides day or night (headlights, time of day), not the phone's theme.
+            val colors = if (carContext.isDarkMode) Colors.DARK else Colors.LIGHT
+            renderer.colors = colors
+            overlay.colors = colors
+            canvas.drawColor(colors.BG)
             val panelW = (area.width() * 0.31f).coerceIn(260 * dp, 420 * dp)
             overlay.drawPanel(canvas, area.left.toFloat(), area.top.toFloat(), panelW, area.height().toFloat(), last, dp)
             val mapLeft = area.left + panelW

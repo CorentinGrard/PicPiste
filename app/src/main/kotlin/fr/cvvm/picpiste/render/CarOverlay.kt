@@ -14,6 +14,9 @@ import fr.cvvm.picpiste.core.traffic.FlightStatus
 
 /** The parts of the car screen around the radar: side panel, alert banner, red border. */
 class CarOverlay {
+    /** Colours to draw with: the phone's theme, or the car's day / night. */
+    var colors: Colors = Colors.DARK
+
     private val condensedBold = Typeface.create("sans-serif-condensed", Typeface.BOLD)
     private val sans = Typeface.create("sans-serif", Typeface.NORMAL)
     private val sansBold = Typeface.create("sans-serif", Typeface.BOLD)
@@ -24,9 +27,9 @@ class CarOverlay {
 
     /** Left panel: app name, connection, arrivals, last landings. */
     fun drawPanel(canvas: Canvas, left: Float, top: Float, width: Float, height: Float, snap: Snapshot, dp: Float) {
-        fill.color = Palette.BG
+        fill.color = colors.BG
         canvas.drawRect(left, top, left + width, top + height, fill)
-        fill.color = Palette.RING
+        fill.color = colors.RING
         canvas.drawRect(left + width - 1 * dp, top, left + width, top + height, fill)
 
         val pad = 16 * dp
@@ -37,7 +40,7 @@ class CarOverlay {
         // Header
         text.typeface = sansBold
         text.textSize = 22 * dp
-        text.color = Palette.TEXT
+        text.color = colors.TEXT
         text.textAlign = Paint.Align.LEFT
         canvas.drawText("PicPiste", x0, y + 20 * dp, text)
         drawConnection(canvas, x1, y + 2 * dp, snap, dp)
@@ -47,15 +50,15 @@ class CarOverlay {
         val maxRows = ((top + height - y - 110 * dp) / (68 * dp)).toInt().coerceIn(1, 5)
         if (snap.arrivals.isEmpty()) {
             rect.set(x0, y, x1, y + 58 * dp)
-            fill.color = Palette.SURFACE
+            fill.color = colors.SURFACE
             canvas.drawRoundRect(rect, 10 * dp, 10 * dp, fill)
             text.typeface = sansBold
             text.textSize = 18 * dp
-            text.color = Palette.OK
+            text.color = colors.OK
             canvas.drawText("Circuit libre", x0 + 14 * dp, y + 25 * dp, text)
             text.typeface = sans
             text.textSize = 13 * dp
-            text.color = Palette.MUTED
+            text.color = colors.MUTED
             canvas.drawText("Personne dans le circuit", x0 + 14 * dp, y + 45 * dp, text)
             y += 68 * dp
         } else {
@@ -72,23 +75,23 @@ class CarOverlay {
             for (a in landed) {
                 if (y + 44 * dp > top + height) break
                 rect.set(x0, y, x1, y + 40 * dp)
-                fill.color = Palette.SURFACE
+                fill.color = colors.SURFACE
                 canvas.drawRoundRect(rect, 10 * dp, 10 * dp, fill)
-                fill.color = Palette.LANDED
+                fill.color = colors.LANDED
                 canvas.drawCircle(x0 + 16 * dp, y + 20 * dp, 6 * dp, fill)
                 text.typeface = condensedBold
                 text.textSize = 19 * dp
-                text.color = Palette.TEXT
+                text.color = colors.TEXT
                 canvas.drawText(a.identity.label, x0 + 30 * dp, y + 27 * dp, text)
                 val labelW = text.measureText(a.identity.label)
                 text.typeface = sans
                 text.textSize = 15 * dp
                 val ago = a.landedAtMs?.let { minutesAgo(snap.timeMs - it) } ?: ""
-                text.color = Palette.MUTED
+                text.color = colors.MUTED
                 text.textAlign = Paint.Align.RIGHT
                 canvas.drawText(ago, x1 - 12 * dp, y + 26 * dp, text)
                 text.textAlign = Paint.Align.LEFT
-                text.color = Palette.TEXT_2
+                text.color = colors.TEXT_2
                 val room = x1 - 12 * dp - text.measureText(ago) - 10 * dp - (x0 + 38 * dp + labelW)
                 val where = TextUtils.ellipsize(" · ${a.landedText ?: "posé"}", text, room, TextUtils.TruncateAt.END)
                 canvas.drawText(where, 0, where.length, x0 + 32 * dp + labelW, y + 26 * dp, text)
@@ -101,7 +104,7 @@ class CarOverlay {
         text.typeface = sansBold
         text.textSize = 12 * dp
         text.letterSpacing = 0.12f
-        text.color = Palette.MUTED
+        text.color = colors.MUTED
         text.textAlign = Paint.Align.LEFT
         canvas.drawText(title, x, y + 12 * dp, text)
         text.letterSpacing = 0f
@@ -121,31 +124,31 @@ class CarOverlay {
         text.textSize = 13 * dp
         val w = text.measureText(label) + 32 * dp
         rect.set(right - w, y, right, y + 26 * dp)
-        fill.color = Palette.SURFACE
+        fill.color = colors.SURFACE
         canvas.drawRoundRect(rect, 13 * dp, 13 * dp, fill)
-        fill.color = if (ok) Palette.OK else Palette.RED
+        fill.color = if (ok) colors.OK else colors.RED
         canvas.drawCircle(rect.left + 13 * dp, y + 13 * dp, 4.5f * dp, fill)
-        text.color = Palette.MUTED
+        text.color = colors.MUTED
         text.textAlign = Paint.Align.LEFT
         canvas.drawText(label, rect.left + 23 * dp, y + 18 * dp, text)
     }
 
     private fun drawArrival(canvas: Canvas, a: AircraftState, x: Float, y: Float, w: Float, dp: Float, highlight: Boolean, danger: Boolean) {
         rect.set(x, y, x + w, y + 60 * dp)
-        fill.color = if (danger) 0xFF3A1512.toInt() else Palette.SURFACE
+        fill.color = if (danger) colors.DANGER_FILL else colors.SURFACE
         canvas.drawRoundRect(rect, 10 * dp, 10 * dp, fill)
         if (highlight) {
-            stroke.color = Palette.RED
+            stroke.color = colors.RED
             stroke.strokeWidth = (if (danger) 2f else 1.5f) * dp
             canvas.drawRoundRect(rect, 10 * dp, 10 * dp, stroke)
         }
-        fill.color = a.color
+        fill.color = colors.of(a)
         canvas.drawCircle(x + 16 * dp, y + 30 * dp, 6 * dp, fill)
 
         val eta = a.etaS?.let(::formatEta) ?: ""
         text.typeface = condensedBold
         text.textSize = (if (a.status == FlightStatus.FINAL) 28 else 24) * dp
-        text.color = Palette.TEXT
+        text.color = colors.TEXT
         text.textAlign = Paint.Align.RIGHT
         canvas.drawText(eta, x + w - 12 * dp, y + 40 * dp, text)
         val etaW = text.measureText(eta)
@@ -157,12 +160,12 @@ class CarOverlay {
         val room = w - 30 * dp - etaW - 24 * dp
         text.typeface = sans
         text.textSize = 13 * dp
-        text.color = Palette.MUTED
+        text.color = colors.MUTED
         val reg = listOfNotNull(a.identity.registration, a.identity.type.takeIf { it.name == "TOW_PLANE" }?.label?.lowercase()).joinToString(" · ")
         val regText = TextUtils.ellipsize(reg, text, room - labelW - 8 * dp, TextUtils.TruncateAt.END)
         canvas.drawText(regText, 0, regText.length, x + 36 * dp + labelW, y + 26 * dp, text)
         text.textSize = 15 * dp
-        text.color = if (a.status == FlightStatus.FINAL) Palette.RED_TEXT else a.color
+        text.color = if (a.status == FlightStatus.FINAL) colors.RED_TEXT else colors.of(a)
         val st = TextUtils.ellipsize(a.statusText, text, room, TextUtils.TruncateAt.END)
         canvas.drawText(st, 0, st.length, x + 30 * dp, y + 48 * dp, text)
     }
@@ -172,7 +175,7 @@ class CarOverlay {
         val alert = snap.alert
         if (alert.level != AlertLevel.DANGER) return
         val h = 92 * dp
-        fill.color = Palette.BANNER
+        fill.color = colors.BANNER
         canvas.drawRect(left, top, left + width, top + h, fill)
         val pad = 22 * dp
         text.color = 0xFFFFFFFF.toInt()
@@ -197,7 +200,7 @@ class CarOverlay {
     fun drawRunwayBorder(canvas: Canvas, width: Float, height: Float, snap: Snapshot, dp: Float) {
         if (snap.alert.level == AlertLevel.NONE) return
         val w = 10 * dp
-        stroke.color = Palette.RED
+        stroke.color = colors.RED
         stroke.strokeWidth = w
         canvas.drawRect(w / 2, w / 2, width - w / 2, height - w / 2, stroke)
     }

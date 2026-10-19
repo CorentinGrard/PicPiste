@@ -38,7 +38,7 @@ class AirfieldDownloader(
     /** @throws AirfieldImportException with a French message for the screen. */
     fun download(code: String): ImportResult {
         val c = OsmImport.normalizeCode(code)
-        if (!OsmImport.CODE.matches(c)) throw AirfieldImportException("Code « $code » invalide : 3 à 7 lettres ou chiffres, par ex. LFNL.")
+        if (!OsmImport.CODE.matches(c)) throw AirfieldImportException("Code « $code » invalide : 3 à 7 lettres ou chiffres, par ex. LFPT.")
         val text = fetchOverpass(c) ?: fetchOsmApi(c)
         val first = OsmImport.build(c, text)
         if (first.warnings.none { it.startsWith("Altitude terrain inconnue") }) return first

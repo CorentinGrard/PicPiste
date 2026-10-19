@@ -38,7 +38,7 @@ class EngineScenarioTest {
     }
 
     @Test
-    fun gliderGoesThroughCircuitFinalAndLandsOn30Herbe() {
+    fun gliderGoesThroughCircuitFinalAndLandsOnTheMainRunway() {
         val seen = statusesOf("AB", 420)
         val statuses = seen.mapNotNull { it.second?.status }.distinct()
         assertTrue(FlightStatus.CIRCUIT in statuses, "statuses: $statuses")
@@ -56,7 +56,7 @@ class EngineScenarioTest {
     }
 
     @Test
-    fun towTakesOffFromDurGaucheThenTugLandsOnDurDroite() {
+    fun towTakesOffFromAnotherRunwayThenTugLandsOnIt() {
         val tug = statusesOf("RQ", 800).mapNotNull { it.second }
         val statuses = tug.map { it.status }.distinct()
         assertTrue(FlightStatus.TAKEOFF in statuses, "statuses: $statuses")
@@ -66,10 +66,10 @@ class EngineScenarioTest {
         assertEquals(RunwayEnd.B, takeoff.runwayEnd)
         val final = tug.firstOrNull { it.status == FlightStatus.FINAL }
         assertNotNull(final, "statuses: $statuses")
-        assertEquals("dur-droite", final.runway?.id)
+        assertEquals("dur-gauche", final.runway?.id)
         assertEquals(FlightStatus.LANDED, statuses.last(), "statuses: $statuses")
 
-        val glider = statusesOf("12", 300).mapNotNull { it.second }.map { it.status }.distinct()
+        val glider = statusesOf("KL", 300).mapNotNull { it.second }.map { it.status }.distinct()
         assertTrue(FlightStatus.TOW in glider, "glider in tow statuses: $glider")
     }
 
@@ -95,7 +95,7 @@ class EngineScenarioTest {
     }
 
     @Test
-    fun cartOnHerbeGetsAlertWhileGliderInCircuitOrFinal() {
+    fun cartOnMainRunwayGetsAlertWhileGliderInCircuitOrFinal() {
         val herbe = lfnl.runway("herbe")!!
         val onHerbe = (herbe.thresholdA + herbe.thresholdB) * 0.5
         val levels = mutableListOf<AlertLevel>()

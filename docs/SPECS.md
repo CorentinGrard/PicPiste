@@ -203,9 +203,9 @@ Contenu d'un terrain :
 - **Terrain intégré par défaut : LFNL** (`core/src/main/resources/airfields/LFNL.json`,
   dessiné depuis OSM puis corrigé à la main). C'est la seule donnée propre au club.
 
-### 4.5 Thème clair / sombre (à faire)
+### 4.5 Thème clair / sombre
 
-L'app est aujourd'hui **sombre uniquement**. Il faut un **mode clair** :
+L'app a un **mode clair** en plus du sombre :
 - Réglage **Thème : Auto / Clair / Sombre** (Auto = thème du téléphone), sur le téléphone.
 - **Android Auto** : suivre le jour / nuit de la voiture (`CarContext.isDarkMode`), pas le
   réglage du téléphone.
@@ -330,6 +330,6 @@ partage par fichier JSON (pas de QR code : trop de données).
 
 Réglées en v0.7 : l'app vaut pour **tout terrain** (pistes multiples, orientations et
 numéros quelconques, rien de propre à LFNL hors du fichier terrain intégré) ; **mode clair**
-à ajouter (§4.5).
+(§4.5).
 
 Plus de question bloquante : la spec est prête pour démarrer le prototype v0.1.

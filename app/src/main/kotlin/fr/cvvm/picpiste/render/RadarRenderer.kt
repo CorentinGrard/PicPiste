@@ -25,6 +25,9 @@ import kotlin.math.min
  * (through Compose) and the Android Auto surface use the same code.
  */
 class RadarRenderer {
+    /** Colours to draw with: the phone's theme, or the car's day / night. */
+    var colors: Colors = Colors.DARK
+
     private companion object {
         const val STARTER_LENGTH_M = 30.0
         const val STARTER_WIDTH_M = 14.0
@@ -90,7 +93,7 @@ class RadarRenderer {
     ) {
         canvas.save()
         canvas.clipRect(left, top, left + width, top + height)
-        fill.color = Palette.MAP_BG
+        fill.color = colors.MAP_BG
         canvas.drawRect(left, top, left + width, top + height, fill)
 
         use(snap.airfield)
@@ -108,12 +111,12 @@ class RadarRenderer {
     }
 
     private fun drawRings(canvas: Canvas, radiusM: Double, dp: Float) {
-        stroke.color = Palette.RING
+        stroke.color = colors.RING
         stroke.strokeWidth = 1 * dp
         stroke.pathEffect = null
         text.typeface = sans
         text.textSize = 11 * dp
-        text.color = Palette.FAINT
+        text.color = colors.FAINT
         text.textAlign = Paint.Align.LEFT
         for (r in listOf(radiusM / 2, radiusM)) {
             val rp = (r * scale).toFloat()
@@ -132,18 +135,18 @@ class RadarRenderer {
     private fun drawAirfield(canvas: Canvas, snap: Snapshot, dp: Float) {
         val airfield = snap.airfield
         // Boundary
-        fill.color = Palette.BOUNDARY_FILL
+        fill.color = colors.BOUNDARY_FILL
         canvas.drawPath(polyPath(airfield.boundary), fill)
-        stroke.color = Palette.BOUNDARY_STROKE
+        stroke.color = colors.BOUNDARY_STROKE
         stroke.strokeWidth = 1 * dp
         stroke.pathEffect = DashPathEffect(floatArrayOf(5 * dp, 4 * dp), 0f)
         canvas.drawPath(path, stroke)
         stroke.pathEffect = null
 
         // Aprons, then taxiways on top
-        fill.color = Palette.APRON
+        fill.color = colors.APRON
         airfield.aprons.forEach { canvas.drawPath(polyPath(it), fill) }
-        stroke.color = Palette.TAXIWAY
+        stroke.color = colors.TAXIWAY
         for (t in airfield.taxiways) {
             stroke.strokeWidth = maxOf((t.widthM * scale).toFloat(), 2 * dp)
             path.reset()
@@ -153,10 +156,10 @@ class RadarRenderer {
 
         // Runways
         for (rw in airfield.runways) {
-            fill.color = if (rw.isGrass) Palette.GRASS else Palette.PAVED
+            fill.color = if (rw.isGrass) colors.GRASS else colors.PAVED
             canvas.drawPath(polyPath(rw.outline), fill)
             if (rw.isGrass) {
-                stroke.color = Palette.GRASS_EDGE
+                stroke.color = colors.GRASS_EDGE
                 stroke.strokeWidth = 1 * dp
                 canvas.drawPath(path, stroke)
             }
@@ -164,13 +167,13 @@ class RadarRenderer {
 
         // Hangars and windsock
         for (h in airfield.hangars) {
-            fill.color = Palette.HANGAR
+            fill.color = colors.HANGAR
             canvas.drawPath(polyPath(h), fill)
-            stroke.color = Palette.HANGAR_EDGE
+            stroke.color = colors.HANGAR_EDGE
             stroke.strokeWidth = 1 * dp
             canvas.drawPath(path, stroke)
         }
-        fill.color = Palette.WINDSOCK
+        fill.color = colors.WINDSOCK
         airfield.windsocks.forEach { canvas.drawCircle(sx(it), sy(it), 3.5f * dp, fill) }
 
         // Runway numbers, when the runways are big enough to label
@@ -178,7 +181,7 @@ class RadarRenderer {
         if (rwPx > 90 * dp) {
             text.typeface = condensedBold
             text.textSize = 13 * dp
-            text.color = Palette.MUTED
+            text.color = colors.MUTED
             text.textAlign = Paint.Align.CENTER
             if (labelsForScale != scale) {
                 runwayLabels = runwayLabels(airfield, (14 * dp / scale).toDouble())
@@ -191,7 +194,7 @@ class RadarRenderer {
     }
 
     /**
-     * Parallel runways share their numbers: one "12" and one "30" beside the whole group,
+     * Parallel runways share their numbers: one "14" and one "32" beside the whole group,
      * direction only (no L/R). Crossing runways each get their own pair.
      */
     private fun runwayLabels(airfield: Airfield, offM: Double): List<Pair<Vec2, String>> {
@@ -220,9 +223,9 @@ class RadarRenderer {
         val halfLong = maxOf((STARTER_LENGTH_M / 2 * scale).toFloat(), 3f)
         val halfWide = maxOf((STARTER_WIDTH_M / 2 * scale).toFloat(), 2f)
         rect.set(sx(p) - halfLong, sy(p) - halfWide, sx(p) + halfLong, sy(p) + halfWide)
-        fill.color = Palette.HANGAR
+        fill.color = colors.HANGAR
         canvas.drawRect(rect, fill)
-        stroke.color = Palette.HANGAR_EDGE
+        stroke.color = colors.HANGAR_EDGE
         stroke.strokeWidth = 1f
         canvas.drawRect(rect, stroke)
     }
@@ -240,7 +243,7 @@ class RadarRenderer {
         for (a in order) {
             val x = sx(a.fix.pos)
             val y = sy(a.fix.pos)
-            val color = a.color
+            val color = colors.of(a)
 
             // Trail of the last 2 minutes
             if (a.status.isAirborne && !a.signalLost) {
@@ -256,7 +259,7 @@ class RadarRenderer {
             }
 
             if (selected == a.address) {
-                stroke.color = Palette.TEXT
+                stroke.color = colors.TEXT
                 stroke.strokeWidth = 2.5f * dp
                 canvas.drawCircle(x, y, 18 * dp, stroke)
             }
@@ -320,7 +323,7 @@ class RadarRenderer {
         val padX = 5 * dp
         val h = 19 * dp
         rect.set(x, y - h / 2, x + wMain + wSub + 2 * padX, y + h / 2)
-        fill.color = Palette.BG
+        fill.color = colors.BG
         fill.alpha = 225
         canvas.drawRoundRect(rect, 4 * dp, 4 * dp, fill)
         fill.alpha = 255
@@ -331,11 +334,11 @@ class RadarRenderer {
         stroke.pathEffect = null
         val base = y + 5 * dp
         text.typeface = condensedBold
-        text.color = if (a.status == FlightStatus.FINAL && !a.signalLost) Palette.RED_TEXT else color
+        text.color = if (a.status == FlightStatus.FINAL && !a.signalLost) colors.RED_TEXT else color
         canvas.drawText(main, x + padX, base, text)
         if (sub.isNotEmpty()) {
             text.typeface = condensedRegular
-            text.color = Palette.TEXT_2
+            text.color = colors.TEXT_2
             canvas.drawText(" $sub", x + padX + wMain, base, text)
         }
     }
@@ -346,16 +349,16 @@ class RadarRenderer {
         val cart = snap.cart ?: return
         val x = sx(cart.pos)
         val y = sy(cart.pos)
-        fill.color = Palette.CART_FILL
+        fill.color = colors.CART_FILL
         canvas.drawCircle(x, y, 9 * dp, fill)
-        stroke.color = Palette.CART
+        stroke.color = colors.CART
         stroke.strokeWidth = 4 * dp
         canvas.drawCircle(x, y, 9 * dp, stroke)
     }
 
     private fun drawNorth(canvas: Canvas, x: Float, y: Float, dp: Float) {
         rect.set(x, y, x + 52 * dp, y + 32 * dp)
-        fill.color = Palette.SURFACE
+        fill.color = colors.SURFACE
         fill.alpha = 230
         canvas.drawRoundRect(rect, 8 * dp, 8 * dp, fill)
         fill.alpha = 255
@@ -366,12 +369,12 @@ class RadarRenderer {
         canvas.rotate(angle)
         path.reset()
         path.moveTo(0f, -10 * dp); path.lineTo(6 * dp, 8 * dp); path.lineTo(0f, 4 * dp); path.lineTo(-6 * dp, 8 * dp); path.close()
-        fill.color = Palette.TEXT
+        fill.color = colors.TEXT
         canvas.drawPath(path, fill)
         canvas.restore()
         text.typeface = sansBold
         text.textSize = 13 * dp
-        text.color = Palette.TEXT
+        text.color = colors.TEXT
         text.textAlign = Paint.Align.LEFT
         canvas.drawText("N", x + 32 * dp, y + 21 * dp, text)
     }
@@ -380,7 +383,7 @@ class RadarRenderer {
         val target = width / 5 / scale
         val m = listOf(50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0).lastOrNull { it <= target } ?: 50.0
         val w = (m * scale).toFloat()
-        stroke.color = Palette.FAINT
+        stroke.color = colors.FAINT
         stroke.strokeWidth = 2 * dp
         stroke.strokeCap = Paint.Cap.BUTT
         path.reset()
@@ -389,7 +392,7 @@ class RadarRenderer {
         stroke.strokeCap = Paint.Cap.ROUND
         text.typeface = sans
         text.textSize = 11 * dp
-        text.color = Palette.MUTED
+        text.color = colors.MUTED
         text.textAlign = Paint.Align.LEFT
         canvas.drawText(if (m >= 1000) "${trim(m / 1000)} km" else "${m.toInt()} m", x, y, text)
     }

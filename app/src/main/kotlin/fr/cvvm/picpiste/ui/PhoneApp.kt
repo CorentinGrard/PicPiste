@@ -1,5 +1,6 @@
 package fr.cvvm.picpiste.ui
 
+import android.app.Activity
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -7,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +34,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,11 +51,13 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.cart.AlertLevel
@@ -60,7 +67,9 @@ import fr.cvvm.picpiste.core.traffic.FlightStatus
 import fr.cvvm.picpiste.data.Prefs
 import fr.cvvm.picpiste.data.ReplayInfo
 import fr.cvvm.picpiste.data.Source
+import fr.cvvm.picpiste.data.Theme
 import fr.cvvm.picpiste.data.TrafficRepository
+import fr.cvvm.picpiste.render.Colors
 import fr.cvvm.picpiste.render.Palette
 import fr.cvvm.picpiste.render.RadarRenderer
 import fr.cvvm.picpiste.render.color
@@ -68,6 +77,13 @@ import fr.cvvm.picpiste.ui.editor.AirfieldEditor
 import java.util.Locale
 
 private fun c(argb: Int) = Color(argb)
+
+/** Whether this theme setting means dark colours, given the phone's own dark theme. */
+fun Theme.isDark(systemDark: Boolean) = when (this) {
+    Theme.AUTO -> systemDark
+    Theme.LIGHT -> false
+    Theme.DARK -> true
+}
 private val Condensed = FontFamily.SansSerif
 
 /**
@@ -75,7 +91,24 @@ private val Condensed = FontFamily.SansSerif
  */
 @Composable
 fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: () -> Unit = {}) {
-    MaterialTheme(colorScheme = darkColorScheme(background = c(Palette.BG), surface = c(Palette.SURFACE))) {
+    val theme by repo.prefs.theme.collectAsStateWithLifecycle()
+    val colors = if (theme.isDark(isSystemInDarkTheme())) Colors.DARK else Colors.LIGHT
+    SideEffect { Palette.current = colors }
+    val view = LocalView.current
+    LaunchedEffect(colors.isDark) {
+        (view.context as? Activity)?.window?.let { w ->
+            WindowCompat.getInsetsController(w, view).apply {
+                isAppearanceLightStatusBars = !colors.isDark
+                isAppearanceLightNavigationBars = !colors.isDark
+            }
+        }
+    }
+    val scheme = if (colors.isDark) {
+        darkColorScheme(background = c(colors.BG), surface = c(colors.SURFACE), onBackground = c(colors.TEXT), onSurface = c(colors.TEXT))
+    } else {
+        lightColorScheme(background = c(colors.BG), surface = c(colors.SURFACE), onBackground = c(colors.TEXT), onSurface = c(colors.TEXT))
+    }
+    MaterialTheme(colorScheme = scheme) {
         var editing by rememberSaveable { mutableStateOf(false) }
         if (incoming != null) editing = true
         if (editing) {
@@ -183,6 +216,7 @@ private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, sele
             },
     ) {
         drawIntoCanvas { canvas ->
+            renderer.colors = Palette.current
             renderer.draw(canvas.nativeCanvas, 0f, 0f, size.width, size.height, snap, radiusM, density, selected)
         }
     }
@@ -368,6 +402,7 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
     val record by repo.prefs.record.collectAsStateWithLifecycle()
     val speed by repo.prefs.replaySpeed.collectAsStateWithLifecycle()
     val ceiling by repo.prefs.ceilingAglM.collectAsStateWithLifecycle()
+    val theme by repo.prefs.theme.collectAsStateWithLifecycle()
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
@@ -388,7 +423,7 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                         when (source) {
                             Source.LIVE -> "Flux OGN en direct autour de ${airfield.icao}."
                             Source.DEMO -> "Trafic et golfette simulés, pour essayer sans vol."
-                            Source.REPLAY -> "Rejoue le dernier jour enregistré, avec une golfette simulée sur la piste en herbe."
+                            Source.REPLAY -> "Rejoue le dernier jour enregistré, avec une golfette simulée sur la piste principale."
                         },
                         color = c(Palette.MUTED), fontSize = 13.sp,
                     )
@@ -397,6 +432,14 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                             repo.prefs.setReplaySpeed(Prefs.REPLAY_SPEEDS[it])
                         }
                     }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Thème", color = c(Palette.TEXT), fontSize = 16.sp)
+                    Choice(Theme.entries.map { it.label }, theme.ordinal) { repo.prefs.setTheme(Theme.entries[it]) }
+                    Text(
+                        "Auto suit le téléphone. Clair : pour le plein soleil. Android Auto suit le jour / nuit de la voiture.",
+                        color = c(Palette.MUTED), fontSize = 13.sp,
+                    )
                 }
                 SettingSwitch("Enregistrer la journée", "En direct, garde les positions OGN du jour pour les rejouer.", record) { repo.prefs.setRecord(it) }
                 SettingSwitch("Alerte vocale", "Annonce quand la golfette est sur une piste et qu'un planeur est dans le circuit.", sound) { repo.prefs.setSound(it) }

@@ -26,11 +26,15 @@ tasks.test {
     useJUnitPlatform()
 }
 
-// Records a flying day around LFNL: ./gradlew :core:record  (Ctrl-C to stop)
+// Records a flying day: ./gradlew :core:record [-Pairfield=LFLE | -Pairfield=path/to/terrain.json]
+// (Ctrl-C to stop). Without -Pairfield, the bundled airfield.
 tasks.register<JavaExec>("record") {
     group = "picpiste"
-    description = "Records live OGN beacons around LFNL into recordings/"
+    description = "Records live OGN beacons around an airfield into recordings/"
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("fr.cvvm.picpiste.core.replay.RecordMainKt")
-    args(rootProject.file("recordings").absolutePath)
+    val airfield = (findProperty("airfield") as String?)
+        ?.let { a -> rootProject.file(a).takeIf { it.isFile }?.absolutePath ?: a }
+        .orEmpty()
+    args(rootProject.file("recordings").absolutePath, airfield)
 }

@@ -12,6 +12,13 @@ enum class Source(val label: String) {
     REPLAY("Rejeu"),
 }
 
+/** Phone colours. Android Auto ignores it and follows the car's day / night. */
+enum class Theme(val label: String) {
+    AUTO("Auto"),
+    LIGHT("Clair"),
+    DARK("Sombre"),
+}
+
 /** Per-phone settings. Nothing here is shared with other drivers. */
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("picpiste", Context.MODE_PRIVATE)
@@ -25,6 +32,7 @@ class Prefs(context: Context) {
     private val _ceiling = MutableStateFlow(sp.getInt(KEY_CEILING, 400))
     private val _zoom = MutableStateFlow(sp.getFloat(KEY_ZOOM_RADIUS, 1_500f).toDouble().coerceIn(MIN_RADIUS_M, MAX_RADIUS_M))
     private val _replaySpeed = MutableStateFlow(sp.getInt(KEY_REPLAY_SPEED, 4))
+    private val _theme = MutableStateFlow(runCatching { Theme.valueOf(sp.getString(KEY_THEME, null) ?: "") }.getOrDefault(Theme.AUTO))
 
     val source: StateFlow<Source> = _source.asStateFlow()
     val sound: StateFlow<Boolean> = _sound.asStateFlow()
@@ -35,6 +43,13 @@ class Prefs(context: Context) {
     /** Radar zoom: metres from the centre to the nearest edge of the map. */
     val zoomRadiusM: StateFlow<Double> = _zoom.asStateFlow()
     val replaySpeed: StateFlow<Int> = _replaySpeed.asStateFlow()
+    /** Auto follows the phone's dark theme setting. */
+    val theme: StateFlow<Theme> = _theme.asStateFlow()
+
+    fun setTheme(v: Theme) {
+        sp.edit().putString(KEY_THEME, v.name).apply()
+        _theme.value = v
+    }
 
     fun setSource(v: Source) {
         sp.edit().putString(KEY_SOURCE, v.name).apply()
@@ -82,6 +97,7 @@ class Prefs(context: Context) {
         private const val KEY_CEILING = "ceiling"
         private const val KEY_ZOOM_RADIUS = "zoomRadius"
         private const val KEY_REPLAY_SPEED = "replaySpeed"
+        private const val KEY_THEME = "theme"
 
         /** Zoom button presets, metres from the centre to the nearest edge of the map. */
         val ZOOM_RADII_M = listOf(700.0, 1_500.0, 4_000.0)

@@ -38,7 +38,7 @@ object OsmImport {
     private const val NEAR_FIELD_M = 200.0
     private const val NEAR_RUNWAYS_M = 1_500.0
 
-    /** Codes we accept: ICAO (LFNL), or a national code with digits (LF3452). */
+    /** Codes we accept: ICAO (LFPT), or a national code with digits (LF3452). */
     val CODE = Regex("^[A-Z0-9]{3,7}$")
 
     fun normalizeCode(code: String): String = code.trim().uppercase()
@@ -228,8 +228,8 @@ object OsmImport {
     }
 
     /**
-     * Pairs the two ends with their designators. With refs like "12/30", the end you start from
-     * when heading about 120° is the 12 threshold. Without refs, they come from the true heading.
+     * Pairs the two ends with their designators. With refs like "04/22" (OSM writes "04/22" or
+     * "04-22"), the end you start from when heading about 40° is the 04 threshold. Without refs, they come from the true heading.
      * A is always the lower designator.
      */
     private fun assignEnds(a: Vec2, b: Vec2, headingAB: Double, refs: Pair<String, String>?): Triple<Pair<String, Vec2>, Pair<String, Vec2>, Boolean> {
@@ -252,7 +252,7 @@ object OsmImport {
         return if (refHeading(second)!! < h1) Triple(e2, e1, guessed) else Triple(e1, e2, guessed)
     }
 
-    /** "12/30", "12-30", "14L/32R", "09 / 27" → pair; anything else → null. */
+    /** "04/22", "04-22", "14L/32R", "09 / 27" → pair; anything else → null. */
     fun parseRefs(ref: String?): Pair<String, String>? {
         val parts = ref?.uppercase()?.split('/', '-', ';', ' ')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: return null
         if (parts.size != 2) return null

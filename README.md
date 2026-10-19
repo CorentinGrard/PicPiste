@@ -44,7 +44,8 @@ OGN ne garde pas l'historique des positions : il faut enregistrer le jour même.
 - Sur le téléphone : Réglages (⋯) → **Enregistrer la journée** (en direct). Le fichier va
   dans `Android/data/fr.cvvm.picpiste/files/recordings/`.
 - Sur un PC ou un serveur, sans téléphone : `./gradlew :core:record` (Ctrl-C pour arrêter),
-  fichiers dans `recordings/`. Pour rejouer sur le téléphone :
+  fichiers dans `recordings/`. Autre terrain : `-Pairfield=LFLE` (téléchargé depuis
+  OpenStreetMap) ou `-Pairfield=mon-terrain.json` (fichier partagé depuis l'app). Pour rejouer sur le téléphone :
   `adb push recordings/LFNL-2026-10-25.tsv /sdcard/Android/data/fr.cvvm.picpiste/files/recordings/`
 - Réglages → Trafic : **Rejeu** (×1, ×4, ×10) rejoue le dernier enregistrement, avec une
   golfette simulée qui va sur une piste.
@@ -68,7 +69,7 @@ essayer l'app sans vol (circuit, finale, remorqué, alertes).
 
 ## Reprise du travail
 
-Ce qui reste à faire et les points du code encore propres à LFNL : [docs/NEXT.md](docs/NEXT.md).
+Ce qui reste à faire : [docs/NEXT.md](docs/NEXT.md).
 
 ## CI et versions
 

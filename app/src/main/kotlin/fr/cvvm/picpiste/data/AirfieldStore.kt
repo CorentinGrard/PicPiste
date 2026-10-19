@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 
 /**
- * The airfield this phone uses: the one saved from the editor, else the bundled LFNL.
+ * The airfield this phone uses: the one saved from the editor, else the bundled one ([BUNDLED]).
  * Kept in one JSON file, the same format that is shared with other drivers.
  */
 class AirfieldStore(context: Context) {
@@ -46,6 +46,6 @@ class AirfieldStore(context: Context) {
     }
 
     companion object {
-        const val BUNDLED = "LFNL"
+        const val BUNDLED = Airfield.BUNDLED
     }
 }

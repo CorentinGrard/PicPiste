@@ -53,7 +53,7 @@ enum class AlertLevel { NONE, ON_RUNWAY, DANGER }
 data class CartAlert(
     val level: AlertLevel,
     val threat: AircraftState? = null,
-    /** "Planeur en finale 30 herbe" */
+    /** "Planeur en finale 22" */
     val title: String = "",
     /** "AB · F-CXYZ — dégagez la piste" */
     val detail: String = "",
