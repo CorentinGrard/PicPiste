@@ -138,14 +138,14 @@ class Colors(
             RED_TEXT = rgb("#B91C14"),
             DANGER_FILL = rgb("#FDE2DF"),
             BANNER = rgb("#C8251B"),
-            OK = rgb("#0B8A4D"),
+            OK = rgb("#087443"),
             TAKEOFF = rgb("#B81F86"),
-            CIRCUIT = rgb("#9A6200"),
+            CIRCUIT = rgb("#865500"),
             APPROACH = rgb("#1660C4"),
             TOW = rgb("#6A43D6"),
             ON_GROUND = rgb("#3F6E50"),
             AIRBORNE = rgb("#3A4350"),
-            LOST = rgb("#808994"),
+            LOST = rgb("#66707C"),
         )
     }
 }
@@ -185,6 +185,3 @@ object Palette {
     val CIRCUIT get() = current.CIRCUIT
     val LANDED get() = current.LANDED
 }
-
-/** Status colour in the phone's current colours. */
-val AircraftState.color: Int get() = Palette.current.of(this)

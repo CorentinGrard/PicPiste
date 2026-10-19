@@ -155,12 +155,14 @@ class DemoTraffic(private val airfield: Airfield) {
     /** Takeoff roll, tow out of sight (released above the display ceiling), circuit and landing. */
     private val tugPath: Path = with(towFrame) {
         val l = rw.length
+        // Lift off by 345 m, or within the runway if it is shorter.
+        val liftOff = minOf(345.0, l * 0.8)
         Path(
             listOf(
                 wp(15.0, 0.0, 0.0, 0.5),
                 wp(16.0, 0.0, 0.0, 0.5), // waiting at the threshold
-                wp(165.0, 0.0, 0.0, 70.0),
-                wp(345.0, 0.0, 3.0, 110.0),
+                wp(liftOff * 0.48, 0.0, 0.0, 70.0),
+                wp(liftOff, 0.0, 3.0, 110.0),
                 wp(maxOf(l + 100, 600.0), 0.0, 80.0, 120.0),
                 wp(l + 1_200, 250.0, 300.0, 120.0),
                 wp(l + 2_300, 900.0, 600.0, 120.0), // release, out of the display ceiling
@@ -185,6 +187,20 @@ class DemoTraffic(private val airfield: Airfield) {
         Actor("DD0A04", AircraftType.GLIDER, Path(gliderCircuit(1_800.0, 3_600.0), 90_000), startMs = 200_000),
     )
 
+    /**
+     * Where the cart waits: beside the starter, or beside the main runway on the side away from
+     * the circuit, then pushed out until it is clear of every runway (the starter may be on one).
+     */
+    private val parked: Vec2 = run {
+        val start = airfield.starter?.let { it + (it - mid(main)).normalized() * 50.0 }
+            ?: gliderFrame.at(main.length / 2, -120.0)
+        val away = gliderFrame.n * -1.0
+        generateSequence(start) { it + away * 10.0 }.take(300)
+            .firstOrNull { !airfield.inRunwayZone(it, CART_CLEARANCE_M) } ?: start
+    }
+
+    private val onRunway = gliderFrame.at(main.length * 0.6, 0.0)
+
     /** Receiver name in the beacons: the airfield code, as if a station stood on the field. */
     private val receiver = airfield.icao.filter { it.isLetterOrDigit() }.take(9).ifEmpty { "DEMO" }
 
@@ -205,9 +221,6 @@ class DemoTraffic(private val airfield: Airfield) {
      * every 2 minutes it waits at the starter, drives onto the main runway, parks there, comes back.
      */
     fun cartAt(sinceStartMs: Long): Vec2 {
-        val parked = airfield.starter?.let { it + (it - mid(main)).normalized() * 50.0 }
-            ?: gliderFrame.at(main.length / 2, -120.0)
-        val onRunway = gliderFrame.at(main.length * 0.6, 0.0)
         val t = (sinceStartMs % 120_000) / 1000.0
         fun lerp(a: Vec2, b: Vec2, f: Double) = a + (b - a) * f.coerceIn(0.0, 1.0)
         return when {
@@ -249,6 +262,9 @@ class DemoTraffic(private val airfield: Airfield) {
 
         /** Distance of the base leg before the threshold. */
         const val BASE_M = 1_000.0
+
+        /** The parked cart stays this far from any runway, beyond the presence detector's margins. */
+        const val CART_CLEARANCE_M = 40.0
 
         fun mid(rw: Runway) = (rw.thresholdA + rw.thresholdB) * 0.5
 

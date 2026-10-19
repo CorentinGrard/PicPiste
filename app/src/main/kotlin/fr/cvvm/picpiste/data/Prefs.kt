@@ -17,6 +17,14 @@ enum class Theme(val label: String) {
     AUTO("Auto"),
     LIGHT("Clair"),
     DARK("Sombre"),
+    ;
+
+    /** Whether this setting means dark colours, given the phone's own dark theme. */
+    fun isDark(systemDark: Boolean) = when (this) {
+        AUTO -> systemDark
+        LIGHT -> false
+        DARK -> true
+    }
 }
 
 /** Per-phone settings. Nothing here is shared with other drivers. */

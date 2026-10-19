@@ -1,11 +1,11 @@
 package fr.cvvm.picpiste.core.replay
 
 import fr.cvvm.picpiste.core.airfield.Airfield
+import fr.cvvm.picpiste.core.airfield.AirfieldDownloader
 import fr.cvvm.picpiste.core.aprs.AprsClient
 import fr.cvvm.picpiste.core.aprs.AprsEvent
 import fr.cvvm.picpiste.core.aprs.AprsParser
 import kotlinx.coroutines.runBlocking
-import fr.cvvm.picpiste.core.airfield.AirfieldDownloader
 import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
@@ -21,7 +21,13 @@ import java.time.ZoneId
  */
 fun main(args: Array<String>) = runBlocking {
     val dir = File(args.getOrNull(0) ?: "recordings").apply { mkdirs() }
-    val airfield = loadAirfield(args.getOrNull(1)?.takeIf { it.isNotBlank() } ?: Airfield.BUNDLED)
+    val airfield = try {
+        loadAirfield(args.getOrNull(1)?.takeIf { it.isNotBlank() } ?: Airfield.BUNDLED)
+    } catch (e: Exception) {
+        // Bad terrain file, unknown code, or no network for the download: say why, no stack trace.
+        System.err.println(e.message)
+        kotlin.system.exitProcess(1)
+    }
     val client = AprsClient(AprsClient.rangeFilter(airfield.reference.lat, airfield.reference.lon, 30))
     var day: LocalDate? = null
     var out: java.io.Writer? = null

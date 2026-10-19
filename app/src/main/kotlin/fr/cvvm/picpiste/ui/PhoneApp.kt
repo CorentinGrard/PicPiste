@@ -1,6 +1,7 @@
 package fr.cvvm.picpiste.ui
 
 import android.app.Activity
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -72,18 +73,13 @@ import fr.cvvm.picpiste.data.TrafficRepository
 import fr.cvvm.picpiste.render.Colors
 import fr.cvvm.picpiste.render.Palette
 import fr.cvvm.picpiste.render.RadarRenderer
-import fr.cvvm.picpiste.render.color
 import fr.cvvm.picpiste.ui.editor.AirfieldEditor
 import java.util.Locale
 
 private fun c(argb: Int) = Color(argb)
 
-/** Whether this theme setting means dark colours, given the phone's own dark theme. */
-fun Theme.isDark(systemDark: Boolean) = when (this) {
-    Theme.AUTO -> systemDark
-    Theme.LIGHT -> false
-    Theme.DARK -> true
-}
+/** Status colour in the phone's colours (the car has its own, see `RadarScreen`). */
+private val AircraftState.color: Int get() = Palette.current.of(this)
 private val Condensed = FontFamily.SansSerif
 
 /**
@@ -97,6 +93,7 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
     val view = LocalView.current
     LaunchedEffect(colors.isDark) {
         (view.context as? Activity)?.window?.let { w ->
+            w.setBackgroundDrawable(ColorDrawable(colors.BG))
             WindowCompat.getInsetsController(w, view).apply {
                 isAppearanceLightStatusBars = !colors.isDark
                 isAppearanceLightNavigationBars = !colors.isDark

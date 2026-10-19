@@ -100,6 +100,24 @@ class AnyAirfieldScenarioTest {
     }
 
     @Test
+    fun parkedCartIsClearOfEveryRunway() {
+        // Also with the starter put in the middle of the main runway: the cart must still park off it.
+        val onMain = airfields.map { a ->
+            val demo = DemoTraffic(a)
+            val g = a.frame.toGeo((demo.main.thresholdA + demo.main.thresholdB) * 0.5)
+            Airfield(a.config.copy(starter = listOf(g.lat, g.lon)))
+        }
+        for (a in airfields + onMain + airfields.map { Airfield(it.config.copy(starter = null)) }) {
+            val demo = DemoTraffic(a)
+            for (t in listOf(0L, 10_000L, 119_000L)) {
+                val p = demo.cartAt(t)
+                assertTrue(!a.inRunwayZone(p, 30.0), "${a.icao} starter=${a.config.starter}: parked cart on a runway at $p")
+            }
+            assertTrue(a.inRunwayZone(demo.cartAt(60_000)), "${a.icao}: cart not on the runway mid-cycle")
+        }
+    }
+
+    @Test
     fun aircraftAboveCeilingAreHiddenEverywhere() {
         for (a in airfields) {
             run(a, 800).seen.values.flatten().forEach {
