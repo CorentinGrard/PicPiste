@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
+import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.airfield.AirfieldConfig
 import java.io.File
@@ -14,17 +15,17 @@ object AirfieldFiles {
 
     fun fileName(config: AirfieldConfig) = "PicPiste-${config.icao}.json"
 
-    /** Reads and checks a file the user picked or opened with PicPiste. Throws with a French message. */
+    /** Reads and checks a file the user picked or opened with PicPiste. Throws with a message for the screen. */
     fun read(context: Context, uri: Uri): AirfieldConfig {
         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readNBytes(MAX_BYTES + 1) }
-            ?: throw IllegalArgumentException("Impossible d'ouvrir ce fichier.")
-        if (bytes.size > MAX_BYTES) throw IllegalArgumentException("Ce fichier est trop gros pour être un terrain.")
+            ?: throw IllegalArgumentException(context.getString(R.string.cannot_open_file))
+        if (bytes.size > MAX_BYTES) throw IllegalArgumentException(context.getString(R.string.file_too_big))
         return Airfield.decode(bytes.toString(Charsets.UTF_8))
     }
 
     fun write(context: Context, uri: Uri, config: AirfieldConfig) {
         context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(Airfield.encode(config).toByteArray()) }
-            ?: throw IllegalStateException("Impossible d'écrire ce fichier.")
+            ?: throw IllegalStateException(context.getString(R.string.cannot_write_file))
     }
 
     /** Android share sheet (messages, mail, Drive…) with the airfield as a JSON attachment. */
@@ -36,10 +37,10 @@ object AirfieldFiles {
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "application/json"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "Terrain PicPiste ${config.icao}")
-            putExtra(Intent.EXTRA_TEXT, "Terrain ${config.icao} (${config.name}) pour PicPiste : ouvrir le fichier avec PicPiste.")
+            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_subject, config.icao))
+            putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_text, config.icao, config.name))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(send, "Partager le terrain ${config.icao}"))
+        context.startActivity(Intent.createChooser(send, context.getString(R.string.share_title, config.icao)))
     }
 }

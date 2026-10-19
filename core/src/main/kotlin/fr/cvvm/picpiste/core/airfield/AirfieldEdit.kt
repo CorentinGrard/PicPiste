@@ -4,6 +4,7 @@ import fr.cvvm.picpiste.core.geo.GeoPoint
 import fr.cvvm.picpiste.core.geo.LocalFrame
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.geo.haversineM
+import fr.cvvm.picpiste.core.i18n.Texts
 import java.text.Normalizer
 import kotlin.math.round
 
@@ -70,16 +71,16 @@ fun AirfieldConfig.exists(shape: Shape): Boolean = when (shape) {
     Shape.Starter -> starter != null
 }
 
-/** "Piste herbe", "Seuil 22 herbe", "Hangar 2"… */
+/** "Runway grass", "Threshold 22 grass", "Hangar 2"… in the phone language. */
 fun AirfieldConfig.label(shape: Shape): String = when (shape) {
-    Shape.Boundary -> "Contour du terrain"
-    is Shape.RunwayOutline -> "Piste ${runways[shape.index].name}"
-    is Shape.Threshold -> runways[shape.index].let { "Seuil ${it.ends[shape.end.ordinal].ref} ${it.name}" }
-    is Shape.Apron -> "Parking ${shape.index + 1}"
-    is Shape.Hangar -> "Hangar ${shape.index + 1}"
-    is Shape.Taxiway -> "Taxiway ${shape.index + 1}"
-    is Shape.Windsock -> "Manche à air ${shape.index + 1}"
-    Shape.Starter -> "Starter"
+    Shape.Boundary -> Texts.current.boundary
+    is Shape.RunwayOutline -> Texts.current.runway(runways[shape.index].name)
+    is Shape.Threshold -> runways[shape.index].let { Texts.current.threshold(it.ends[shape.end.ordinal].ref, it.name) }
+    is Shape.Apron -> Texts.current.apron(shape.index + 1)
+    is Shape.Hangar -> Texts.current.hangar(shape.index + 1)
+    is Shape.Taxiway -> Texts.current.taxiway(shape.index + 1)
+    is Shape.Windsock -> Texts.current.windsock(shape.index + 1)
+    Shape.Starter -> Texts.current.starter
 }
 
 fun AirfieldConfig.withPoints(shape: Shape, pts: List<LatLon>): AirfieldConfig = when (shape) {
@@ -152,9 +153,10 @@ fun AirfieldConfig.canDelete(shape: Shape): Boolean = when (shape) {
 }
 
 /** What the "add" menu can create, at a point the user chose (the map centre or the GPS). */
-enum class NewShape(val label: String) {
-    RUNWAY("Piste"), HANGAR("Hangar"), APRON("Parking"), TAXIWAY("Taxiway"),
-    WINDSOCK("Manche à air"), STARTER("Starter"), BOUNDARY("Contour du terrain"),
+enum class NewShape {
+    RUNWAY, HANGAR, APRON, TAXIWAY, WINDSOCK, STARTER, BOUNDARY;
+
+    val label: String get() = Texts.current.newShape(this)
 }
 
 /** Adds a new shape centred on [at], aligned with the main runway. Returns the config and the new shape. */
@@ -169,7 +171,7 @@ fun AirfieldConfig.add(kind: NewShape, at: GeoPoint): Pair<AirfieldConfig, Shape
             val refB = runwayRef(axisBearingDeg + 180)
             val (a, b) = if (refA <= refB) (refA to Vec2(-300.0, 0.0)) to (refB to Vec2(300.0, 0.0))
             else (refB to Vec2(300.0, 0.0)) to (refA to Vec2(-300.0, 0.0))
-            val name = uniqueName("nouvelle")
+            val name = uniqueName(Texts.current.newRunwayName)
             val rw = RunwayConfig(
                 id = uniqueRunwayId(name),
                 name = name,
@@ -239,37 +241,38 @@ private fun refOrder(ref: String): Int =
     (ref.takeWhile { it.isDigit() }.toIntOrNull() ?: 99) * 10 + "LCR".indexOf(ref.dropWhile { it.isDigit() }.firstOrNull() ?: ' ') + 1
 
 /**
- * What is wrong with this config, in French for the screen. Empty: it can be used.
+ * What is wrong with this config, for the screen (phone language). Empty: it can be used.
  * Checks only what would break the app, not whether the drawing is accurate.
  */
 fun AirfieldConfig.problems(): List<String> = buildList {
     fun bad(p: List<Double>) = p.size != 2 || p[0] !in -90.0..90.0 || p[1] !in -180.0..180.0 || p.any { it.isNaN() }
-    if (icao.isBlank()) add("Le code du terrain est vide.")
-    if (bad(reference)) add("Le point de référence est invalide.")
-    if (elevationM.isNaN() || elevationM !in -500.0..5_000.0) add("L'altitude du terrain est invalide.")
-    if (runways.isEmpty()) add("Il faut au moins une piste.")
+    val t = Texts.current
+    if (icao.isBlank()) add(t.emptyCode)
+    if (bad(reference)) add(t.badReference)
+    if (elevationM.isNaN() || elevationM !in -500.0..5_000.0) add(t.badElevation)
+    if (runways.isEmpty()) add(t.noRunway)
     val ref = reference.takeUnless(::bad)?.geo()
     for (rw in runways) {
         if (rw.ends.size != 2 || rw.ends.any { bad(it.threshold) || it.ref.isBlank() }) {
-            add("Piste ${rw.name} : il faut deux seuils avec leur numéro.")
+            add(t.runwayNeedsThresholds(rw.name))
             continue
         }
-        if (rw.outline.size < 3 || rw.outline.any(::bad)) add("Piste ${rw.name} : le contour doit avoir au moins 3 points.")
+        if (rw.outline.size < 3 || rw.outline.any(::bad)) add(t.runwayOutlineTooSmall(rw.name))
         val len = haversineM(rw.ends[0].threshold.geo(), rw.ends[1].threshold.geo())
-        if (len < 50) add("Piste ${rw.name} : les deux seuils sont trop proches (${len.toInt()} m).")
+        if (len < 50) add(t.thresholdsTooClose(rw.name, len.toInt()))
         if (ref != null && rw.ends.any { haversineM(ref, it.threshold.geo()) > 20_000 }) {
-            add("Piste ${rw.name} : à plus de 20 km du terrain.")
+            add(t.runwayTooFar(rw.name))
         }
     }
-    if (runways.map { it.id }.toSet().size != runways.size) add("Deux pistes ont le même nom.")
-    if (boundary.isNotEmpty() && (boundary.size < 3 || boundary.any(::bad))) add("Le contour du terrain doit avoir au moins 3 points.")
-    if ((aprons + hangars).any { it.size < 3 || it.any(::bad) }) add("Un parking ou un hangar a moins de 3 points.")
-    if (taxiways.any { it.path.size < 2 || it.path.any(::bad) }) add("Un taxiway a moins de 2 points.")
-    if (windsocks.any(::bad) || starter?.let(::bad) == true) add("Une manche à air ou le starter est mal placé.")
+    if (runways.map { it.id }.toSet().size != runways.size) add(t.duplicateRunwayNames)
+    if (boundary.isNotEmpty() && (boundary.size < 3 || boundary.any(::bad))) add(t.boundaryTooSmall)
+    if ((aprons + hangars).any { it.size < 3 || it.any(::bad) }) add(t.polygonTooSmall)
+    if (taxiways.any { it.path.size < 2 || it.path.any(::bad) }) add(t.taxiwayTooShort)
+    if (windsocks.any(::bad) || starter?.let(::bad) == true) add(t.misplacedPoint)
 }
 
 internal fun AirfieldConfig.uniqueRunwayId(name: String): String {
-    val base = slug(name).ifEmpty { "piste" }
+    val base = slug(name).ifEmpty { "runway" }
     val used = runways.map { it.id }.toSet()
     return generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base-$it" }.first { it !in used }
 }

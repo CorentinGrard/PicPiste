@@ -222,7 +222,9 @@ L'app a un **mode clair** en plus du sombre :
 - **Batterie** : service au premier plan uniquement quand l'app ou Android Auto est actif.
 - **Sécurité routière** : respect des contraintes Android Auto (templates, pas de saisie
   en roulant, listes limitées).
-- **Langue** : français.
+- **Langue** : anglais par défaut, français si le téléphone est en français (ou si l'app est
+  réglée en français dans les paramètres Android, langue par app). Écrans : ressources Android
+  (`values/`, `values-fr/`) ; statuts, alertes, voix et messages du moteur : `core/i18n/Texts.kt`.
 - **Coût** : 0 € d'infra en v1 (pas de serveur ; OGN gratuit).
 
 ## 6. Architecture technique proposée

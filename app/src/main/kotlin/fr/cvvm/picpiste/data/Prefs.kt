@@ -1,22 +1,25 @@
 package fr.cvvm.picpiste.data
 
 import android.content.Context
+import androidx.annotation.StringRes
+import fr.cvvm.picpiste.R
+import fr.cvvm.picpiste.core.i18n.Texts
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Where the traffic comes from. */
-enum class Source(val label: String) {
-    LIVE("En direct"),
-    DEMO("Démo"),
-    REPLAY("Rejeu"),
+enum class Source(@StringRes val labelRes: Int) {
+    LIVE(R.string.source_live),
+    DEMO(R.string.source_demo),
+    REPLAY(R.string.source_replay),
 }
 
 /** Phone colours. Android Auto ignores it and follows the car's day / night. */
-enum class Theme(val label: String) {
-    AUTO("Auto"),
-    LIGHT("Clair"),
-    DARK("Sombre"),
+enum class Theme(@StringRes val labelRes: Int) {
+    AUTO(R.string.theme_auto),
+    LIGHT(R.string.theme_light),
+    DARK(R.string.theme_dark),
     ;
 
     /** Whether this setting means dark colours, given the phone's own dark theme. */
@@ -115,7 +118,7 @@ class Prefs(context: Context) {
 
         fun zoomLabel(radiusM: Double): String = when {
             radiusM < 1000 -> "${(radiusM / 50).toInt() * 50} m"
-            radiusM < 2000 -> String.format(java.util.Locale.FRANCE, "%.1f km", radiusM / 1000)
+            radiusM < 2000 -> String.format(Texts.current.locale, "%.1f km", radiusM / 1000)
             else -> "${Math.round(radiusM / 1000)} km"
         }
     }

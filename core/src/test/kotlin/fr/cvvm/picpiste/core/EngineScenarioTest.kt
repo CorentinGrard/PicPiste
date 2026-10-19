@@ -47,7 +47,7 @@ class EngineScenarioTest {
 
         val finals = seen.mapNotNull { it.second }.filter { it.status == FlightStatus.FINAL }
         assertTrue(finals.all { it.runway?.id == "herbe" && it.runwayEnd == RunwayEnd.B }, finals.map { it.statusText }.distinct().toString())
-        assertEquals("Finale 30", finals.first().statusText)
+        assertEquals("Final 30", finals.first().statusText)
 
         val landed = seen.last { it.second?.status == FlightStatus.LANDED }.second!!
         assertNotNull(landed.landedAtMs)
@@ -107,7 +107,7 @@ class EngineScenarioTest {
         }
         assertTrue(AlertLevel.ON_RUNWAY in levels)
         assertTrue(AlertLevel.DANGER in levels)
-        assertTrue("Planeur en finale 30" in titles, titles.toString())
+        assertTrue("Glider on final 30" in titles, titles.toString())
     }
 
     @Test

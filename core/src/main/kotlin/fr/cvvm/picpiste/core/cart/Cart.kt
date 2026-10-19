@@ -2,9 +2,9 @@ package fr.cvvm.picpiste.core.cart
 
 import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.geo.Vec2
+import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -53,9 +53,9 @@ enum class AlertLevel { NONE, ON_RUNWAY, DANGER }
 data class CartAlert(
     val level: AlertLevel,
     val threat: AircraftState? = null,
-    /** "Planeur en finale 22" */
+    /** "Glider on final 22" */
     val title: String = "",
-    /** "AB · F-CXYZ — dégagez la piste" */
+    /** "AB · F-CXYZ — clear the runway" */
     val detail: String = "",
     /** "20 s", "~2 min" */
     val eta: String = "",
@@ -81,24 +81,24 @@ object AlertEngine {
             .minWithOrNull(compareBy<AircraftState>({ priority(it.status) }, { it.etaS ?: Double.MAX_VALUE }))
             ?: return CartAlert(AlertLevel.ON_RUNWAY)
 
+        val t = Texts.current
         val noun = threat.identity.type.label
         // Only the direction: from the air we cannot tell parallel runways apart.
-        val where = threat.direction?.let { " $it" } ?: ""
         val title = when (threat.status) {
-            FlightStatus.FINAL -> "$noun en finale$where"
-            FlightStatus.TAKEOFF -> "Décollage en cours$where"
-            else -> "$noun dans le circuit"
+            FlightStatus.FINAL -> t.onFinal(noun, threat.direction)
+            FlightStatus.TAKEOFF -> t.takingOff(threat.direction)
+            else -> t.inCircuit(noun)
         }
         val who = listOfNotNull(threat.identity.label, threat.identity.registration).distinct().joinToString(" · ")
         val eta = threat.etaS?.takeIf { threat.status != FlightStatus.TAKEOFF }?.let(::formatEta) ?: ""
-        val spokenEta = threat.etaS?.takeIf { threat.status != FlightStatus.TAKEOFF }?.let(::spokenEta)
+        val spokenEta = threat.etaS?.takeIf { threat.status != FlightStatus.TAKEOFF }?.let(t::spokenEta)
         return CartAlert(
             level = AlertLevel.DANGER,
             threat = threat,
             title = title,
-            detail = "$who — dégagez la piste",
+            detail = t.clearRunway(who),
             eta = eta,
-            speech = listOfNotNull("Attention", title, spokenEta).joinToString(". ") + ".",
+            speech = listOfNotNull(t.caution, title, spokenEta).joinToString(". ") + ".",
         )
     }
 
@@ -115,9 +115,4 @@ fun formatEta(s: Double): String = when {
     else -> "~${(s / 60).roundToInt()} min"
 }
 
-fun spokenEta(s: Double): String = when {
-    s < 60 -> "${((s / 5).roundToInt() * 5).coerceAtLeast(5)} secondes"
-    else -> "${(s / 60).roundToInt()} minute" + if ((s / 60).roundToInt() > 1) "s" else ""
-}
-
-fun formatKm(m: Double): String = String.format(Locale.FRANCE, "%.1f km", m / 1000)
+fun formatKm(m: Double): String = String.format(Texts.current.locale, "%.1f km", m / 1000)

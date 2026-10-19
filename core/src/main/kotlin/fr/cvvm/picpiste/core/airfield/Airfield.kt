@@ -5,10 +5,11 @@ import fr.cvvm.picpiste.core.geo.LocalFrame
 import fr.cvvm.picpiste.core.geo.Polygon
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import fr.cvvm.picpiste.core.i18n.Texts
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Airfield config as stored in JSON: bundled in the app, built from OpenStreetMap,
@@ -132,15 +133,15 @@ class Airfield(val config: AirfieldConfig) {
 
         fun parse(text: String): Airfield = Airfield(decode(text))
 
-        /** Reads a config file. Throws [IllegalArgumentException] with a French message when it is not usable. */
+        /** Reads a config file. Throws [IllegalArgumentException] with a message for the screen when it is not usable. */
         fun decode(text: String): AirfieldConfig {
             val config = try {
                 json.decodeFromString(AirfieldConfig.serializer(), text)
             } catch (e: Exception) {
-                throw IllegalArgumentException("Ce fichier n'est pas un terrain PicPiste.", e)
+                throw IllegalArgumentException(Texts.current.notAnAirfieldFile, e)
             }
             require(config.formatVersion <= AirfieldConfig.FORMAT_VERSION) {
-                "Ce terrain vient d'une version plus récente de PicPiste : mettez l'app à jour."
+                Texts.current.newerFileVersion
             }
             val problems = config.problems()
             require(problems.isEmpty()) { problems.joinToString("\n") }
@@ -226,7 +227,12 @@ class Runway(val config: RunwayConfig, frame: LocalFrame) {
     }
 }
 
-enum class RunwayThird(val label: String) { START("début de piste"), MIDDLE("milieu"), END("fin de piste") }
+enum class RunwayThird {
+    START, MIDDLE, END;
+
+    /** "middle", "milieu"… in the phone language. */
+    val label: String get() = Texts.current.third(this)
+}
 
 /** Rounds a heading to its runway number, for sanity checks (42° → 4). */
 fun runwayNumber(headingDeg: Double): Int = ((headingDeg / 10).roundToInt().let { if (it == 0) 36 else it })

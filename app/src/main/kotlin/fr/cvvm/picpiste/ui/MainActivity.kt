@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import fr.cvvm.picpiste.render.Colors
 import fr.cvvm.picpiste.render.Palette
 import fr.cvvm.picpiste.repository
+import fr.cvvm.picpiste.useLanguageOf
 
 class MainActivity : ComponentActivity() {
     private val askPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -24,6 +25,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The activity's configuration carries the per-app language: recreated when it changes.
+        useLanguageOf(resources.configuration)
         enableEdgeToEdge()
         // Used as a dashboard in the cart: keep the screen on while visible.
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

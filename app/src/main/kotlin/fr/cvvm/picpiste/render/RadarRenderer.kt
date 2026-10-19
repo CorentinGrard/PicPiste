@@ -1,11 +1,13 @@
 package fr.cvvm.picpiste.render
 
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
+import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.airfield.Runway
@@ -24,7 +26,8 @@ import kotlin.math.min
  * Draws the fixed, runway-aligned radar on any Android canvas: the phone screen
  * (through Compose) and the Android Auto surface use the same code.
  */
-class RadarRenderer {
+/** [context] gives the texts drawn on the map, in the phone language. */
+class RadarRenderer(private val context: Context) {
     /** Colours to draw with: the phone's theme, or the car's day / night. */
     var colors: Colors = Colors.DARK
 
@@ -309,7 +312,7 @@ class RadarRenderer {
     private fun drawTag(canvas: Canvas, a: AircraftState, x: Float, y: Float, color: Int, dp: Float, selected: Boolean) {
         val main = a.identity.label
         val sub = when {
-            a.signalLost -> "signal perdu · ${a.ageMs / 1000} s"
+            a.signalLost -> context.getString(R.string.signal_lost_ago, (a.ageMs / 1000).toInt())
             !a.status.isAirborne && a.status != FlightStatus.TAKEOFF -> ""
             a.status == FlightStatus.FINAL && a.etaS != null -> "${a.fix.aglM.coerceAtLeast(0.0).toInt()} m · ${formatEta(a.etaS!!)}"
             else -> "${a.fix.aglM.coerceAtLeast(0.0).toInt()} m"

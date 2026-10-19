@@ -10,13 +10,13 @@ import androidx.car.app.SurfaceContainer
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.CarIcon
-import androidx.core.graphics.drawable.IconCompat
-import fr.cvvm.picpiste.R
 import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
+import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.render.CarOverlay
 import fr.cvvm.picpiste.render.Colors
@@ -32,8 +32,8 @@ import kotlinx.coroutines.launch
  */
 class RadarScreen(carContext: CarContext) : Screen(carContext) {
     private val repo = carContext.repository
-    private val renderer = RadarRenderer()
-    private val overlay = CarOverlay()
+    private val renderer = RadarRenderer(carContext)
+    private val overlay = CarOverlay(carContext)
 
     private var surface: SurfaceContainer? = null
     private var visible: Rect? = null
@@ -92,7 +92,7 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
         val strip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()
-                    .setTitle("Posés")
+                    .setTitle(carContext.getString(R.string.landed_title))
                     .setOnClickListener { screenManager.push(LandedScreen(carContext, ::showOnRadar)) }
                     .build(),
             )

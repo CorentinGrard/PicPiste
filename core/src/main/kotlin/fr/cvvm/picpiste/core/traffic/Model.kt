@@ -6,27 +6,24 @@ import fr.cvvm.picpiste.core.airfield.RunwayThird
 import fr.cvvm.picpiste.core.aprs.AircraftType
 import fr.cvvm.picpiste.core.geo.GeoPoint
 import fr.cvvm.picpiste.core.geo.Vec2
+import fr.cvvm.picpiste.core.i18n.Texts
 
 data class TrafficSettings(
     /** Only aircraft below this height above the field are shown (plus those on the ground). */
     val ceilingAglM: Double = 400.0,
     val radarRadiusM: Double = 5_000.0,
-    /** No beacon for this long: the aircraft is shown greyed, "signal perdu". */
+    /** No beacon for this long: the aircraft is shown greyed, "signal lost". */
     val lostAfterMs: Long = 60_000,
     /** No beacon for this long: the aircraft is dropped. */
     val forgetAfterMs: Long = 15 * 60_000,
     val trailMs: Long = 120_000,
 )
 
-enum class FlightStatus(val label: String) {
-    TAKEOFF("Décollage"),
-    TOW("Remorquage"),
-    APPROACH("Retour"),
-    CIRCUIT("Circuit"),
-    FINAL("Finale"),
-    LANDED("Posé"),
-    ON_GROUND("Au sol"),
-    AIRBORNE("En vol");
+enum class FlightStatus {
+    TAKEOFF, TOW, APPROACH, CIRCUIT, FINAL, LANDED, ON_GROUND, AIRBORNE;
+
+    /** "Final", "Finale"… in the phone language. */
+    val label: String get() = Texts.current.status(this)
 
     val isAirborne get() = this in AIRBORNE_STATUSES
     val isArrival get() = this == APPROACH || this == CIRCUIT || this == FINAL
@@ -88,18 +85,26 @@ data class AircraftState(
     /** Landing or takeoff direction, without the L/R letter: "22", "14". */
     val direction: String? get() = runwayEnd?.let { end -> runway?.direction(end) }
 
-    /** "Finale 22", "Circuit", "Retour · 2,4 km · 290 m"… */
+    /** "Final 22", "Circuit", "Returning · 2.4 km · 290 m"… */
     val statusText: String
         get() = when (status) {
             // Direction only ("Finale 14", not "14L"): parallel runways are too close to tell apart from the air.
             FlightStatus.FINAL, FlightStatus.TAKEOFF -> direction?.let { "${status.label} $it" } ?: status.label
-            FlightStatus.APPROACH -> "Retour · %.1f km · %d m".format(java.util.Locale.FRANCE, distanceM / 1000, fix.aglM.toInt())
+            FlightStatus.APPROACH -> Texts.current.approach(distanceM, fix.aglM.toInt())
             FlightStatus.LANDED -> landedText ?: status.label
             else -> status.label
         }
 
     val landedText: String?
-        get() = landedRunway?.let { rw -> "${rw.name}, ${landedThird?.label ?: "sur la piste"}" }
+        get() = landedRunway?.let { rw -> "${rw.name}, ${landedThird?.label ?: Texts.current.onTheRunway}" }
 }
 
-data class ConnectionState(val connected: Boolean, val text: String, val lastLineAtMs: Long?)
+/** [retryInMs]: when offline, how long before the next attempt (null while connecting). */
+data class ConnectionState(val connected: Boolean, val retryInMs: Long?, val lastLineAtMs: Long?) {
+    val text: String
+        get() = when {
+            connected -> Texts.current.connected
+            retryInMs != null -> Texts.current.offline(retryInMs / 1000)
+            else -> Texts.current.connecting
+        }
+}

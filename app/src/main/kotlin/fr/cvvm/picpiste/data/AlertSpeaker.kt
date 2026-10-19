@@ -8,6 +8,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import fr.cvvm.picpiste.core.cart.AlertLevel
 import fr.cvvm.picpiste.core.cart.CartAlert
+import fr.cvvm.picpiste.core.i18n.Texts
 import java.util.Locale
 
 /**
@@ -27,12 +28,12 @@ class AlertSpeaker(context: Context, private val repeatMs: Long = 15_000) {
     private var ready = false
     private var lastKey: String? = null
     private var lastSpokenMs = 0L
+    private var spokenLocale: Locale? = null
 
     private val tts: TextToSpeech = TextToSpeech(context.applicationContext) { status -> onInit(status) }
 
     private fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            tts.language = Locale.FRANCE
             tts.setAudioAttributes(attributes)
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(id: String?) = Unit
@@ -63,6 +64,12 @@ class AlertSpeaker(context: Context, private val repeatMs: Long = 15_000) {
 
     fun speak(text: String) {
         if (!ready) return
+        // Same language as the alert text (French phone: French voice, otherwise English).
+        val locale = Texts.current.locale
+        if (locale != spokenLocale) {
+            tts.language = locale
+            spokenLocale = locale
+        }
         audio.requestAudioFocus(focus)
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "alert")
     }

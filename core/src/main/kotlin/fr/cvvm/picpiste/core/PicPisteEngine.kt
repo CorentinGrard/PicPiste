@@ -43,7 +43,7 @@ class PicPisteEngine(
 ) {
     private val tracker = TrafficTracker(airfield, settings)
     private val presence = RunwayPresenceDetector(airfield)
-    private var connection = ConnectionState(false, "Connexion…", null)
+    private var connection = ConnectionState(false, null, null)
     private var cart: CartState? = null
 
     var settings: TrafficSettings
@@ -60,12 +60,9 @@ class PicPisteEngine(
 
     fun onAprsEvent(e: AprsEvent) {
         when (e) {
-            AprsEvent.Connecting -> connection = connection.copy(connected = false, text = "Connexion…")
-            is AprsEvent.Connected -> connection = connection.copy(connected = true, text = "OGN connecté")
-            is AprsEvent.Disconnected -> connection = connection.copy(
-                connected = false,
-                text = "Hors ligne — nouvel essai dans ${e.retryInMs / 1000} s",
-            )
+            AprsEvent.Connecting -> connection = connection.copy(connected = false, retryInMs = null)
+            is AprsEvent.Connected -> connection = connection.copy(connected = true, retryInMs = null)
+            is AprsEvent.Disconnected -> connection = connection.copy(connected = false, retryInMs = e.retryInMs)
             is AprsEvent.Line -> onLine(e.text, e.receivedAtMs)
         }
     }

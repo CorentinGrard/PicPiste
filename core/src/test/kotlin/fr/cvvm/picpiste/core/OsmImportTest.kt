@@ -42,7 +42,7 @@ class OsmImportTest {
         assertTrue(a.runways.all { it.length in 350.0..700.0 }, a.runways.map { it.length }.toString())
         assertEquals("Saint-Martin-de-Londres", r.config.name)
         assertEquals(182.0, r.config.elevationM)
-        assertTrue(r.warnings.any { it.startsWith("Altitude terrain estimée") }, r.warnings.toString())
+        assertTrue(r.warnings.any { it.startsWith("Field elevation estimated") }, r.warnings.toString())
         assertTrue(a.config.boundary.size > 10)
         assertTrue(a.hangars.size >= 4 && a.taxiways.isNotEmpty() && a.aprons.isNotEmpty())
         // Same frame axis as the hand-made file (119.2°), within a few degrees.
@@ -80,7 +80,7 @@ class OsmImportTest {
     fun lfptHasCrossingRunwaysAndElevationFromOsm() {
         val r = import("LFPT")
         assertEquals(emptyList(), r.config.problems())
-        assertTrue(r.warnings.none { it.contains("Altitude") }, r.warnings.toString())
+        assertTrue(r.warnings.none { it.contains("elevation") }, r.warnings.toString())
         assertEquals(99.0, r.config.elevationM)
         val a = Airfield(r.config)
         assertConsistent(a)
@@ -102,7 +102,7 @@ class OsmImportTest {
         val empty = """{"elements": []}"""
         assertFailsWith<AirfieldImportException> { OsmImport.build("ZZZZ", empty) }
         val e = assertFailsWith<IllegalArgumentException> { Airfield.decode("""{"hello": 1}""") }
-        assertEquals("Ce fichier n'est pas un terrain PicPiste.", e.message)
+        assertEquals("This file is not a PicPiste airfield.", e.message)
     }
 
     @Test
@@ -170,9 +170,9 @@ class OsmImportTest {
     fun downloaderGivesUpWithAMessage() {
         val d = AirfieldDownloader(post = { _, _ -> "# 502 Gateway Timeout" }, get = { throw IOException("offline") }, servers = listOf("a"))
         val e = assertFailsWith<AirfieldImportException> { d.download("LFNL") }
-        assertTrue(e.message!!.startsWith("OpenStreetMap ne répond pas"), e.message)
+        assertTrue(e.message!!.startsWith("OpenStreetMap is not responding"), e.message)
         assertFailsWith<AirfieldImportException> { d.download("LF NL!") }
         val unknown = AirfieldDownloader(post = { _, _ -> """{"elements":[]}""" }, servers = listOf("a"))
-        assertEquals("Aucun terrain « ZZZZ » dans OpenStreetMap.", assertFailsWith<AirfieldImportException> { unknown.download("ZZZZ") }.message)
+        assertEquals("No airfield “ZZZZ” in OpenStreetMap.", assertFailsWith<AirfieldImportException> { unknown.download("ZZZZ") }.message)
     }
 }

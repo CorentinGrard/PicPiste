@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.airfield.AirfieldDownloader
 import fr.cvvm.picpiste.core.airfield.AirfieldImportException
 import fr.cvvm.picpiste.core.airfield.NewShape
@@ -66,6 +69,7 @@ import fr.cvvm.picpiste.core.airfield.problems
 import fr.cvvm.picpiste.core.airfield.renameRunway
 import fr.cvvm.picpiste.core.airfield.setRunwayRefs
 import fr.cvvm.picpiste.core.airfield.setRunwaySurface
+import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.data.AirfieldStore
 import fr.cvvm.picpiste.data.PhoneFix
 import fr.cvvm.picpiste.data.TrafficRepository
@@ -74,7 +78,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 private fun c(argb: Int) = Color(argb)
 
@@ -105,8 +108,8 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
     fun importUri(uri: Uri) {
         scope.launch {
             val result = withContext(Dispatchers.IO) { runCatching { AirfieldFiles.read(context, uri) } }
-            result.onSuccess { state.load(it, listOf("Terrain ${it.icao} importé depuis un fichier : vérifiez-le puis enregistrez.")) }
-                .onFailure { toast(it.message ?: "Fichier illisible.") }
+            result.onSuccess { state.load(it, listOf(context.getString(R.string.imported_from_file, it.icao))) }
+                .onFailure { toast(it.message ?: context.getString(R.string.unreadable_file)) }
         }
     }
 
@@ -120,8 +123,8 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
         val config = state.draft.normalized()
         scope.launch {
             withContext(Dispatchers.IO) { runCatching { AirfieldFiles.write(context, uri, config) } }
-                .onSuccess { toast("Fichier enregistré.") }
-                .onFailure { toast(it.message ?: "Impossible d'écrire ce fichier.") }
+                .onSuccess { toast(context.getString(R.string.file_saved)) }
+                .onFailure { toast(it.message ?: context.getString(R.string.cannot_write_file)) }
         }
     }
 
@@ -133,9 +136,9 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
             withContext(Dispatchers.IO) { runCatching { repo.airfields.save(config) } }
                 .onSuccess {
                     state.markSaved(config)
-                    toast("Terrain ${config.icao} enregistré : le radar l'utilise.")
+                    toast(context.getString(R.string.airfield_saved, config.icao))
                 }
-                .onFailure { toast(it.message ?: "Enregistrement impossible.") }
+                .onFailure { toast(it.message ?: context.getString(R.string.save_failed)) }
         }
     }
 
@@ -150,24 +153,24 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 RoundButton("←") { if (state.changed) dialog = EditorDialog.Discard else onClose() }
-                Text("Terrain", color = c(Palette.TEXT), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.airfield), color = c(Palette.TEXT), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 RoundButton("↶", enabled = state.canUndo) { state.undo() }
                 Box {
                     RoundButton("⋯") { menu = true }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text("Chercher un terrain par son code") }, onClick = { menu = false; dialog = EditorDialog.Search })
-                        DropdownMenuItem(text = { Text("Importer un fichier") }, onClick = { menu = false; openFile.launch(arrayOf("application/json", "application/octet-stream", "text/plain")) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.menu_search)) }, onClick = { menu = false; dialog = EditorDialog.Search })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.menu_import)) }, onClick = { menu = false; openFile.launch(arrayOf("application/json", "application/octet-stream", "text/plain")) })
                         DropdownMenuItem(
-                            text = { Text("Partager") },
+                            text = { Text(stringResource(R.string.menu_share)) },
                             enabled = problems.isEmpty(),
-                            onClick = { menu = false; runCatching { AirfieldFiles.share(context, state.draft.normalized()) }.onFailure { toast(it.message ?: "Partage impossible.") } },
+                            onClick = { menu = false; runCatching { AirfieldFiles.share(context, state.draft.normalized()) }.onFailure { toast(it.message ?: context.getString(R.string.share_failed)) } },
                         )
                         DropdownMenuItem(
-                            text = { Text("Enregistrer dans un fichier") },
+                            text = { Text(stringResource(R.string.menu_save_file)) },
                             enabled = problems.isEmpty(),
                             onClick = { menu = false; saveFile.launch(AirfieldFiles.fileName(state.draft)) },
                         )
-                        DropdownMenuItem(text = { Text("Revenir au terrain intégré (${AirfieldStore.BUNDLED})") }, onClick = { menu = false; dialog = EditorDialog.Reset })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.menu_reset, AirfieldStore.BUNDLED)) }, onClick = { menu = false; dialog = EditorDialog.Reset })
                     }
                 }
                 Box(
@@ -177,7 +180,7 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                 ) {
                     Text(
-                        if (state.changed) "Enregistrer" else "Enregistré",
+                        stringResource(if (state.changed) R.string.save else R.string.saved),
                         color = if (state.changed && problems.isEmpty()) c(Palette.BG) else c(Palette.MUTED),
                         fontSize = 15.sp, fontWeight = FontWeight.Bold,
                     )
@@ -193,7 +196,7 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
                     color = c(Palette.TEXT), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    "Altitude ${state.draft.elevationM.toInt()} m · ${state.draft.runways.size} piste(s) · toucher pour modifier",
+                    stringResource(R.string.airfield_summary, state.draft.elevationM.toInt(), state.draft.runways.size),
                     color = c(Palette.MUTED), fontSize = 13.sp,
                 )
                 (problems.map { it to Palette.RED_TEXT } + state.warnings.map { it to Palette.CIRCUIT }).forEach { (msg, color) ->
@@ -210,8 +213,8 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     CircularProgressIndicator()
-                    Text("Recherche dans OpenStreetMap…", color = c(Palette.TEXT), fontSize = 16.sp)
-                    Text("Jusqu'à une minute si les serveurs sont chargés.", color = c(Palette.MUTED), fontSize = 13.sp)
+                    Text(stringResource(R.string.searching_osm), color = c(Palette.TEXT), fontSize = 16.sp)
+                    Text(stringResource(R.string.searching_hint), color = c(Palette.MUTED), fontSize = 13.sp)
                 }
             }
         }
@@ -228,8 +231,8 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
             scope.launch {
                 val result = withContext(Dispatchers.IO) { runCatching { AirfieldDownloader().download(code) } }
                 busy = false
-                result.onSuccess { state.load(it.config, it.warnings + "Dessin OpenStreetMap : vérifiez les pistes sur place.") }
-                    .onFailure { toast((it as? AirfieldImportException)?.message ?: "Erreur : ${it.message}") }
+                result.onSuccess { state.load(it.config, it.warnings + context.getString(R.string.osm_check)) }
+                    .onFailure { toast((it as? AirfieldImportException)?.message ?: context.getString(R.string.error_detail, it.message ?: "")) }
             }
         }
         EditorDialog.Info -> InfoDialog(state, onDismiss = { dialog = null })
@@ -242,15 +245,15 @@ fun AirfieldEditor(repo: TrafficRepository, incoming: Uri?, onIncomingHandled: (
             state.select(shape)
         }
         EditorDialog.Discard -> Confirm(
-            title = "Quitter sans enregistrer ?",
-            text = "Les modifications du terrain seront perdues.",
-            confirm = "Quitter",
+            title = stringResource(R.string.discard_title),
+            text = stringResource(R.string.discard_text),
+            confirm = stringResource(R.string.discard),
             onDismiss = { dialog = null },
         ) { dialog = null; onClose() }
         EditorDialog.Reset -> Confirm(
-            title = "Revenir à ${AirfieldStore.BUNDLED} ?",
-            text = "Le terrain intégré à l'app remplace le terrain enregistré sur ce téléphone.",
-            confirm = "Revenir",
+            title = stringResource(R.string.reset_title, AirfieldStore.BUNDLED),
+            text = stringResource(R.string.reset_text),
+            confirm = stringResource(R.string.reset),
             onDismiss = { dialog = null },
         ) {
             dialog = null
@@ -288,11 +291,11 @@ private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -
         val s = state.selected
         if (s == null) {
             Text(
-                "Touchez une piste, un hangar, un seuil… pour le modifier. Glissez pour déplacer la carte, pincez pour zoomer.",
+                stringResource(R.string.editor_hint),
                 color = c(Palette.MUTED), fontSize = 13.sp,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip("+ Ajouter", onClick = onAdd)
+                Chip(stringResource(R.string.add_button), onClick = onAdd)
             }
             return@Column
         }
@@ -301,7 +304,7 @@ private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(state.draft.label(s), color = c(Palette.TEXT), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                if (pts.size > 1) Text("Point ${state.vertex + 1} sur ${pts.size}", color = c(Palette.MUTED), fontSize = 13.sp)
+                if (pts.size > 1) Text(stringResource(R.string.point_n_of, state.vertex + 1, pts.size), color = c(Palette.MUTED), fontSize = 13.sp)
             }
             RoundButton("✕") { state.select(null) }
         }
@@ -311,10 +314,10 @@ private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -
         val acc = fix?.accuracyM
         val usable = fix != null && age!! < SURVEY_MAX_AGE_MS && (acc == null || acc <= SURVEY_MAX_ACCURACY_M)
         val gpsLabel = when {
-            fix == null || age!! >= SURVEY_MAX_AGE_MS -> "📍 Ici : pas de GPS"
-            acc != null && acc > SURVEY_MAX_ACCURACY_M -> "📍 Ici : GPS ±${acc.toInt()} m, trop imprécis"
-            acc != null -> "📍 Placer ce point ici (±${acc.toInt()} m)"
-            else -> "📍 Placer ce point ici"
+            fix == null || age!! >= SURVEY_MAX_AGE_MS -> stringResource(R.string.gps_none)
+            acc != null && acc > SURVEY_MAX_ACCURACY_M -> stringResource(R.string.gps_imprecise, acc.toInt())
+            acc != null -> stringResource(R.string.place_here_accuracy, acc.toInt())
+            else -> stringResource(R.string.place_here)
         }
         Chip(gpsLabel, enabled = usable, accent = true, modifier = Modifier.fillMaxWidth()) {
             state.edit(state.draft.movePoint(s, state.vertex, fix!!.geo))
@@ -328,23 +331,23 @@ private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -
                 Chip("▶") { state.vertex = (state.vertex + 1) % pts.size }
             }
             if (s.kind != Shape.Kind.POINT) {
-                Chip("+ point") {
+                Chip(stringResource(R.string.add_point)) {
                     val (config, at) = state.draft.insertPoint(s, state.vertex)
                     state.edit(config)
                     state.vertex = at
                 }
-                Chip("− point", enabled = state.draft.canDeletePoint(s)) { state.edit(state.draft.deletePoint(s, state.vertex)) }
-                Chip(if (state.moveWhole) "✓ Tout déplacer" else "Tout déplacer", accent = state.moveWhole) { state.moveWhole = !state.moveWhole }
+                Chip(stringResource(R.string.delete_point), enabled = state.draft.canDeletePoint(s)) { state.edit(state.draft.deletePoint(s, state.vertex)) }
+                Chip(ticked(state.moveWhole, stringResource(R.string.move_all)), accent = state.moveWhole) { state.moveWhole = !state.moveWhole }
             }
             val runway = (s as? Shape.RunwayOutline)?.index ?: (s as? Shape.Threshold)?.index
-            if (runway != null) Chip("Propriétés") { onRunway(runway) }
-            Chip("Supprimer", enabled = state.draft.canDelete(s), danger = true) {
+            if (runway != null) Chip(stringResource(R.string.properties)) { onRunway(runway) }
+            Chip(stringResource(R.string.delete), enabled = state.draft.canDelete(s), danger = true) {
                 state.edit(state.draft.delete(s))
                 state.select(null)
             }
         }
         Text(
-            if (state.moveWhole) "Glissez un point pour déplacer tout l'élément." else "Glissez un point pour le déplacer.",
+            stringResource(if (state.moveWhole) R.string.drag_all else R.string.drag_one),
             color = c(Palette.FAINT), fontSize = 12.sp,
         )
     }
@@ -357,6 +360,10 @@ private fun RoundButton(label: String, enabled: Boolean = true, onClick: () -> U
         contentAlignment = Alignment.Center,
     ) { Text(label, color = if (enabled) c(Palette.TEXT) else c(Palette.FAINT), fontSize = 20.sp, fontWeight = FontWeight.Bold) }
 }
+
+/** "✓ Grass" when selected, "Grass" when not. */
+@Composable
+private fun ticked(on: Boolean, label: String) = if (on) stringResource(R.string.checked, label) else label
 
 @Composable
 private fun Chip(
@@ -382,7 +389,7 @@ private fun Chip(
         modifier.height(44.dp).clip(RoundedCornerShape(12.dp)).background(c(bg)).clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(label, color = c(fg), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) }
+    ) { Text(label, color = c(fg), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 @Composable
@@ -390,21 +397,21 @@ private fun SearchDialog(initial: String, onDismiss: () -> Unit, onSearch: (Stri
     var code by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Chercher un terrain") },
+        title = { Text(stringResource(R.string.search_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Code OACI du terrain (par ex. LFPT). Le dessin vient d'OpenStreetMap : il remplace le terrain affiché, à vérifier avant d'enregistrer.", fontSize = 14.sp)
+                Text(stringResource(R.string.search_text), fontSize = 14.sp)
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it.uppercase().filter { ch -> ch.isLetterOrDigit() }.take(7) },
                     singleLine = true,
-                    label = { Text("Code") },
+                    label = { Text(stringResource(R.string.code)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, keyboardType = KeyboardType.Ascii),
                 )
             }
         },
-        confirmButton = { TextButton(enabled = code.length >= 3, onClick = { onSearch(code) }) { Text("Chercher") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        confirmButton = { TextButton(enabled = code.length >= 3, onClick = { onSearch(code) }) { Text(stringResource(R.string.search)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -417,27 +424,27 @@ private fun InfoDialog(state: EditorState, onDismiss: () -> Unit) {
     val eleValue = ele.toDoubleOrNull()?.takeIf { it in -500.0..5_000.0 }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Terrain") },
+        title = { Text(stringResource(R.string.airfield)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(icao, { icao = it.uppercase().filter { ch -> ch.isLetterOrDigit() }.take(7) }, label = { Text("Code") }, singleLine = true)
-                OutlinedTextField(name, { name = it.take(60) }, label = { Text("Nom") }, singleLine = true)
+                OutlinedTextField(icao, { icao = it.uppercase().filter { ch -> ch.isLetterOrDigit() }.take(7) }, label = { Text(stringResource(R.string.code)) }, singleLine = true)
+                OutlinedTextField(name, { name = it.take(60) }, label = { Text(stringResource(R.string.name)) }, singleLine = true)
                 OutlinedTextField(
                     ele, { ele = it.filter { ch -> ch.isDigit() || ch == '-' }.take(5) },
-                    label = { Text("Altitude terrain (m)") }, singleLine = true, isError = eleValue == null,
+                    label = { Text(stringResource(R.string.elevation_label)) }, singleLine = true, isError = eleValue == null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
-                Text("L'altitude sert à calculer la hauteur des planeurs : vérifiez-la (carte VAC).", fontSize = 13.sp)
+                Text(stringResource(R.string.elevation_hint), fontSize = 13.sp)
             }
         },
         confirmButton = {
             TextButton(enabled = icao.length >= 3 && name.isNotBlank() && eleValue != null, onClick = {
                 state.edit(d.copy(icao = icao, name = name.trim(), elevationM = eleValue!!))
-                state.warnings = state.warnings.filterNot { it.startsWith("Altitude") }
+                state.warnings = state.warnings.filterNot { it.startsWith(Texts.current.elevationWarningPrefix) }
                 onDismiss()
-            }) { Text("OK") }
+            }) { Text(stringResource(R.string.ok)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -451,20 +458,20 @@ private fun RunwayDialog(state: EditorState, index: Int, onDismiss: () -> Unit) 
     val refOk = { r: String -> Regex("^\\d{2}[LCR]?$").matches(r) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Piste") },
+        title = { Text(stringResource(R.string.runway)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(name, { name = it.take(30) }, label = { Text("Nom (par ex. herbe, dur, nord)") }, singleLine = true)
+                OutlinedTextField(name, { name = it.take(30) }, label = { Text(stringResource(R.string.runway_name_label)) }, singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Chip(if (grass) "✓ Herbe" else "Herbe", accent = grass) { grass = true }
-                    Chip(if (!grass) "✓ Revêtue" else "Revêtue", accent = !grass) { grass = false }
+                    Chip(ticked(grass, stringResource(R.string.grass)), accent = grass) { grass = true }
+                    Chip(ticked(!grass, stringResource(R.string.paved)), accent = !grass) { grass = false }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(refA, { refA = it.uppercase().take(3) }, label = { Text("Numéro") }, singleLine = true, isError = !refOk(refA), modifier = Modifier.weight(1f))
-                    OutlinedTextField(refB, { refB = it.uppercase().take(3) }, label = { Text("Autre bout") }, singleLine = true, isError = !refOk(refB), modifier = Modifier.weight(1f))
+                    OutlinedTextField(refA, { refA = it.uppercase().take(3) }, label = { Text(stringResource(R.string.runway_number)) }, singleLine = true, isError = !refOk(refA), modifier = Modifier.weight(1f))
+                    OutlinedTextField(refB, { refB = it.uppercase().take(3) }, label = { Text(stringResource(R.string.runway_other_end)) }, singleLine = true, isError = !refOk(refB), modifier = Modifier.weight(1f))
                 }
                 Text(
-                    String.format(Locale.FRANCE, "Le seuil « %s » est là où commence la piste %s. Numéros sur deux chiffres, avec L, C ou R pour les pistes parallèles.", refA, refA),
+                    stringResource(R.string.threshold_hint, refA),
                     fontSize = 13.sp,
                 )
             }
@@ -473,9 +480,9 @@ private fun RunwayDialog(state: EditorState, index: Int, onDismiss: () -> Unit) 
             TextButton(enabled = name.isNotBlank() && refOk(refA) && refOk(refB) && refA != refB, onClick = {
                 state.edit(state.draft.renameRunway(index, name.trim()).setRunwaySurface(index, grass).setRunwayRefs(index, refA, refB))
                 onDismiss()
-            }) { Text("OK") }
+            }) { Text(stringResource(R.string.ok)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -484,13 +491,14 @@ private fun AddDialog(onDismiss: () -> Unit, onAdd: (NewShape, atGps: Boolean) -
     var atGps by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Ajouter") },
+        title = { Text(stringResource(R.string.add_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Chip(if (!atGps) "✓ Centre de la carte" else "Centre de la carte", accent = !atGps) { atGps = false }
-                    Chip(if (atGps) "✓ Ma position" else "Ma position", accent = atGps) { atGps = true }
-                }
+                // One above the other: side by side, the dialog is too narrow and the second was cut to "Ma".
+                Text(stringResource(R.string.where_to_place), color = c(Palette.MUTED), fontSize = 14.sp)
+                Chip(ticked(!atGps, stringResource(R.string.at_map_centre)), Modifier.fillMaxWidth(), accent = !atGps) { atGps = false }
+                Chip(ticked(atGps, stringResource(R.string.at_my_position)), Modifier.fillMaxWidth(), accent = atGps) { atGps = true }
+                Spacer(Modifier.height(4.dp))
                 NewShape.entries.forEach { kind ->
                     Text(
                         kind.label, fontSize = 17.sp,
@@ -500,7 +508,7 @@ private fun AddDialog(onDismiss: () -> Unit, onAdd: (NewShape, atGps: Boolean) -
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -511,6 +519,6 @@ private fun Confirm(title: String, text: String, confirm: String, onDismiss: () 
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirm) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

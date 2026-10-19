@@ -1,11 +1,13 @@
 package fr.cvvm.picpiste.render
 
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
-import android.text.TextUtils
 import android.text.TextPaint
+import android.text.TextUtils
+import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.cart.AlertLevel
 import fr.cvvm.picpiste.core.cart.formatEta
@@ -13,7 +15,7 @@ import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
 
 /** The parts of the car screen around the radar: side panel, alert banner, red border. */
-class CarOverlay {
+class CarOverlay(private val context: Context) {
     /** Colours to draw with: the phone's theme, or the car's day / night. */
     var colors: Colors = Colors.DARK
 
@@ -46,7 +48,7 @@ class CarOverlay {
         drawConnection(canvas, x1, y + 2 * dp, snap, dp)
         y += 44 * dp
 
-        y = drawSection(canvas, "ARRIVÉES", x0, y, dp)
+        y = drawSection(canvas, context.getString(R.string.car_arrivals), x0, y, dp)
         val maxRows = ((top + height - y - 110 * dp) / (68 * dp)).toInt().coerceIn(1, 5)
         if (snap.arrivals.isEmpty()) {
             rect.set(x0, y, x1, y + 58 * dp)
@@ -55,11 +57,11 @@ class CarOverlay {
             text.typeface = sansBold
             text.textSize = 18 * dp
             text.color = colors.OK
-            canvas.drawText("Circuit libre", x0 + 14 * dp, y + 25 * dp, text)
+            canvas.drawText(context.getString(R.string.circuit_clear), x0 + 14 * dp, y + 25 * dp, text)
             text.typeface = sans
             text.textSize = 13 * dp
             text.color = colors.MUTED
-            canvas.drawText("Personne dans le circuit", x0 + 14 * dp, y + 45 * dp, text)
+            canvas.drawText(context.getString(R.string.nobody_in_circuit), x0 + 14 * dp, y + 45 * dp, text)
             y += 68 * dp
         } else {
             for (a in snap.arrivals.take(maxRows)) {
@@ -71,7 +73,7 @@ class CarOverlay {
         val landed = snap.landed.take(2)
         if (landed.isNotEmpty() && y + 40 * dp < top + height) {
             y += 4 * dp
-            y = drawSection(canvas, "POSÉS", x0, y, dp)
+            y = drawSection(canvas, context.getString(R.string.car_landed), x0, y, dp)
             for (a in landed) {
                 if (y + 44 * dp > top + height) break
                 rect.set(x0, y, x1, y + 40 * dp)
@@ -93,7 +95,7 @@ class CarOverlay {
                 text.textAlign = Paint.Align.LEFT
                 text.color = colors.TEXT_2
                 val room = x1 - 12 * dp - text.measureText(ago) - 10 * dp - (x0 + 38 * dp + labelW)
-                val where = TextUtils.ellipsize(" · ${a.landedText ?: "posé"}", text, room, TextUtils.TruncateAt.END)
+                val where = TextUtils.ellipsize(" · ${a.landedText ?: context.getString(R.string.landed_fallback)}", text, room, TextUtils.TruncateAt.END)
                 canvas.drawText(where, 0, where.length, x0 + 32 * dp + labelW, y + 26 * dp, text)
                 y += 48 * dp
             }
@@ -116,9 +118,9 @@ class CarOverlay {
         val fresh = c.lastLineAtMs?.let { snap.timeMs - it < 60_000 } == true
         val ok = c.connected && fresh
         val label = when {
-            ok -> "OGN"
-            c.connected -> "OGN · muet"
-            else -> "Hors ligne"
+            ok -> context.getString(R.string.ogn)
+            c.connected -> context.getString(R.string.ogn_silent)
+            else -> context.getString(R.string.offline)
         }
         text.typeface = sans
         text.textSize = 13 * dp
@@ -205,5 +207,7 @@ class CarOverlay {
         canvas.drawRect(w / 2, w / 2, width - w / 2, height - w / 2, stroke)
     }
 
-    private fun minutesAgo(ms: Long): String = (ms / 60_000).let { if (it < 1) "à l'instant" else "$it min" }
+    private fun minutesAgo(ms: Long): String = (ms / 60_000).toInt().let {
+        if (it < 1) context.getString(R.string.just_now) else context.getString(R.string.minutes_short, it)
+    }
 }

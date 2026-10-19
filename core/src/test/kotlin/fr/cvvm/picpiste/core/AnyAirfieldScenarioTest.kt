@@ -58,7 +58,7 @@ class AnyAirfieldScenarioTest {
                 finals.all { it.runway === r.demo.main && it.runwayEnd == r.demo.landingEnd },
                 "${a.icao}: ${finals.map { it.statusText }.distinct()}",
             )
-            assertEquals("Finale ${r.demo.main.direction(r.demo.landingEnd)}", finals.first().statusText, a.icao)
+            assertEquals("Final ${r.demo.main.direction(r.demo.landingEnd)}", finals.first().statusText, a.icao)
             assertTrue(glider.last().landedRunway === r.demo.main, "${a.icao}: landed on ${glider.last().landedRunway?.name}")
         }
     }
@@ -95,7 +95,7 @@ class AnyAirfieldScenarioTest {
             val levels = r.alerts.map { it.first }
             assertTrue(AlertLevel.ON_RUNWAY in levels, a.icao)
             val titles = r.alerts.filter { it.first == AlertLevel.DANGER }.map { it.second }.toSet()
-            assertTrue("Planeur en finale ${r.demo.main.direction(r.demo.landingEnd)}" in titles, "${a.icao}: $titles")
+            assertTrue("Glider on final ${r.demo.main.direction(r.demo.landingEnd)}" in titles, "${a.icao}: $titles")
         }
     }
 

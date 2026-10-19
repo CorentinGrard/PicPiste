@@ -34,7 +34,7 @@ class AirfieldEditTest {
         val edited = lfnl.movePoint(t, 0, gps)
         assertEquals(listOf(43.79905, 3.78471), edited.points(t).single())
         assertEquals(lfnl.runways[1], edited.runways[1])
-        assertEquals("Seuil 30 herbe", lfnl.label(t))
+        assertEquals("Threshold 30 herbe", lfnl.label(t))
     }
 
     @Test
@@ -110,6 +110,6 @@ class AirfieldEditTest {
         val bad = lfnl.copy(elevationM = Double.NaN, runways = emptyList(), icao = " ")
         assertEquals(3, bad.problems().size, bad.problems().toString())
         val close = lfnl.movePoint(Shape.Threshold(0, RunwayEnd.A), 0, GeoPoint(lfnl.runways[0].ends[1].threshold[0], lfnl.runways[0].ends[1].threshold[1]))
-        assertTrue(close.problems().single().contains("trop proches"))
+        assertTrue(close.problems().single().contains("too close"))
     }
 }

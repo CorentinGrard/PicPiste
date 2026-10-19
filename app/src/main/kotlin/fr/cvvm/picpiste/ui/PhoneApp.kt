@@ -51,8 +51,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,9 +62,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.cart.AlertLevel
 import fr.cvvm.picpiste.core.cart.formatEta
+import fr.cvvm.picpiste.core.cart.formatKm
+import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
 import fr.cvvm.picpiste.data.Prefs
@@ -74,7 +79,6 @@ import fr.cvvm.picpiste.render.Colors
 import fr.cvvm.picpiste.render.Palette
 import fr.cvvm.picpiste.render.RadarRenderer
 import fr.cvvm.picpiste.ui.editor.AirfieldEditor
-import java.util.Locale
 
 private fun c(argb: Int) = Color(argb)
 
@@ -161,16 +165,16 @@ private fun TopBar(snap: Snapshot, source: Source, replay: ReplayInfo, onSetting
     ) {
         Text("PicPiste", color = c(Palette.TEXT), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         when (source) {
-            Source.DEMO -> Pill("Démo", c(Palette.CIRCUIT))
-            Source.REPLAY -> Pill(replay.nowMs?.let { "Rejeu " + hhmm(it) } ?: "Rejeu", c(Palette.CIRCUIT))
+            Source.DEMO -> Pill(stringResource(R.string.source_demo), c(Palette.CIRCUIT))
+            Source.REPLAY -> Pill(replay.nowMs?.let { stringResource(R.string.replay_at, hhmm(it)) } ?: stringResource(R.string.source_replay), c(Palette.CIRCUIT))
             Source.LIVE -> Unit
         }
         val fresh = snap.connection.lastLineAtMs?.let { snap.timeMs - it < 60_000 } == true
         Pill(
             text = when {
-                snap.connection.connected && fresh -> "OGN"
-                snap.connection.connected -> "OGN · muet"
-                else -> "Hors ligne"
+                snap.connection.connected && fresh -> stringResource(R.string.ogn)
+                snap.connection.connected -> stringResource(R.string.ogn_silent)
+                else -> stringResource(R.string.offline)
             },
             dot = if (snap.connection.connected && fresh) c(Palette.OK) else c(Palette.RED),
         )
@@ -195,7 +199,8 @@ private fun Pill(text: String, dot: Color? = null) {
 
 @Composable
 private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, selected: String?, onZoom: (Double) -> Unit, onSelect: (String?) -> Unit) {
-    val renderer = remember { RadarRenderer() }
+    val context = LocalContext.current
+    val renderer = remember { RadarRenderer(context) }
     val density = LocalDensity.current.density
     Canvas(
         Modifier
@@ -257,7 +262,10 @@ private fun Lists(snap: Snapshot, modifier: Modifier, onSelect: (String) -> Unit
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c(Palette.MAP_BG)).padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            listOf("Arrivées · ${snap.arrivals.size}", "Posés · ${snap.landed.size}").forEachIndexed { i, label ->
+            listOf(
+                stringResource(R.string.tab_arrivals, snap.arrivals.size),
+                stringResource(R.string.tab_landed, snap.landed.size),
+            ).forEachIndexed { i, label ->
                 Box(
                     Modifier
                         .weight(1f)
@@ -274,7 +282,7 @@ private fun Lists(snap: Snapshot, modifier: Modifier, onSelect: (String) -> Unit
         val items = if (tab == 0) snap.arrivals else snap.landed
         if (items.isEmpty()) {
             Text(
-                if (tab == 0) "Circuit libre — personne dans le circuit." else "Aucun atterrissage pour l'instant.",
+                stringResource(if (tab == 0) R.string.empty_arrivals else R.string.empty_landed),
                 color = c(Palette.MUTED), fontSize = 15.sp, modifier = Modifier.padding(8.dp),
             )
         }
@@ -284,7 +292,7 @@ private fun Lists(snap: Snapshot, modifier: Modifier, onSelect: (String) -> Unit
             }
         }
         Text(
-            "Aide à la vigilance — ne remplace pas l'observation visuelle.",
+            stringResource(R.string.disclaimer),
             color = c(Palette.FAINT), fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterHorizontally),
         )
     }
@@ -330,9 +338,9 @@ private fun LandedRow(a: AircraftState, now: Long, onClick: () -> Unit) {
     ) {
         Box(Modifier.size(12.dp).clip(CircleShape).background(c(Palette.LANDED)))
         Text(a.identity.label, color = c(Palette.TEXT), fontSize = 20.sp, fontWeight = FontWeight.Bold, fontFamily = Condensed)
-        Text(a.landedText ?: "posé", color = c(Palette.TEXT_2), fontSize = 15.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(a.landedText ?: stringResource(R.string.landed_fallback), color = c(Palette.TEXT_2), fontSize = 15.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         val min = a.landedAtMs?.let { (now - it) / 60_000 } ?: 0
-        Text(if (min < 1) "à l'instant" else "$min min", color = c(Palette.MUTED), fontSize = 14.sp)
+        Text(if (min < 1) stringResource(R.string.just_now) else stringResource(R.string.minutes_short, min.toInt()), color = c(Palette.MUTED), fontSize = 14.sp)
     }
 }
 
@@ -354,27 +362,27 @@ private fun DetailSheet(a: AircraftState, onDismiss: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("STATUT", color = c(Palette.MUTED), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text(if (a.signalLost) "Signal perdu" else a.statusText, color = c(Palette.TEXT), fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.detail_status), color = c(Palette.MUTED), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (a.signalLost) stringResource(R.string.signal_lost) else a.statusText, color = c(Palette.TEXT), fontSize = 21.sp, fontWeight = FontWeight.Bold)
                 }
                 a.etaS?.takeIf { a.status.isArrival }?.let {
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("ETA", color = c(Palette.MUTED), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.eta), color = c(Palette.MUTED), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         Text(formatEta(it), color = c(Palette.TEXT), fontSize = 28.sp, fontWeight = FontWeight.Bold, fontFamily = Condensed)
                     }
                 }
             }
             val f = a.fix
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Stat("Hauteur sol", "${f.aglM.coerceAtLeast(0.0).toInt()} m", "${f.altitudeM.toInt()} m QNH", Modifier.weight(1f))
-                Stat("Vario", f.climbMs?.let { String.format(Locale.FRANCE, "%+.1f m/s", it) } ?: "—", "", Modifier.weight(1f))
+                Stat(stringResource(R.string.stat_height), "${f.aglM.coerceAtLeast(0.0).toInt()} m", stringResource(R.string.stat_qnh, f.altitudeM.toInt()), Modifier.weight(1f))
+                Stat(stringResource(R.string.stat_vario), f.climbMs?.let { String.format(Texts.current.locale, "%+.1f m/s", it) } ?: "—", "", Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Stat("Vitesse sol", "${f.groundSpeedKmh.toInt()} km/h", f.trackDeg?.let { "cap ${it.toInt()}°" } ?: "", Modifier.weight(1f))
-                Stat("Distance", String.format(Locale.FRANCE, "%.1f km", a.distanceM / 1000), "du terrain", Modifier.weight(1f))
+                Stat(stringResource(R.string.stat_speed), "${f.groundSpeedKmh.toInt()} km/h", f.trackDeg?.let { stringResource(R.string.stat_track, it.toInt()) } ?: "", Modifier.weight(1f))
+                Stat(stringResource(R.string.stat_distance), formatKm(a.distanceM), stringResource(R.string.stat_from_field), Modifier.weight(1f))
             }
             Text(
-                "Dernier contact il y a ${a.ageMs / 1000} s · ID ${a.address} · données OGN",
+                stringResource(R.string.last_contact, (a.ageMs / 1000).toInt(), a.address),
                 color = c(Palette.MUTED), fontSize = 13.sp,
             )
             Spacer(Modifier.height(12.dp))
@@ -402,25 +410,25 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
     val theme by repo.prefs.theme.collectAsStateWithLifecycle()
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
-        title = { Text("Réglages") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) } },
+        title = { Text(stringResource(R.string.settings)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Terrain", color = c(Palette.TEXT), fontSize = 16.sp)
+                        Text(stringResource(R.string.airfield), color = c(Palette.TEXT), fontSize = 16.sp)
                         Text("${airfield.icao} · ${airfield.name}", color = c(Palette.MUTED), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    TextButton(onClick = onEditAirfield) { Text("Modifier") }
+                    TextButton(onClick = onEditAirfield) { Text(stringResource(R.string.edit)) }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Trafic", color = c(Palette.TEXT), fontSize = 16.sp)
-                    Choice(Source.entries.map { it.label }, source.ordinal) { repo.prefs.setSource(Source.entries[it]) }
+                    Text(stringResource(R.string.traffic), color = c(Palette.TEXT), fontSize = 16.sp)
+                    Choice(Source.entries.map { stringResource(it.labelRes) }, source.ordinal) { repo.prefs.setSource(Source.entries[it]) }
                     Text(
                         when (source) {
-                            Source.LIVE -> "Flux OGN en direct autour de ${airfield.icao}."
-                            Source.DEMO -> "Trafic et golfette simulés, pour essayer sans vol."
-                            Source.REPLAY -> "Rejoue le dernier jour enregistré, avec une golfette simulée sur la piste principale."
+                            Source.LIVE -> stringResource(R.string.source_live_hint, airfield.icao)
+                            Source.DEMO -> stringResource(R.string.source_demo_hint)
+                            Source.REPLAY -> stringResource(R.string.source_replay_hint)
                         },
                         color = c(Palette.MUTED), fontSize = 13.sp,
                     )
@@ -431,17 +439,17 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Thème", color = c(Palette.TEXT), fontSize = 16.sp)
-                    Choice(Theme.entries.map { it.label }, theme.ordinal) { repo.prefs.setTheme(Theme.entries[it]) }
+                    Text(stringResource(R.string.theme), color = c(Palette.TEXT), fontSize = 16.sp)
+                    Choice(Theme.entries.map { stringResource(it.labelRes) }, theme.ordinal) { repo.prefs.setTheme(Theme.entries[it]) }
                     Text(
-                        "Auto suit le téléphone. Clair : pour le plein soleil. Android Auto suit le jour / nuit de la voiture.",
+                        stringResource(R.string.theme_hint),
                         color = c(Palette.MUTED), fontSize = 13.sp,
                     )
                 }
-                SettingSwitch("Enregistrer la journée", "En direct, garde les positions OGN du jour pour les rejouer.", record) { repo.prefs.setRecord(it) }
-                SettingSwitch("Alerte vocale", "Annonce quand la golfette est sur une piste et qu'un planeur est dans le circuit.", sound) { repo.prefs.setSound(it) }
+                SettingSwitch(stringResource(R.string.record_day), stringResource(R.string.record_day_hint), record) { repo.prefs.setRecord(it) }
+                SettingSwitch(stringResource(R.string.voice_alert), stringResource(R.string.voice_alert_hint), sound) { repo.prefs.setSound(it) }
                 Column {
-                    Text("Plafond d'affichage : $ceiling m sol", color = c(Palette.TEXT), fontSize = 16.sp)
+                    Text(stringResource(R.string.ceiling, ceiling), color = c(Palette.TEXT), fontSize = 16.sp)
                     Slider(
                         value = ceiling.toFloat(),
                         onValueChange = { repo.prefs.setCeiling((it / 50).toInt() * 50) },

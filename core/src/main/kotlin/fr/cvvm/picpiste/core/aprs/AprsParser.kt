@@ -1,23 +1,14 @@
 package fr.cvvm.picpiste.core.aprs
 
+import fr.cvvm.picpiste.core.i18n.Texts
+
 /** OGN aircraft type, from bits 2–5 of the `idXX` flags byte. */
-enum class AircraftType(val label: String) {
-    UNKNOWN("Aéronef"),
-    GLIDER("Planeur"),
-    TOW_PLANE("Remorqueur"),
-    HELICOPTER("Hélico"),
-    SKYDIVER("Parachutiste"),
-    DROP_PLANE("Avion largueur"),
-    HANG_GLIDER("Delta"),
-    PARAGLIDER("Parapente"),
-    POWERED("Avion"),
-    JET("Jet"),
-    UFO("Aéronef"),
-    BALLOON("Ballon"),
-    AIRSHIP("Dirigeable"),
-    UAV("Drone"),
-    STATIC("Fixe"),
-    RESERVED("Aéronef");
+enum class AircraftType {
+    UNKNOWN, GLIDER, TOW_PLANE, HELICOPTER, SKYDIVER, DROP_PLANE, HANG_GLIDER, PARAGLIDER,
+    POWERED, JET, UFO, BALLOON, AIRSHIP, UAV, STATIC, RESERVED;
+
+    /** "Glider", "Planeur"… in the phone language. */
+    val label: String get() = Texts.current.aircraftType(this)
 
     companion object {
         fun fromCode(code: Int) = entries.getOrElse(code) { UNKNOWN }

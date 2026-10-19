@@ -9,6 +9,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Looper
 import android.util.Log
+import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.PicPisteEngine
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.airfield.Airfield
@@ -22,6 +23,10 @@ import fr.cvvm.picpiste.core.geo.GeoPoint
 import fr.cvvm.picpiste.core.replay.Recording
 import fr.cvvm.picpiste.core.replay.ReplayClock
 import fr.cvvm.picpiste.core.traffic.TrafficSettings
+import java.io.File
+import java.io.Writer
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,10 +40,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.Writer
-import java.time.LocalDate
-import java.time.ZoneId
 
 /** What the replay is playing, for the top bar. */
 data class ReplayInfo(val file: String?, val nowMs: Long?, val message: String?)
@@ -194,7 +195,7 @@ class TrafficRepository(private val context: Context) {
     private suspend fun runDemo() {
         val demo = DemoTraffic(airfield)
         engine.ddb = demo.devices
-        engine.onAprsEvent(AprsEvent.Connected("démo"))
+        engine.onAprsEvent(AprsEvent.Connected("demo"))
         val start = System.currentTimeMillis()
         while (true) {
             val now = System.currentTimeMillis()
@@ -205,23 +206,23 @@ class TrafficRepository(private val context: Context) {
         }
     }
 
-    /** Plays the most recent recording, with the demo cart driving on the grass runway. */
+    /** Plays the most recent recording, with the demo cart driving on the main runway. */
     private suspend fun runReplay() {
         val file = withContext(Dispatchers.IO) {
             recordingsDir.listFiles { f -> f.name.endsWith(".tsv") }?.maxByOrNull { it.name }
         }
         if (file == null) {
-            _replay.value = ReplayInfo(null, null, "Aucun enregistrement dans ${recordingsDir.path}")
+            _replay.value = ReplayInfo(null, null, context.getString(R.string.no_recording, recordingsDir.path))
             return
         }
         val entries = withContext(Dispatchers.IO) { file.bufferedReader().use { Recording.read(it).toList() } }
         val replay = ReplayClock(entries, prefs.replaySpeed.value)
         if (replay.isEmpty) {
-            _replay.value = ReplayInfo(file.name, null, "Enregistrement vide")
+            _replay.value = ReplayInfo(file.name, null, context.getString(R.string.empty_recording))
             return
         }
         clock = { replay.nowMs }
-        engine.onAprsEvent(AprsEvent.Connected("rejeu"))
+        engine.onAprsEvent(AprsEvent.Connected("replay"))
         val demo = DemoTraffic(airfield)
         var last = System.currentTimeMillis()
         while (true) {

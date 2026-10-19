@@ -1,17 +1,18 @@
 package fr.cvvm.picpiste.core.airfield
 
 import fr.cvvm.picpiste.core.ddb.httpGet
+import fr.cvvm.picpiste.core.i18n.Texts
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URLEncoder
+import java.util.Locale
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URI
-import java.net.URLEncoder
-import java.util.Locale
 
 /**
  * Downloads an airfield from OpenStreetMap by its code (blocking: call from an IO thread).
@@ -38,10 +39,10 @@ class AirfieldDownloader(
     /** @throws AirfieldImportException with a French message for the screen. */
     fun download(code: String): ImportResult {
         val c = OsmImport.normalizeCode(code)
-        if (!OsmImport.CODE.matches(c)) throw AirfieldImportException("Code « $code » invalide : 3 à 7 lettres ou chiffres, par ex. LFPT.")
+        if (!OsmImport.CODE.matches(c)) throw AirfieldImportException(Texts.current.invalidCode(code))
         val text = fetchOverpass(c) ?: fetchOsmApi(c)
         val first = OsmImport.build(c, text)
-        if (first.warnings.none { it.startsWith("Altitude terrain inconnue") }) return first
+        if (!first.elevationMissing) return first
         val ref = first.config.reference
         val elevation = runCatching { elevationAt(ref[0], ref[1]) }.getOrNull()
         return OsmImport.build(c, text, elevation)
@@ -65,15 +66,15 @@ class AirfieldDownloader(
         val found = try {
             Json.parseToJsonElement(get("$NOMINATIM_URL?q=${URLEncoder.encode(code, Charsets.UTF_8)}&format=jsonv2&limit=10")).jsonArray
         } catch (e: Exception) {
-            throw AirfieldImportException("OpenStreetMap ne répond pas (serveurs occupés ou pas de réseau). Réessayez dans une minute.", e)
+            throw AirfieldImportException(Texts.current.osmNotResponding, e)
         }
         val place = found.map { it.jsonObject }.firstOrNull {
             it["category"]?.jsonPrimitive?.content == "aeroway" && it["type"]?.jsonPrimitive?.content == "aerodrome"
-        } ?: throw AirfieldImportException("Aucun terrain « $code » dans OpenStreetMap.")
+        } ?: throw AirfieldImportException(Texts.current.noAirfield(code))
         // boundingbox: [south, north, west, east]
         val box = place["boundingbox"]?.jsonArray?.mapNotNull { it.jsonPrimitive.content.toDoubleOrNull() }
             ?.takeIf { it.size == 4 }
-            ?: throw AirfieldImportException("Terrain « $code » sans position dans OpenStreetMap.")
+            ?: throw AirfieldImportException(Texts.current.noPosition(code))
         val bbox = String.format(
             Locale.ROOT, "%.6f,%.6f,%.6f,%.6f",
             box[2] - BOX_MARGIN_DEG, box[0] - BOX_MARGIN_DEG, box[3] + BOX_MARGIN_DEG, box[1] + BOX_MARGIN_DEG,
@@ -81,7 +82,7 @@ class AirfieldDownloader(
         return try {
             get("$OSM_API_URL?bbox=$bbox")
         } catch (e: Exception) {
-            throw AirfieldImportException("OpenStreetMap ne répond pas (serveurs occupés ou pas de réseau). Réessayez dans une minute.", e)
+            throw AirfieldImportException(Texts.current.osmNotResponding, e)
         }
     }
 

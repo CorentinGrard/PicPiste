@@ -10,6 +10,7 @@ import androidx.car.app.validation.HostValidator
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import fr.cvvm.picpiste.repository
+import fr.cvvm.picpiste.useLanguageOf
 
 /** Entry point for Android Auto (navigation category, sideloaded). */
 class PicPisteCarAppService : CarAppService() {
@@ -27,7 +28,10 @@ class RadarSession : Session() {
         })
     }
 
-    override fun onCreateScreen(intent: Intent): Screen = RadarScreen(carContext)
+    override fun onCreateScreen(intent: Intent): Screen {
+        useLanguageOf(carContext.resources.configuration)
+        return RadarScreen(carContext)
+    }
 
     override fun onCarConfigurationChanged(newConfiguration: Configuration) {
         (carContext.getCarService(ScreenManager::class.java).top as? RadarScreen)?.onDarkModeChanged()

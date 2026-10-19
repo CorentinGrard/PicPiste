@@ -102,11 +102,11 @@ class AprsClient(
                     if (event is AprsEvent.Connected) backoff = MIN_BACKOFF_MS
                     send(event)
                 }
-                "Connexion fermée"
+                "Connection closed"
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                e.message ?: e::class.simpleName ?: "Erreur réseau"
+                e.message ?: e::class.simpleName ?: "Network error"
             }
             send(AprsEvent.Disconnected(reason, backoff))
             delay(backoff)

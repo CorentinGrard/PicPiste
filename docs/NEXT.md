@@ -42,6 +42,10 @@
   la voiture suit `carContext.isDarkMode`. Vérifié sur le téléphone (clair, sombre, alerte)
   et avec le DHU (`day` / `night` dans sa console : bascule immédiate, alerte lisible en jour).
 
+- **Langues** : anglais par défaut, français sur un téléphone en français (écrans, Android
+  Auto, alertes écrites et vocales, messages d'import et de l'éditeur). Ajouter une langue :
+  un `values-xx/strings.xml` et un objet dans `core/i18n/Texts.kt`.
+
 ## Reste à faire
 
 - **Mode clair en plein soleil** : à essayer dehors, ajuster les couleurs si besoin

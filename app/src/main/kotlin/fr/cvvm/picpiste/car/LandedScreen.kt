@@ -10,6 +10,7 @@ import androidx.car.app.model.Template
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.repository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -42,13 +43,15 @@ class LandedScreen(carContext: CarContext, private val onPick: (address: String)
     @Suppress("DEPRECATION")
     override fun onGetTemplate(): Template {
         val snap = repo.snapshot.value
-        val list = ItemList.Builder().setNoItemsMessage("Aucun atterrissage pour l'instant")
+        val list = ItemList.Builder().setNoItemsMessage(carContext.getString(R.string.no_landings))
         for (a in snap.landed.take(6)) {
-            val ago = a.landedAtMs?.let { (snap.timeMs - it) / 60_000 }?.let { if (it < 1) "à l'instant" else "il y a $it min" } ?: ""
+            val ago = a.landedAtMs?.let { (snap.timeMs - it) / 60_000 }?.toInt()?.let {
+                if (it < 1) carContext.getString(R.string.just_now) else carContext.getString(R.string.minutes_ago, it)
+            } ?: ""
             val who = listOfNotNull(a.identity.registration, a.identity.model).joinToString(" · ")
             list.addItem(
                 Row.Builder()
-                    .setTitle("${a.identity.label} — ${a.landedText ?: "posé"}")
+                    .setTitle("${a.identity.label} — ${a.landedText ?: carContext.getString(R.string.landed_fallback)}")
                     .addText(listOf(who, ago).filter { it.isNotEmpty() }.joinToString(" · "))
                     .setOnClickListener {
                         onPick(a.address)
@@ -58,7 +61,7 @@ class LandedScreen(carContext: CarContext, private val onPick: (address: String)
             )
         }
         return ListTemplate.Builder()
-            .setTitle("Posés")
+            .setTitle(carContext.getString(R.string.landed_title))
             .setHeaderAction(Action.BACK)
             .setSingleList(list.build())
             .build()

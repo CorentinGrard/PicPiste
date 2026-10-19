@@ -6,6 +6,9 @@ import fr.cvvm.picpiste.core.geo.Polygon
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
 import fr.cvvm.picpiste.core.geo.normalizeDeg
+import fr.cvvm.picpiste.core.i18n.Texts
+import kotlin.math.abs
+import kotlin.math.round
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -13,13 +16,12 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
-import kotlin.math.abs
-import kotlin.math.round
 
 /** An airfield drawn from OpenStreetMap, with what the user should check before using it. */
-data class ImportResult(val config: AirfieldConfig, val warnings: List<String>)
+/** [elevationMissing]: neither OSM nor the caller gave the field elevation. */
+data class ImportResult(val config: AirfieldConfig, val warnings: List<String>, val elevationMissing: Boolean = false)
 
-/** Something went wrong; [message] is in French, for the screen. */
+/** Something went wrong; [message] is for the screen, in the phone language. */
 class AirfieldImportException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
@@ -91,7 +93,7 @@ object OsmImport {
         // A downloaded area may hold a neighbouring airfield too: prefer the one with this code.
         val aerodrome = aerodromes.firstOrNull { a -> listOf("icao", "ref", "faa", "iata").any { a.tag(it)?.uppercase() == c } }
             ?: aerodromes.firstOrNull()
-            ?: throw AirfieldImportException("Aucun terrain « $c » dans OpenStreetMap.")
+            ?: throw AirfieldImportException(Texts.current.noAirfield(c))
         val warnings = mutableListOf<String>()
 
         val aerodromePoints = aerodrome.points + aerodrome.members.flatMap { it.second }
@@ -101,16 +103,16 @@ object OsmImport {
         val frame = LocalFrame(origin, 0.0)
 
         val runways = buildRunways(elements, frame)
-        if (runways.isEmpty()) throw AirfieldImportException("Le terrain « $c » n'a aucune piste dessinée dans OpenStreetMap.")
-        if (runways.any { it.guessedRefs }) warnings += "Numéros de piste déduits de l'orientation : à vérifier."
-        if (runways.any { it.guessedWidth }) warnings += "Largeur de piste inconnue : contour à vérifier."
+        if (runways.isEmpty()) throw AirfieldImportException(Texts.current.noRunways(c))
+        if (runways.any { it.guessedRefs }) warnings += Texts.current.refsGuessed
+        if (runways.any { it.guessedWidth }) warnings += Texts.current.widthUnknown
 
         val ele = aerodrome.tag("ele")?.let(::parseElevation)
         val elevation = ele ?: elevationM
         when {
             ele != null -> Unit
-            elevationM != null -> warnings += "Altitude terrain estimée (${elevationM.toInt()} m) : à vérifier."
-            else -> warnings += "Altitude terrain inconnue : à saisir."
+            elevationM != null -> warnings += Texts.current.elevationEstimated(elevationM.toInt())
+            else -> warnings += Texts.current.elevationUnknown
         }
 
         val boundary = when {
@@ -152,7 +154,7 @@ object OsmImport {
             windsocks = windsocks,
             source = "OpenStreetMap contributors (ODbL)",
         ).normalized()
-        return ImportResult(config, warnings)
+        return ImportResult(config, warnings, elevationMissing = elevation == null)
     }
 
     private class Built(val config: RunwayConfig, val guessedRefs: Boolean, val guessedWidth: Boolean)
@@ -201,7 +203,7 @@ object OsmImport {
             Built(
                 RunwayConfig(
                     id = "",
-                    name = if (grass) "herbe" else "dur",
+                    name = if (grass) Texts.current.grassName else Texts.current.pavedName,
                     surface = if (grass) "grass" else "paved",
                     ends = listOf(
                         RunwayEndConfig(endA.first, latLon(frame.toGeo(endA.second))),
@@ -334,9 +336,9 @@ object OsmImport {
         val root = try {
             Json.parseToJsonElement(text).jsonObject
         } catch (e: Exception) {
-            throw AirfieldImportException("Réponse OpenStreetMap illisible.", e)
+            throw AirfieldImportException(Texts.current.osmUnreadable, e)
         }
-        val objects = (root["elements"] as? JsonArray ?: throw AirfieldImportException("Réponse OpenStreetMap illisible."))
+        val objects = (root["elements"] as? JsonArray ?: throw AirfieldImportException(Texts.current.osmUnreadable))
             .mapNotNull { it as? JsonObject }
         fun type(o: JsonObject) = o["type"]?.jsonPrimitive?.content ?: ""
         fun id(o: JsonObject) = o["id"]?.jsonPrimitive?.longOrNull ?: 0
