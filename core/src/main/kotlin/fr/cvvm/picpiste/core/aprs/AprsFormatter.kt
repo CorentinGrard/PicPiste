@@ -21,6 +21,7 @@ object AprsFormatter {
         timeMs: Long,
         receiver: String = "LFNL",
         noTrack: Boolean = false,
+        stealth: Boolean = false,
     ): String {
         val t = Instant.ofEpochMilli(timeMs).atOffset(ZoneOffset.UTC)
         val time = "%02d%02d%02d".format(t.hour, t.minute, t.second)
@@ -32,7 +33,7 @@ object AprsFormatter {
         val course = trackDeg?.roundToInt()?.let { if (it <= 0) 360 else it.coerceAtMost(360) } ?: 0
         val speedKt = (groundSpeedKmh / 1.852).roundToInt().coerceIn(0, 999)
         val altFt = (altitudeM / 0.3048).roundToInt()
-        val flags = (if (noTrack) 0x40 else 0) or (type.ordinal shl 2) or AddressType.FLARM.ordinal
+        val flags = (if (stealth) 0x80 else 0) or (if (noTrack) 0x40 else 0) or (type.ordinal shl 2) or AddressType.FLARM.ordinal
         val fpm = climbMs?.let { " %+04dfpm".format(Locale.ROOT, (it / 0.00508).roundToInt()) } ?: ""
         return "FLR$address>OGFLR,qAS,$receiver:/${time}h$lat$ns/$lon$ew$symbol" +
             "%03d/%03d/A=%06d".format(course, speedKt, altFt) +

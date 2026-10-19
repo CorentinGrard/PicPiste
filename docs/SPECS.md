@@ -147,17 +147,20 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 
 ### 4.4 Configuration terrain
 
-Fichier de config (JSON, éditable dans l'app, partageable par QR code) :
+Fichier de config (JSON). **v1** : fichier intégré à l'app, généré une fois depuis
+OpenStreetMap (`tools/osm_to_airfield.py`). **v2** : éditable dans l'app (terrain et zones),
+avec le mode « relevé » ci-dessous, et partageable par QR code.
 - Terrain : **LFNL** (Saint-Martin-de-Londres, CVVM), position, altitude, contour de
   l'emprise.
 - Pistes : **trois pistes parallèles 12/30 : « herbe » (nord), « dur droite » (milieu), « dur gauche » (sud)**. Seuils (coordonnées),
   QFU, longueur, largeur, revêtement ; piste en service (manuel ou **auto-détectée**
   d'après les derniers atterrissages).
-  - **Source des coordonnées** : pré-remplies depuis OpenStreetMap (contours des pistes
-    LFNL), puis **vérifiées sur place** avec un mode « relevé » : on roule jusqu'à chaque
-    coin de piste avec la golfette et on appuie sur « enregistrer ce point » (GPS du
-    téléphone). Le résultat est exporté dans le fichier de config.
-- Géométrie de départ : OpenStreetMap (pistes, taxiways, parking, hangars, manche à air). Le
+  - **Source des coordonnées** : OpenStreetMap ne sert qu'à tracer un **premier contour**
+    du terrain (pistes LFNL). En v2, ce contour est corrigé depuis l'app avec le mode
+    « relevé » : on roule jusqu'à chaque coin de piste ou de zone avec la golfette et on
+    appuie sur « enregistrer ce point » (GPS du téléphone). Le résultat remplace le
+    contour OSM dans le fichier de config.
+- Géométrie de départ (v1) : OpenStreetMap (pistes, taxiways, parking, hangars, manche à air). Le
   **starter** n'est pas dans OSM : au sud du bout 30 de la dur gauche, placé à la main.
 - Altitude terrain : **182 m**.
 - Infrastructures dessinées sur le radar : taxiways, hangars, club-house, zone du starter
@@ -227,8 +230,8 @@ d'Android Auto, une fois par téléphone.
 | Version | Contenu |
 |---|---|
 | **v0.1 – prototype** | Client OGN + moteur de statuts, app téléphone (liste + carte). Validation sur le terrain un week-end de vol. |
-| **v1 – MVP golfette** | Android Auto : radar fixe orienté pistes, listes Arrivées / Posés, alerte à l’entrée sur piste, config terrain. |
-| **v2** | Piste en service auto-détectée. |
+| **v1 – MVP golfette** | Android Auto : radar fixe orienté pistes, listes Arrivées / Posés, alerte à l’entrée sur piste, terrain intégré (contour OSM). |
+| **v2** | Terrain et zones éditables dans l'app (pistes, taxiways, starter…) avec le mode « relevé » GPS, partage par QR code ; piste en service auto-détectée. |
 | **v3 (option)** | Passerelle via le serveur PicBoard (nom du pilote, écran club-house). |
 
 Projet perso (développeur seul) : périmètre v1 volontairement réduit.

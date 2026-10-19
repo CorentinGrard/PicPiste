@@ -24,6 +24,8 @@ class TrafficTracker(
     private class Track(val address: String) {
         val fixes = ArrayDeque<Fix>()
         var type = AircraftType.UNKNOWN
+        /** Stealth bit of the latest beacon: the pilot asked not to be identified. */
+        var stealth = false
         var lastTimeHms = ""
         var c = Classification(FlightStatus.AIRBORNE)
         var hasStatus = false
@@ -45,6 +47,7 @@ class TrafficTracker(
         if (b.timeHms == track.lastTimeHms) return // same beacon heard by another receiver
         track.lastTimeHms = b.timeHms
         if (b.aircraftType != AircraftType.UNKNOWN) track.type = b.aircraftType
+        track.stealth = b.stealth
 
         val geo = GeoPoint(b.lat, b.lon)
         val fix = Fix(
@@ -103,7 +106,8 @@ class TrafficTracker(
             val onField = fix.aglM < StatusEngine.GROUND_AGL_M && airfield.boundary.containsWithin(fix.pos, 300.0)
             val visible = fix.pos.length <= settings.radarRadiusM && (fix.aglM <= settings.ceilingAglM || onField)
             if (!visible) return@mapNotNull null
-            val dev = ddb.lookup(t.address)
+            // No-ident: from the beacon's stealth bit or the owner's DDB setting.
+            val dev = ddb.lookup(t.address)?.takeUnless { t.stealth }
             val age = nowMs - fix.timeMs
             AircraftState(
                 identity = Identity(
@@ -112,7 +116,7 @@ class TrafficTracker(
                     registration = dev?.registration?.takeIf { it.isNotBlank() && dev.isIdentified },
                     cn = dev?.cn?.takeIf { it.isNotBlank() && dev.isIdentified },
                     model = dev?.model?.takeIf { it.isNotBlank() && it != "Unknown" && dev.isIdentified },
-                    anonymous = dev == null || !dev.isIdentified,
+                    anonymous = t.stealth || dev == null || !dev.isIdentified,
                 ),
                 fix = fix,
                 trail = t.fixes.map { it.pos },
