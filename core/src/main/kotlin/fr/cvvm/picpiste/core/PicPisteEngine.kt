@@ -1,6 +1,7 @@
 package fr.cvvm.picpiste.core
 
 import fr.cvvm.picpiste.core.airfield.Airfield
+import fr.cvvm.picpiste.core.airfield.AlertZone
 import fr.cvvm.picpiste.core.aprs.AprsEvent
 import fr.cvvm.picpiste.core.aprs.AprsParser
 import fr.cvvm.picpiste.core.cart.AlertEngine
@@ -15,8 +16,14 @@ import fr.cvvm.picpiste.core.traffic.FlightStatus
 import fr.cvvm.picpiste.core.traffic.TrafficSettings
 import fr.cvvm.picpiste.core.traffic.TrafficTracker
 
-/** [onRunway]: in the runway zone (the runways and the grass between parallel ones). */
-data class CartState(val pos: Vec2, val accuracyM: Double?, val onRunway: Boolean, val timeMs: Long)
+/** [onRunway]: in a warning zone ([zones]: which ones). */
+data class CartState(
+    val pos: Vec2,
+    val accuracyM: Double?,
+    val onRunway: Boolean,
+    val timeMs: Long,
+    val zones: List<AlertZone> = emptyList(),
+)
 
 /** Everything a screen needs to draw one frame. */
 data class Snapshot(
@@ -74,7 +81,8 @@ class PicPisteEngine(
 
     fun onCartPosition(geo: GeoPoint, accuracyM: Double?, timeMs: Long) {
         val pos = airfield.frame.toLocal(geo)
-        cart = CartState(pos, accuracyM, presence.update(pos, accuracyM, timeMs), timeMs)
+        val on = presence.update(pos, accuracyM, timeMs)
+        cart = CartState(pos, accuracyM, on, timeMs, presence.zones)
     }
 
     fun onCartPositionLost() {
@@ -83,7 +91,9 @@ class PicPisteEngine(
     }
 
     fun snapshot(nowMs: Long): Snapshot {
-        val aircraft = tracker.snapshot(nowMs)
+        // Alerts look at everything tracked; the display ceiling only hides aircraft from the screen.
+        val tracked = tracker.snapshot(nowMs)
+        val aircraft = tracked.filter { it.shown }
         val arrivals = aircraft
             // Silent gliders that were landing stay listed (greyed) while they may still land.
             .filter { (it.status.isArrival && !it.signalLost) || AlertEngine.isRecentlyLost(it) }
@@ -101,7 +111,7 @@ class PicPisteEngine(
             landed = landed,
             connection = connection,
             cart = cart,
-            alert = AlertEngine.evaluate(cart?.onRunway == true, aircraft),
+            alert = AlertEngine.evaluate(cart?.zones.orEmpty(), tracked, airfield),
         )
     }
 }

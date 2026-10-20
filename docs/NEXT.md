@@ -86,6 +86,16 @@
   téléphone et d'Android Auto suit.
 - Réglages : la fenêtre défile (le curseur du plafond était écrasé sous son titre).
 
+- **Zones d'alerte** (20 oct.) : la golfette n'est alertée en rouge que pour une finale ou un
+  décollage sur une piste liée à la zone où elle est (pistes parallèles à moins de 300 m = une
+  seule, piste inconnue = alerte). Bandeau orange du circuit réglable par zone. Sans zone
+  dessinée : une zone par piste (rectangle + 150 m avant chaque seuil) et les bandes entre
+  pistes parallèles. Éditeur : Ajouter → Zone d'alerte (autour de la piste la plus proche,
+  liée à elle), Propriétés = pistes + circuit ; zones auto affichées en pointillé.
+  `Airfield.alertZones`, `Airfield.protects`, `AlertEngine.evaluate(zones, …)`, `ZoneAlertTest`.
+- **Plafond d'affichage** : ne cache plus les menaces (il masquait aussi les alertes).
+- Ajouter : plus de starter ; « Hangar » devient « Bâtiment ».
+
 ## Version GA (grand public) : à supprimer avant
 
 Ces fonctions servent au développement et au réglage, pas aux conducteurs :

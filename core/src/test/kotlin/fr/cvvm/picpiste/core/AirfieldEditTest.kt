@@ -85,11 +85,11 @@ class AirfieldEditTest {
         repeat(5) { c = c.delete(Shape.RunwayOutline(0)) }
         assertEquals(1, c.runways.size)
 
-        val (noStarter, _) = lfnl.delete(Shape.Starter) to Unit
-        assertTrue(Shape.Starter !in noStarter.shapes())
-        val (back, s) = noStarter.add(NewShape.STARTER, at)
-        assertEquals(Shape.Starter, s)
-        assertEquals(listOf(43.7995, 3.7825), back.starter)
+        // A starter from an older file can still be removed; none can be added any more.
+        assertTrue(Shape.Starter !in lfnl.delete(Shape.Starter).shapes())
+        val (withBuilding, b) = lfnl.add(NewShape.BUILDING, at)
+        assertEquals(Shape.Hangar(lfnl.hangars.size), b)
+        assertEquals(lfnl.hangars.size + 1, withBuilding.hangars.size)
     }
 
     @Test

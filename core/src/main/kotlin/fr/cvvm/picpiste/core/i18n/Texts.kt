@@ -73,6 +73,7 @@ sealed class Texts(val locale: Locale) {
     abstract fun threshold(ref: String, runwayName: String): String
     abstract fun apron(n: Int): String
     abstract fun hangar(n: Int): String
+    abstract fun alertZone(n: Int): String
     abstract fun taxiway(n: Int): String
     abstract fun windsock(n: Int): String
     abstract val starter: String
@@ -168,19 +169,20 @@ sealed class Texts(val locale: Locale) {
 
         override fun newShape(s: NewShape) = when (s) {
             NewShape.RUNWAY -> "Runway"
-            NewShape.HANGAR -> "Hangar"
+            NewShape.BUILDING -> "Building"
             NewShape.APRON -> "Apron"
             NewShape.TAXIWAY -> "Taxiway"
             NewShape.WINDSOCK -> "Windsock"
-            NewShape.STARTER -> "Launch point"
             NewShape.BOUNDARY -> "Airfield boundary"
+            NewShape.ALERT_ZONE -> "Warning zone"
         }
 
         override val boundary = "Airfield boundary"
         override fun runway(name: String) = "Runway $name"
         override fun threshold(ref: String, runwayName: String) = "Threshold $ref $runwayName"
         override fun apron(n: Int) = "Apron $n"
-        override fun hangar(n: Int) = "Hangar $n"
+        override fun hangar(n: Int) = "Building $n"
+        override fun alertZone(n: Int) = "Warning zone $n"
         override fun taxiway(n: Int) = "Taxiway $n"
         override fun windsock(n: Int) = "Windsock $n"
         override val starter = "Launch point"
@@ -195,7 +197,7 @@ sealed class Texts(val locale: Locale) {
         override fun runwayTooFar(name: String) = "Runway $name: more than 20 km from the airfield."
         override val duplicateRunwayNames = "Two runways have the same name."
         override val boundaryTooSmall = "The airfield boundary needs at least 3 points."
-        override val polygonTooSmall = "An apron or a hangar has fewer than 3 points."
+        override val polygonTooSmall = "An apron or a building has fewer than 3 points."
         override val taxiwayTooShort = "A taxiway has fewer than 2 points."
         override val misplacedPoint = "A windsock or the launch point is misplaced."
     }
@@ -270,19 +272,20 @@ sealed class Texts(val locale: Locale) {
 
         override fun newShape(s: NewShape) = when (s) {
             NewShape.RUNWAY -> "Piste"
-            NewShape.HANGAR -> "Hangar"
+            NewShape.BUILDING -> "Bâtiment"
             NewShape.APRON -> "Parking"
             NewShape.TAXIWAY -> "Taxiway"
             NewShape.WINDSOCK -> "Manche à air"
-            NewShape.STARTER -> "Starter"
             NewShape.BOUNDARY -> "Contour du terrain"
+            NewShape.ALERT_ZONE -> "Zone d'alerte"
         }
 
         override val boundary = "Contour du terrain"
         override fun runway(name: String) = "Piste $name"
         override fun threshold(ref: String, runwayName: String) = "Seuil $ref $runwayName"
         override fun apron(n: Int) = "Parking $n"
-        override fun hangar(n: Int) = "Hangar $n"
+        override fun hangar(n: Int) = "Bâtiment $n"
+        override fun alertZone(n: Int) = "Zone d'alerte $n"
         override fun taxiway(n: Int) = "Taxiway $n"
         override fun windsock(n: Int) = "Manche à air $n"
         override val starter = "Starter"
@@ -297,7 +300,7 @@ sealed class Texts(val locale: Locale) {
         override fun runwayTooFar(name: String) = "Piste $name : à plus de 20 km du terrain."
         override val duplicateRunwayNames = "Deux pistes ont le même nom."
         override val boundaryTooSmall = "Le contour du terrain doit avoir au moins 3 points."
-        override val polygonTooSmall = "Un parking ou un hangar a moins de 3 points."
+        override val polygonTooSmall = "Un parking ou un bâtiment a moins de 3 points."
         override val taxiwayTooShort = "Un taxiway a moins de 2 points."
         override val misplacedPoint = "Une manche à air ou le starter est mal placé."
     }

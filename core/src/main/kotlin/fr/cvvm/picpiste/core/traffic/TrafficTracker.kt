@@ -64,7 +64,14 @@ class TrafficTracker(
             .filter { it !== track && it.type == AircraftType.TOW_PLANE && it.fixes.isNotEmpty() }
             .map { it.latest }
         val previous = if (track.hasStatus) track.c.status else null
-        val c = engine.classify(fix, track.fixes.toList(), previous, track.type, tugs)
+        val c = engine.classify(fix, track.fixes.toList(), previous, track.type, tugs).let { c ->
+            // Climbing away after takeoff: keep the runway it left from (the alert needs it).
+            if (c.status == FlightStatus.TAKEOFF && c.runway == null && previous == FlightStatus.TAKEOFF) {
+                c.copy(runway = track.c.runway, runwayEnd = track.c.runwayEnd)
+            } else {
+                c
+            }
+        }
 
         if (c.status == FlightStatus.FINAL && c.runway != null && c.runwayEnd != null) {
             track.lastFinal = c.runway to c.runwayEnd
@@ -98,14 +105,17 @@ class TrafficTracker(
         track.landedThird = if (onIt) rw.third(fix.pos, end) else null
     }
 
-    /** Current picture, visible aircraft only. Also drops tracks silent for too long. */
+    /**
+     * Current picture: every aircraft within the radar radius, [AircraftState.shown] false above
+     * the display ceiling (still used for the alerts). Also drops tracks silent for too long.
+     */
     fun snapshot(nowMs: Long): List<AircraftState> {
         tracks.values.removeAll { nowMs - it.latest.timeMs > settings.forgetAfterMs }
         return tracks.values.mapNotNull { t ->
             val fix = t.latest
             val onField = fix.aglM < StatusEngine.GROUND_AGL_M && airfield.boundary.containsWithin(fix.pos, 300.0)
-            val visible = fix.pos.length <= settings.radarRadiusM && (fix.aglM <= settings.ceilingAglM || onField)
-            if (!visible) return@mapNotNull null
+            if (fix.pos.length > settings.radarRadiusM) return@mapNotNull null
+            val shown = fix.aglM <= settings.ceilingAglM || onField
             // No-ident: from the beacon's stealth bit or the owner's DDB setting.
             val dev = ddb.lookup(t.address)?.takeUnless { t.stealth }
             val age = nowMs - fix.timeMs
@@ -130,6 +140,7 @@ class TrafficTracker(
                 landedAtMs = t.landedAtMs,
                 landedRunway = t.landedRunway,
                 landedThird = t.landedThird,
+                shown = shown,
             )
         }
     }

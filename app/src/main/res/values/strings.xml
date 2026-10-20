@@ -81,7 +81,7 @@
     <string name="discard_title">Leave without saving?</string>
     <string name="discard_text">Your changes to the airfield will be lost.</string>
     <string name="discard">Leave</string>
-    <string name="editor_hint">Tap a runway, a hangar, a threshold… to edit it. Drag to move the map, pinch to zoom, turn two fingers to rotate it; the compass puts north back up.</string>
+    <string name="editor_hint">Tap a runway, a building, a threshold… to edit it. Drag to move the map, pinch to zoom, turn two fingers to rotate it; the compass puts north back up.</string>
     <string name="add_button">+ Add</string>
     <string name="point_n_of">Point %1$d of %2$d</string>
     <string name="gps_none">📍 Here: no GPS</string>
@@ -145,4 +145,7 @@
     <string name="hint_runway">Drag a threshold to stretch or turn, the middle to move, the side to set the width, the round handle to turn.</string>
     <string name="hint_shape">Drag a point to move it, a + to add one, the middle to move it all.</string>
     <string name="hint_point">Drag it to move it.</string>
+    <string name="zone_runways">Red alert for finals and takeoffs on:</string>
+    <string name="zone_circuit">Amber banner for gliders in the circuit</string>
+    <string name="zone_hint">Close parallel runways count as one. With no zone drawn, each runway and 150 m before its thresholds are protected.</string>
 </resources>

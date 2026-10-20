@@ -36,11 +36,24 @@ data class AirfieldConfig(
     val source: String? = null,
     /** Compass direction at the top of the maps (editor and radar): 0 = north up, the default. */
     val mapUpDeg: Double = 0.0,
+    /** Where the cart is warned, drawn by hand. Empty: automatic zones ([Airfield.alertZones]). */
+    val alertZones: List<AlertZoneConfig> = emptyList(),
 ) {
     companion object {
         const val FORMAT_VERSION = 2
     }
 }
+
+/**
+ * A warning zone: while the cart is inside, a final or a takeoff on one of [runways] (ids) is
+ * a red alert; gliders in the circuit give an amber banner if [circuit].
+ */
+@Serializable
+data class AlertZoneConfig(
+    val outline: List<List<Double>>,
+    val runways: List<String> = emptyList(),
+    val circuit: Boolean = true,
+)
 
 @Serializable
 data class RunwayConfig(
@@ -104,24 +117,56 @@ class Airfield(val config: AirfieldConfig) {
      * between parallel runways next to each other. Driving across three parallel runways side
      * by side is one single runway crossing, not three.
      */
-    val runwayZone: List<Polygon> = buildList {
-        runways.forEach { add(it.outline) }
-        // Strips: only between runways along the frame axis (the main runway's direction).
+    val runwayZone: List<Polygon> get() = runways.map { it.outline } + strips.map { it.first }
+
+    /** Grass strips between parallel runways next to each other, with the two runways' ids. */
+    private val strips: List<Pair<Polygon, Set<String>>> = buildList {
+        // Only between runways along the frame axis (the main runway's direction).
         val alongAxis = runways.filter { angleDiffDeg(it.headingA, config.axisBearingDeg) < 10 }
         val byY = alongAxis.map { rw ->
             val xs = rw.outline.points.map { it.x }
             val ys = rw.outline.points.map { it.y }
-            doubleArrayOf(xs.min(), xs.max(), ys.min(), ys.max())
-        }.sortedBy { it[2] }
-        for ((low, high) in byY.zipWithNext()) {
+            rw to doubleArrayOf(xs.min(), xs.max(), ys.min(), ys.max())
+        }.sortedBy { it.second[2] }
+        for ((lowRw, highRw) in byY.zipWithNext()) {
+            val low = lowRw.second
+            val high = highRw.second
             val x0 = maxOf(low[0], high[0])
             val x1 = minOf(low[1], high[1])
             val y0 = low[3]
             val y1 = high[2]
             if (x1 > x0 && y1 > y0 && y1 - y0 < MAX_STRIP_M) {
-                add(Polygon(listOf(Vec2(x0, y0), Vec2(x1, y0), Vec2(x1, y1), Vec2(x0, y1))))
+                add(Polygon(listOf(Vec2(x0, y0), Vec2(x1, y0), Vec2(x1, y1), Vec2(x0, y1))) to setOf(lowRw.first.id, highRw.first.id))
             }
         }
+    }
+
+    /**
+     * Where the cart is warned, and about which runways: the zones drawn in the editor, or
+     * else one per runway (the runway and [APPROACH_ZONE_M] before each threshold, under the
+     * final) plus the strips between parallel runways.
+     */
+    val alertZones: List<AlertZone> =
+        config.alertZones.filter { it.outline.size >= 3 }.takeIf { it.isNotEmpty() }?.map { z ->
+            AlertZone(Polygon(z.outline.map { frame.toLocal(it.geo()) }), z.runways.toSet(), z.circuit, automatic = false)
+        } ?: (
+            runways.map { AlertZone(it.extended(APPROACH_ZONE_M), setOf(it.id), circuit = true, automatic = true) } +
+                strips.map { (area, ids) -> AlertZone(area, ids, circuit = true, automatic = true) }
+            )
+
+    /**
+     * Whether a final or takeoff on [runway] matters in [zone]. Close parallel runways count as
+     * one (OGN cannot tell them apart); an unknown runway always matters, to be safe.
+     */
+    fun protects(zone: AlertZone, runway: Runway?): Boolean =
+        runway == null || runways.any { it.id in zone.runways && sameGroup(it, runway) }
+
+    /** Same runway, or parallel and close enough that a glider's position cannot tell them apart. */
+    fun sameGroup(a: Runway, b: Runway): Boolean {
+        if (a.id == b.id) return true
+        val angle = minOf(angleDiffDeg(a.headingA, b.headingA), angleDiffDeg(a.headingA, b.headingB))
+        val midB = (b.thresholdA + b.thresholdB) * 0.5
+        return angle < 15 && abs(a.lateral(midB)) < PARALLEL_GROUP_M
     }
 
     fun inRunwayZone(p: Vec2, marginM: Double = 0.0): Boolean = runwayZone.any { it.containsWithin(p, marginM) }
@@ -135,6 +180,12 @@ class Airfield(val config: AirfieldConfig) {
     companion object {
         /** Grass between two parallel runways wider than this is not part of the runway zone. */
         const val MAX_STRIP_M = 150.0
+
+        /** Automatic warning zones reach this far before each threshold, under the final. */
+        const val APPROACH_ZONE_M = 150.0
+
+        /** Parallel runways closer than this are one for the alerts (OGN cannot tell them apart). */
+        const val PARALLEL_GROUP_M = 300.0
 
         fun parse(text: String): Airfield = Airfield(decode(text))
 
@@ -183,6 +234,14 @@ class Airfield(val config: AirfieldConfig) {
 
 class Taxiway(val path: List<Vec2>, val widthM: Double)
 
+/** A warning zone in local coordinates; [automatic] when the airfield has none drawn. */
+class AlertZone(val area: Polygon, val runways: Set<String>, val circuit: Boolean, val automatic: Boolean) {
+    companion object {
+        /** For tests and callers without zones: every runway, circuit included. */
+        val EVERYWHERE = AlertZone(Polygon(listOf(Vec2(0.0, 0.0), Vec2(1.0, 0.0), Vec2(0.0, 1.0))), emptySet(), circuit = true, automatic = true)
+    }
+}
+
 class Runway(val config: RunwayConfig, frame: LocalFrame) {
     val id get() = config.id
     val name get() = config.name
@@ -198,7 +257,18 @@ class Runway(val config: RunwayConfig, frame: LocalFrame) {
     val headingA: Double = frame.bearingOf(dirA)
     val headingB: Double = (headingA + 180) % 360
 
-    /** Distance along the runway from the A threshold (negative before it). */
+    /** Half the runway width, from its outline. */
+    val halfWidth: Double = outline.points.maxOfOrNull { abs(lateral(it)) } ?: 15.0
+
+    /** The runway rectangle stretched [m] beyond each threshold. */
+    fun extended(m: Double): Polygon {
+        val n = Vec2(-dirA.y, dirA.x) * halfWidth
+        val a = thresholdA - dirA * m
+        val b = thresholdB + dirA * m
+        return Polygon(listOf(a - n, b - n, b + n, a + n))
+    }
+
+        /** Distance along the runway from the A threshold (negative before it). */
     fun along(p: Vec2): Double = (p - thresholdA) dot dirA
 
     /** Signed distance from the centreline, positive to the left of the A direction. */

@@ -1,6 +1,7 @@
 package fr.cvvm.picpiste.core.cart
 
 import fr.cvvm.picpiste.core.airfield.Airfield
+import fr.cvvm.picpiste.core.airfield.AlertZone
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.core.traffic.AircraftState
@@ -9,43 +10,55 @@ import fr.cvvm.picpiste.core.traffic.StatusEngine
 import kotlin.math.roundToInt
 
 /**
- * Tells whether the cart (the phone's GPS) is in the runway zone: the three runways and the
- * grass between them, taken as one ([Airfield.runwayZone]).
+ * Tells which warning zones the cart (the phone's GPS) is in ([Airfield.alertZones]).
  *
- * Entering needs the cart inside the zone (plus [enterMarginM]); leaving needs it
+ * Entering a zone needs the cart inside it (plus [enterMarginM]); leaving needs it
  * [exitMarginM] outside for [exitDelayMs], so the red border does not flicker when the
  * cart drives along the edge (phone GPS is good to about 5 m).
  */
 class RunwayPresenceDetector(
-    private val airfield: Airfield,
+    airfield: Airfield,
     private val enterMarginM: Double = 2.0,
     private val exitMarginM: Double = 8.0,
     private val exitDelayMs: Long = 2_000,
     private val maxAccuracyM: Double = 30.0,
 ) {
-    var onRunway: Boolean = false
+    private val all = airfield.alertZones
+    private val inside = BooleanArray(all.size)
+    private val outsideSince = LongArray(all.size) { -1 }
+
+    /** The zones the cart is in now. */
+    var zones: List<AlertZone> = emptyList()
         private set
-    private var outsideSinceMs: Long? = null
+
+    /** In at least one warning zone (the red border). */
+    val onRunway: Boolean get() = zones.isNotEmpty()
 
     fun update(pos: Vec2, accuracyM: Double?, timeMs: Long): Boolean {
         if (accuracyM != null && accuracyM > maxAccuracyM) return onRunway // too vague to decide
-
-        if (onRunway) {
-            if (airfield.inRunwayZone(pos, exitMarginM)) {
-                outsideSinceMs = null
-                return true
+        all.forEachIndexed { i, z ->
+            if (inside[i]) {
+                if (z.area.containsWithin(pos, exitMarginM)) {
+                    outsideSince[i] = -1
+                } else {
+                    if (outsideSince[i] < 0) outsideSince[i] = timeMs
+                    if (timeMs - outsideSince[i] >= exitDelayMs) {
+                        inside[i] = false
+                        outsideSince[i] = -1
+                    }
+                }
+            } else if (z.area.containsWithin(pos, enterMarginM)) {
+                inside[i] = true
             }
-            val since = outsideSinceMs ?: timeMs.also { outsideSinceMs = it }
-            if (timeMs - since < exitDelayMs) return true
-            outsideSinceMs = null
         }
-        onRunway = airfield.inRunwayZone(pos, enterMarginM)
+        zones = all.filterIndexed { i, _ -> inside[i] }
         return onRunway
     }
 
     fun reset() {
-        onRunway = false
-        outsideSinceMs = null
+        inside.fill(false)
+        outsideSince.fill(-1)
+        zones = emptyList()
     }
 }
 
@@ -103,10 +116,27 @@ object AlertEngine {
             (a.status == FlightStatus.FINAL || a.status == FlightStatus.CIRCUIT) &&
             a.fix.aglM >= StatusEngine.GROUND_AGL_M
 
-    fun evaluate(cartOnRunway: Boolean, aircraft: List<AircraftState>): CartAlert {
-        if (!cartOnRunway) return CartAlert.NONE
+    /** Without zones: on a runway, every runway and the circuit count. */
+    fun evaluate(cartOnRunway: Boolean, aircraft: List<AircraftState>): CartAlert =
+        evaluate(if (cartOnRunway) listOf(AlertZone.EVERYWHERE) else emptyList(), aircraft, null)
+
+    /**
+     * The cart is in [zones]. A final or a takeoff counts when one of the zones protects its
+     * runway ([Airfield.protects]); a glider in the circuit when one of them has the circuit on.
+     * [airfield] null: every runway counts.
+     */
+    fun evaluate(zones: List<AlertZone>, aircraft: List<AircraftState>, airfield: Airfield?): CartAlert {
+        if (zones.isEmpty()) return CartAlert.NONE
+        val circuit = zones.any { it.circuit }
+        fun matters(a: AircraftState) = when (a.status) {
+            FlightStatus.FINAL, FlightStatus.TAKEOFF ->
+                airfield == null || zones.any { it === AlertZone.EVERYWHERE || airfield.protects(it, a.runway) }
+            FlightStatus.CIRCUIT -> circuit
+            else -> false
+        }
         val threat = aircraft
             .filter(::isThreat)
+            .filter(::matters)
             .minWithOrNull(compareBy<AircraftState>({ priority(it.status) }, { it.etaS ?: Double.MAX_VALUE }))
             ?: return CartAlert(AlertLevel.ON_RUNWAY)
 

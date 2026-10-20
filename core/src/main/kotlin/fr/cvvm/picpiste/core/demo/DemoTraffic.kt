@@ -196,7 +196,8 @@ class DemoTraffic(private val airfield: Airfield) {
             ?: gliderFrame.at(main.length / 2, -120.0)
         val away = gliderFrame.n * -1.0
         generateSequence(start) { it + away * 10.0 }.take(300)
-            .firstOrNull { !airfield.inRunwayZone(it, CART_CLEARANCE_M) } ?: start
+            .firstOrNull { p -> !airfield.inRunwayZone(p, CART_CLEARANCE_M) && airfield.alertZones.none { it.area.containsWithin(p, CART_CLEARANCE_M) } }
+            ?: start
     }
 
     private val onRunway = gliderFrame.at(main.length * 0.6, 0.0)

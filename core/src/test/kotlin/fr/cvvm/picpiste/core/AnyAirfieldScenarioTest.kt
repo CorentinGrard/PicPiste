@@ -112,6 +112,7 @@ class AnyAirfieldScenarioTest {
             for (t in listOf(0L, 10_000L, 119_000L)) {
                 val p = demo.cartAt(t)
                 assertTrue(!a.inRunwayZone(p, 30.0), "${a.icao} starter=${a.config.starter}: parked cart on a runway at $p")
+                assertTrue(a.alertZones.none { it.area.containsWithin(p, 10.0) }, "${a.icao}: parked cart in a warning zone at $p")
             }
             assertTrue(a.inRunwayZone(demo.cartAt(60_000)), "${a.icao}: cart not on the runway mid-cycle")
         }

@@ -20,11 +20,12 @@ sealed interface Shape {
     data class Taxiway(val index: Int) : Shape
     data class Windsock(val index: Int) : Shape
     data object Starter : Shape
+    data class AlertZone(val index: Int) : Shape
 
     /** Closed outline (polygon), open line, or a single point. */
     val kind: Kind
         get() = when (this) {
-            Boundary, is RunwayOutline, is Apron, is Hangar -> Kind.POLYGON
+            Boundary, is RunwayOutline, is Apron, is Hangar, is AlertZone -> Kind.POLYGON
             is Taxiway -> Kind.LINE
             is Threshold, is Windsock, Starter -> Kind.POINT
         }
@@ -42,6 +43,7 @@ private fun round7(v: Double) = round(v * 1e7) / 1e7
 /** Every shape of the airfield, in drawing order (big areas first, points last). */
 fun AirfieldConfig.shapes(): List<Shape> = buildList {
     if (boundary.isNotEmpty()) add(Shape.Boundary)
+    alertZones.indices.forEach { add(Shape.AlertZone(it)) }
     aprons.indices.forEach { add(Shape.Apron(it)) }
     taxiways.indices.forEach { add(Shape.Taxiway(it)) }
     runways.indices.forEach { add(Shape.RunwayOutline(it)) }
@@ -60,6 +62,7 @@ fun AirfieldConfig.points(shape: Shape): List<LatLon> = when (shape) {
     is Shape.Taxiway -> taxiways[shape.index].path
     is Shape.Windsock -> listOf(windsocks[shape.index])
     Shape.Starter -> listOfNotNull(starter)
+    is Shape.AlertZone -> alertZones[shape.index].outline
 }
 
 fun AirfieldConfig.exists(shape: Shape): Boolean = when (shape) {
@@ -71,6 +74,7 @@ fun AirfieldConfig.exists(shape: Shape): Boolean = when (shape) {
     is Shape.Taxiway -> shape.index in taxiways.indices
     is Shape.Windsock -> shape.index in windsocks.indices
     Shape.Starter -> starter != null
+    is Shape.AlertZone -> shape.index in alertZones.indices
 }
 
 /** "Runway grass", "Threshold 22 grass", "Hangar 2"… in the phone language. */
@@ -83,6 +87,7 @@ fun AirfieldConfig.label(shape: Shape): String = when (shape) {
     is Shape.Taxiway -> Texts.current.taxiway(shape.index + 1)
     is Shape.Windsock -> Texts.current.windsock(shape.index + 1)
     Shape.Starter -> Texts.current.starter
+    is Shape.AlertZone -> Texts.current.alertZone(shape.index + 1)
 }
 
 fun AirfieldConfig.withPoints(shape: Shape, pts: List<LatLon>): AirfieldConfig = when (shape) {
@@ -100,6 +105,7 @@ fun AirfieldConfig.withPoints(shape: Shape, pts: List<LatLon>): AirfieldConfig =
     is Shape.Taxiway -> copy(taxiways = taxiways.replace(shape.index) { it.copy(path = pts) })
     is Shape.Windsock -> copy(windsocks = windsocks.replace(shape.index) { pts.single() })
     Shape.Starter -> copy(starter = pts.single())
+    is Shape.AlertZone -> copy(alertZones = alertZones.replace(shape.index) { it.copy(outline = pts) })
 }
 
 fun AirfieldConfig.movePoint(shape: Shape, index: Int, to: GeoPoint): AirfieldConfig =
@@ -250,13 +256,24 @@ fun AirfieldConfig.canDeletePoint(shape: Shape): Boolean = points(shape).size > 
 /** Removes a shape. A threshold removes its whole runway; the last runway cannot be removed. */
 fun AirfieldConfig.delete(shape: Shape): AirfieldConfig = when (shape) {
     Shape.Boundary -> copy(boundary = emptyList())
-    is Shape.RunwayOutline -> if (runways.size > 1) copy(runways = runways.without(shape.index)) else this
-    is Shape.Threshold -> if (runways.size > 1) copy(runways = runways.without(shape.index)) else this
+    is Shape.RunwayOutline -> deleteRunway(shape.index)
+    is Shape.Threshold -> deleteRunway(shape.index)
     is Shape.Apron -> copy(aprons = aprons.without(shape.index))
     is Shape.Hangar -> copy(hangars = hangars.without(shape.index))
     is Shape.Taxiway -> copy(taxiways = taxiways.without(shape.index))
     is Shape.Windsock -> copy(windsocks = windsocks.without(shape.index))
     Shape.Starter -> copy(starter = null)
+    is Shape.AlertZone -> copy(alertZones = alertZones.without(shape.index))
+}
+
+/** Removes a runway (never the last one) and its links from the warning zones. */
+private fun AirfieldConfig.deleteRunway(index: Int): AirfieldConfig {
+    if (runways.size <= 1) return this
+    val id = runways[index].id
+    return copy(
+        runways = runways.without(index),
+        alertZones = alertZones.map { z -> z.copy(runways = z.runways - id) },
+    )
 }
 
 fun AirfieldConfig.canDelete(shape: Shape): Boolean = when (shape) {
@@ -266,7 +283,7 @@ fun AirfieldConfig.canDelete(shape: Shape): Boolean = when (shape) {
 
 /** What the "add" menu can create, at a point the user chose (the map centre or the GPS). */
 enum class NewShape {
-    RUNWAY, HANGAR, APRON, TAXIWAY, WINDSOCK, STARTER, BOUNDARY;
+    RUNWAY, BUILDING, APRON, TAXIWAY, WINDSOCK, BOUNDARY, ALERT_ZONE;
 
     val label: String get() = Texts.current.newShape(this)
 }
@@ -296,14 +313,24 @@ fun AirfieldConfig.add(kind: NewShape, at: GeoPoint): Pair<AirfieldConfig, Shape
             )
             copy(runways = runways + rw) to Shape.RunwayOutline(runways.size)
         }
-        NewShape.HANGAR -> copy(hangars = hangars + listOf(rect(15.0, 10.0))) to Shape.Hangar(hangars.size)
+        // Any building (hangar, club house…): stored with the hangars, as in older files.
+        NewShape.BUILDING -> copy(hangars = hangars + listOf(rect(15.0, 10.0))) to Shape.Hangar(hangars.size)
         NewShape.APRON -> copy(aprons = aprons + listOf(rect(40.0, 25.0))) to Shape.Apron(aprons.size)
         NewShape.TAXIWAY -> copy(
             taxiways = taxiways + TaxiwayConfig(listOf(latLon(frame.toGeo(Vec2(-50.0, 0.0))), latLon(frame.toGeo(Vec2(50.0, 0.0))))),
         ) to Shape.Taxiway(taxiways.size)
         NewShape.WINDSOCK -> copy(windsocks = windsocks + listOf(latLon(at))) to Shape.Windsock(windsocks.size)
-        NewShape.STARTER -> copy(starter = latLon(at)) to Shape.Starter
         NewShape.BOUNDARY -> copy(boundary = rect(500.0, 150.0)) to Shape.Boundary
+        // Around the nearest runway and under its finals, linked to it.
+        NewShape.ALERT_ZONE -> {
+            val rw = runways.minByOrNull { r -> r.ends.minOf { haversineM(at, it.threshold.geo()) } }
+            val zone = if (rw == null) {
+                AlertZoneConfig(rect(150.0, 60.0))
+            } else {
+                AlertZoneConfig(rw.zoneOutline(Airfield.APPROACH_ZONE_M), listOf(rw.id))
+            }
+            copy(alertZones = alertZones + zone) to Shape.AlertZone(alertZones.size)
+        }
     }
 }
 
@@ -326,7 +353,28 @@ fun codeFromName(name: String, taken: Set<String>): String {
 /** Renames a runway (its id follows, kept unique). */
 fun AirfieldConfig.renameRunway(index: Int, name: String): AirfieldConfig {
     val others = copy(runways = runways.without(index))
-    return copy(runways = runways.replace(index) { it.copy(name = name, id = others.uniqueRunwayId(name)) })
+    val oldId = runways[index].id
+    val newId = others.uniqueRunwayId(name)
+    return copy(
+        runways = runways.replace(index) { it.copy(name = name, id = newId) },
+        // The warning zones follow the runway's new id.
+        alertZones = alertZones.map { z -> z.copy(runways = z.runways.map { if (it == oldId) newId else it }) },
+    )
+}
+
+/** Which runways a warning zone protects, and whether gliders in the circuit warn there. */
+fun AirfieldConfig.setZone(index: Int, runwayIds: List<String>, circuit: Boolean) =
+    copy(alertZones = alertZones.replace(index) { it.copy(runways = runwayIds, circuit = circuit) })
+
+/** The runway rectangle stretched [m] beyond each threshold and [sideM] on each side. */
+fun RunwayConfig.zoneOutline(m: Double, sideM: Double = 10.0): List<LatLon> {
+    val frame = LocalFrame(ends[0].threshold.geo(), 0.0)
+    val b = frame.toLocal(ends[1].threshold.geo())
+    val dir = b.normalized()
+    val half = Vec2(-dir.y, dir.x) * (widthM() / 2 + sideM)
+    val a0 = dir * -m
+    val b1 = b + dir * m
+    return listOf(a0 - half, b1 - half, b1 + half, a0 + half).map { latLon(frame.toGeo(it)) }
 }
 
 fun AirfieldConfig.setRunwaySurface(index: Int, grass: Boolean) =
@@ -354,8 +402,10 @@ fun AirfieldConfig.normalized(): AirfieldConfig {
     val centre = GeoPoint(ends.map { it[0] }.average(), ends.map { it[1] }.average())
     val axisFrame = LocalFrame(main.ends[0].threshold.geo(), 0.0)
     val axis = axisFrame.bearingOf(axisFrame.toLocal(main.ends[1].threshold.geo()))
+    val ids = rws.map { it.id }.toSet()
     return copy(
         formatVersion = AirfieldConfig.FORMAT_VERSION,
+        alertZones = alertZones.map { z -> z.copy(runways = z.runways.filter { it in ids }) },
         icao = icao.trim().uppercase(),
         name = name.trim(),
         runways = rws,
@@ -394,7 +444,7 @@ fun AirfieldConfig.problems(): List<String> = buildList {
     }
     if (runways.map { it.id }.toSet().size != runways.size) add(t.duplicateRunwayNames)
     if (boundary.isNotEmpty() && (boundary.size < 3 || boundary.any(::bad))) add(t.boundaryTooSmall)
-    if ((aprons + hangars).any { it.size < 3 || it.any(::bad) }) add(t.polygonTooSmall)
+    if ((aprons + hangars + alertZones.map { it.outline }).any { it.size < 3 || it.any(::bad) }) add(t.polygonTooSmall)
     if (taxiways.any { it.path.size < 2 || it.path.any(::bad) }) add(t.taxiwayTooShort)
     if (windsocks.any(::bad) || starter?.let(::bad) == true) add(t.misplacedPoint)
 }

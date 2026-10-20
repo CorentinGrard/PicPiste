@@ -35,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.airfield.AirfieldConfig
 import fr.cvvm.picpiste.core.airfield.Shape
 import fr.cvvm.picpiste.core.airfield.snapMapUp
@@ -288,6 +289,15 @@ fun EditorMap(state: EditorState, fix: PhoneFix?, background: MapBackground, mod
     val tiles = remember { MapTiles.get(context) }
     val tilesLoaded by tiles.loaded.collectAsState()
     val bitmapPaint = remember { Paint(Paint.FILTER_BITMAP_FLAG) }
+    // With no zone drawn, the automatic ones (shown faintly, to see what is protected).
+    val autoZones = remember(state.draft) {
+        if (state.draft.alertZones.isNotEmpty()) {
+            emptyList()
+        } else {
+            runCatching { Airfield(state.draft).let { a -> a.alertZones.map { z -> z.area.points.map(a.frame::toGeo) } } }
+                .getOrDefault(emptyList())
+        }
+    }
     var size by remember { mutableStateOf(Offset.Zero) }
     val text = remember {
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -391,7 +401,7 @@ fun EditorMap(state: EditorState, fix: PhoneFix?, background: MapBackground, mod
         val overMap = shown.isNotEmpty()
         if (overMap && background == MapBackground.PHOTO) drawRect(Color(Palette.MAP_BG).copy(alpha = 0.25f))
         if (!pickOnly) {
-            drawAirfield(state, ::toScreen, density, text, overMap)
+            drawAirfield(state, ::toScreen, density, text, overMap, autoZones)
             drawSelection(state, ::toScreen, density)
         }
         fix?.let { drawFix(it, state, ::toScreen, density) }
@@ -504,7 +514,10 @@ private fun path(points: List<Offset>, close: Boolean) = Path().apply {
 }
 
 /** The airfield; over a map ([overMap]) areas are see-through and outlined, so the map shows. */
-private fun DrawScope.drawAirfield(state: EditorState, toScreen: (Vec2) -> Offset, dp: Float, text: Paint, overMap: Boolean) {
+private fun DrawScope.drawAirfield(
+    state: EditorState, toScreen: (Vec2) -> Offset, dp: Float, text: Paint, overMap: Boolean,
+    autoZones: List<List<GeoPoint>>,
+) {
     val c = state.draft
     fun scr(p: List<Double>) = toScreen(state.toLocal(p))
     val k = state.pxPerM
@@ -514,6 +527,19 @@ private fun DrawScope.drawAirfield(state: EditorState, toScreen: (Vec2) -> Offse
         val p = path(c.boundary.map(::scr), true)
         drawPath(p, fill(Palette.BOUNDARY_FILL))
         drawPath(p, Color(Palette.BOUNDARY_STROKE), style = Stroke(1.5f * dp, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6 * dp, 4 * dp))))
+    }
+    // Warning zones: drawn ones in red, automatic ones faint and dashed.
+    val red = Color(Palette.RED)
+    autoZones.forEach { z ->
+        val p = path(z.map { toScreen(state.frame.toLocal(it)) }, true)
+        drawPath(p, red.copy(alpha = 0.06f))
+        drawPath(p, red.copy(alpha = 0.45f), style = Stroke(1.2f * dp, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5 * dp, 5 * dp))))
+    }
+    c.alertZones.forEach { z ->
+        if (z.outline.size < 3) return@forEach
+        val p = path(z.outline.map(::scr), true)
+        drawPath(p, red.copy(alpha = 0.12f))
+        drawPath(p, red.copy(alpha = 0.8f), style = Stroke(2f * dp, pathEffect = PathEffect.dashPathEffect(floatArrayOf(9 * dp, 5 * dp))))
     }
     c.aprons.forEach {
         val p = path(it.map(::scr), true)

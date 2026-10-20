@@ -79,6 +79,8 @@ data class AircraftState(
     val landedAtMs: Long?,
     val landedRunway: Runway?,
     val landedThird: RunwayThird?,
+    /** Below the display ceiling (or on the field): drawn. Above it, still used for the alerts. */
+    val shown: Boolean = true,
 ) {
     val address get() = identity.address
 

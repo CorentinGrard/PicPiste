@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -32,6 +33,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.airfield.NewShape
 import fr.cvvm.picpiste.core.airfield.Shape
+import fr.cvvm.picpiste.core.airfield.setZone
 import fr.cvvm.picpiste.core.airfield.moveRunwayEnd
 import fr.cvvm.picpiste.core.airfield.RunwayEnd
 import fr.cvvm.picpiste.core.airfield.add
@@ -227,7 +230,12 @@ fun AirfieldEditor(
                 Compass(state.upDeg, Modifier.align(Alignment.TopStart)) { state.northUp() }
             }
 
-            SelectionPanel(state, fix, onRunway = { dialog = EditorDialog.Runway(it) }, onAdd = { dialog = EditorDialog.Add })
+            SelectionPanel(
+                state, fix,
+                onRunway = { dialog = EditorDialog.Runway(it) },
+                onZone = { dialog = EditorDialog.Zone(it) },
+                onAdd = { dialog = EditorDialog.Add },
+            )
         }
 
     }
@@ -236,6 +244,7 @@ fun AirfieldEditor(
         null -> Unit
         EditorDialog.Info -> InfoDialog(state, onDismiss = { dialog = null })
         is EditorDialog.Runway -> RunwayDialog(state, d.index, onDismiss = { dialog = null })
+        is EditorDialog.Zone -> ZoneDialog(state, d.index, onDismiss = { dialog = null })
         EditorDialog.Add -> AddDialog(onDismiss = { dialog = null }) { kind, atGps ->
             dialog = null
             val at = if (atGps) fix?.geo ?: state.centreGeo() else state.centreGeo()
@@ -268,6 +277,7 @@ fun AirfieldEditor(
 private sealed interface EditorDialog {
     data object Info : EditorDialog
     data class Runway(val index: Int) : EditorDialog
+    data class Zone(val index: Int) : EditorDialog
     data object Add : EditorDialog
     data object Discard : EditorDialog
     data object Delete : EditorDialog
@@ -275,7 +285,7 @@ private sealed interface EditorDialog {
 
 /** Bottom panel: what is selected and what can be done with it. */
 @Composable
-private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -> Unit, onAdd: () -> Unit) {
+private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -> Unit, onZone: (Int) -> Unit, onAdd: () -> Unit) {
     // Re-read the fix age every second, so the GPS button greys out when the fix gets old.
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { delay(1000); now = System.currentTimeMillis() } }
@@ -339,6 +349,7 @@ private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (runway != null) Chip(stringResource(R.string.properties)) { onRunway(runway) }
+            if (s is Shape.AlertZone) Chip(stringResource(R.string.properties)) { onZone(s.index) }
             if (s.kind != Shape.Kind.POINT && s !is Shape.RunwayOutline) {
                 Chip(stringResource(R.string.delete_point), enabled = state.draft.canDeletePoint(s)) { state.edit(state.draft.deletePoint(s, state.vertex)) }
             }
@@ -421,6 +432,42 @@ private fun InfoDialog(state: EditorState, onDismiss: () -> Unit) {
             TextButton(enabled = eleValue != null, onClick = {
                 state.edit(d.copy(elevationM = eleValue!!))
                 state.warnings = state.warnings.filterNot { it.startsWith(Texts.current.elevationWarningPrefix) }
+                onDismiss()
+            }) { Text(stringResource(R.string.ok)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** A warning zone: which runways it protects, and the amber banner for the circuit. */
+@Composable
+private fun ZoneDialog(state: EditorState, index: Int, onDismiss: () -> Unit) {
+    val zone = state.draft.alertZones[index]
+    var linked by remember { mutableStateOf(zone.runways.toSet()) }
+    var circuit by remember { mutableStateOf(zone.circuit) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(state.draft.label(Shape.AlertZone(index))) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.zone_runways), color = c(Palette.MUTED), fontSize = 14.sp)
+                state.draft.runways.forEach { rw ->
+                    val on = rw.id in linked
+                    val label = "${rw.name} · ${rw.ends[0].ref}/${rw.ends[1].ref}"
+                    Chip(ticked(on, label), Modifier.fillMaxWidth(), accent = on) {
+                        linked = if (on) linked - rw.id else linked + rw.id
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.zone_circuit), color = c(Palette.TEXT), fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    Switch(checked = circuit, onCheckedChange = { circuit = it })
+                }
+                Text(stringResource(R.string.zone_hint), color = c(Palette.MUTED), fontSize = 13.sp)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                state.edit(state.draft.setZone(index, state.draft.runways.map { it.id }.filter { it in linked }, circuit))
                 onDismiss()
             }) { Text(stringResource(R.string.ok)) }
         },

@@ -79,7 +79,7 @@
     <string name="discard_title">Quitter sans enregistrer ?</string>
     <string name="discard_text">Les modifications du terrain seront perdues.</string>
     <string name="discard">Quitter</string>
-    <string name="editor_hint">Touchez une piste, un hangar, un seuil… pour le modifier. Glissez pour déplacer la carte, pincez pour zoomer, tournez à deux doigts pour la faire pivoter ; la boussole remet le nord en haut.</string>
+    <string name="editor_hint">Touchez une piste, un bâtiment, un seuil… pour le modifier. Glissez pour déplacer la carte, pincez pour zoomer, tournez à deux doigts pour la faire pivoter ; la boussole remet le nord en haut.</string>
     <string name="add_button">+ Ajouter</string>
     <string name="point_n_of">Point %1$d sur %2$d</string>
     <string name="gps_none">📍 Ici : pas de GPS</string>
@@ -143,4 +143,7 @@
     <string name="hint_runway">Glissez un seuil pour allonger ou tourner, le centre pour déplacer, le côté pour la largeur, la poignée ronde pour tourner.</string>
     <string name="hint_shape">Glissez un point pour le déplacer, un + pour en ajouter un, le centre pour tout déplacer.</string>
     <string name="hint_point">Glissez-le pour le déplacer.</string>
+    <string name="zone_runways">Alerte rouge pour les finales et décollages sur :</string>
+    <string name="zone_circuit">Bandeau orange pour les planeurs dans le circuit</string>
+    <string name="zone_hint">Les pistes parallèles proches comptent pour une. Sans zone dessinée, chaque piste et 150 m avant ses seuils sont protégés.</string>
 </resources>
