@@ -1,5 +1,6 @@
 package fr.cvvm.picpiste.data
 
+import fr.cvvm.picpiste.BuildConfig
 import android.content.Context
 import androidx.annotation.StringRes
 import fr.cvvm.picpiste.R
@@ -44,12 +45,14 @@ enum class MapBackground(@StringRes val labelRes: Int) {
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("picpiste", Context.MODE_PRIVATE)
 
+    // The Play Store build has no development tools: always live traffic, never recording.
     private val _source = MutableStateFlow(
-        runCatching { Source.valueOf(sp.getString(KEY_SOURCE, null) ?: "") }.getOrNull()
+        if (!BuildConfig.DEV_TOOLS) Source.LIVE
+        else runCatching { Source.valueOf(sp.getString(KEY_SOURCE, null) ?: "") }.getOrNull()
             ?: if (sp.getBoolean(KEY_DEMO_OLD, false)) Source.DEMO else Source.LIVE,
     )
     private val _sound = MutableStateFlow(sp.getBoolean(KEY_SOUND, true))
-    private val _record = MutableStateFlow(sp.getBoolean(KEY_RECORD, false))
+    private val _record = MutableStateFlow(BuildConfig.DEV_TOOLS && sp.getBoolean(KEY_RECORD, false))
     private val _ceiling = MutableStateFlow(sp.getInt(KEY_CEILING, 400))
     private val _zoom = MutableStateFlow(sp.getFloat(KEY_ZOOM_RADIUS, 1_500f).toDouble().coerceIn(MIN_RADIUS_M, MAX_RADIUS_M))
     private val _replaySpeed = MutableStateFlow(sp.getInt(KEY_REPLAY_SPEED, 4))

@@ -26,11 +26,6 @@ enum class TileSource(val attribution: String, val maxZoom: Int) {
             "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS" +
                 "&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX=$z&TILEROW=$y&TILECOL=$x"
     },
-    /** Aerial photos for the rest of the world. */
-    ESRI("Esri, Maxar, Earthstar Geographics", 19) {
-        override fun url(z: Int, x: Int, y: Int) =
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/$z/$y/$x"
-    },
     OSM("© OpenStreetMap", 19) {
         override fun url(z: Int, x: Int, y: Int) = "https://tile.openstreetmap.org/$z/$x/$y.png"
     },
@@ -39,12 +34,16 @@ enum class TileSource(val attribution: String, val maxZoom: Int) {
     abstract fun url(z: Int, x: Int, y: Int): String
 
     companion object {
-        /** Sources to try in order for [background] around [at]: IGN first in and around France. */
+        /**
+         * Sources to try in order for [background] around [at]. Photos only where IGN has them
+         * (France and a little beyond); elsewhere, and where IGN has no tile, the plan.
+         * No worldwide photo source: the free ones do not allow use in a distributed app.
+         */
         fun forBackground(background: MapBackground, at: GeoPoint): List<TileSource> = when (background) {
             MapBackground.NONE -> emptyList()
             MapBackground.PLAN -> listOf(OSM)
             MapBackground.PHOTO ->
-                if (at.lat in 41.0..51.5 && at.lon in -5.5..10.0) listOf(IGN, ESRI) else listOf(ESRI)
+                if (at.lat in 41.0..51.5 && at.lon in -5.5..10.0) listOf(IGN, OSM) else listOf(OSM)
         }
     }
 }

@@ -131,14 +131,14 @@
     <string name="delete_title">Delete %1$s?</string>
     <string name="delete_text">The airfield is removed from this phone. Share it first if you want to keep a copy.</string>
     <string name="welcome_create">Create an airfield by hand</string>
-    <string name="welcome_create_hint">No ICAO code, or not found: place it on the aerial photo and draw its runways.</string>
+    <string name="welcome_create_hint">No ICAO code, or not found: place it on the map and draw its runways.</string>
     <string name="create_title">New airfield</string>
     <string name="create_name">Name</string>
     <string name="create_code">Code (optional)</string>
     <string name="create_map_hint">The red cross is on the phone\'s position. Move the map if the airfield is elsewhere.</string>
     <string name="create_here">Create the airfield here</string>
     <string name="code_taken">%1$s is already on this phone: choose another code.</string>
-    <string name="create_draw_hint">Drag the runway and its two thresholds onto the photo, then save.</string>
+    <string name="create_draw_hint">Drag the runway and its two thresholds onto the map, then save.</string>
     <string name="create_waiting_gps">Looking for the phone\'s position… You can also move the map to the airfield.</string>
     <string name="my_position">My position</string>
     <string name="threshold_ref">Threshold %1$s</string>

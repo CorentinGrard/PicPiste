@@ -54,8 +54,9 @@
   « OGN · rien depuis … ». Thème Auto selon le soleil au terrain. Cibles tactiles ≥ 48 dp.
 
 - **Fond de carte dans l'éditeur** (20 oct.) : bouton sur la carte Photo → Plan → Sans fond
-  (`Prefs.mapBackground`). Photo : IGN (orthophotos, en France et un peu au-delà), Esri
-  ailleurs, tuile par tuile ; Plan : OpenStreetMap. Tuiles gardées sur le téléphone 30 jours
+  (`Prefs.mapBackground`). Photo : IGN (orthophotos, en France et un peu au-delà), le plan
+  ailleurs (Esri retiré le 20 oct. : ses conditions excluent une app diffusée) ; Plan :
+  OpenStreetMap. Tuiles gardées sur le téléphone 30 jours
   (cache de 200 Mo, `ui/editor/MapTiles.kt`) : une carte vue à la maison s'affiche sans
   réseau au terrain. Calcul des tuiles : `core/geo/WebMercator.kt`.
 
@@ -120,7 +121,7 @@ Ces fonctions servent au développement et au réglage, pas aux conducteurs :
   le moteur ; week-end avec un observateur au bord de piste.
 - **Overpass souvent saturé** : le repli Nominatim + API OSM marche, mais l'API OSM est
   surtout faite pour l'édition ; usage ponctuel seulement (un téléchargement par terrain).
-- Fond de carte : les conditions d'Esri (World Imagery) visent un usage non commercial
-  avec attribution ; à revoir si l'app est diffusée largement.
+- Photos hors de France : aucune source gratuite utilisable dans une app diffusée. Si besoin,
+  compte ArcGIS ou MapTiler (clé) derrière un petit relais sur notre serveur.
 - Installation : les APK sont signés avec la clé PicPiste (`~/.picpiste/`) ; un téléphone
   qui a encore un ancien build signé autrement doit désinstaller une fois.

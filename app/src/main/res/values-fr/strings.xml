@@ -129,14 +129,14 @@
     <string name="delete_title">Supprimer %1$s ?</string>
     <string name="delete_text">Le terrain est retiré de ce téléphone. Partagez-le d\'abord pour en garder une copie.</string>
     <string name="welcome_create">Créer un terrain à la main</string>
-    <string name="welcome_create_hint">Pas de code OACI, ou terrain introuvable : placez-le sur la photo aérienne et dessinez ses pistes.</string>
+    <string name="welcome_create_hint">Pas de code OACI, ou terrain introuvable : placez-le sur la carte et dessinez ses pistes.</string>
     <string name="create_title">Nouveau terrain</string>
     <string name="create_name">Nom</string>
     <string name="create_code">Code (facultatif)</string>
     <string name="create_map_hint">La croix rouge est sur la position du téléphone. Déplacez la carte si le terrain est ailleurs.</string>
     <string name="create_here">Créer le terrain ici</string>
     <string name="code_taken">%1$s est déjà sur ce téléphone : choisissez un autre code.</string>
-    <string name="create_draw_hint">Placez la piste et ses deux seuils sur la photo, puis enregistrez.</string>
+    <string name="create_draw_hint">Placez la piste et ses deux seuils sur la carte, puis enregistrez.</string>
     <string name="create_waiting_gps">Recherche de la position du téléphone… Vous pouvez aussi déplacer la carte sur le terrain.</string>
     <string name="my_position">Ma position</string>
     <string name="threshold_ref">Seuil %1$s</string>

@@ -50,6 +50,18 @@ jobs:
           ./gradlew :app:assembleRelease --console=plain -PversionCode=${{ github.run_number }} -PversionName="$VERSION"
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/PicPiste-$VERSION.apk"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      # Play Store bundle: same version, without the development tools (-Pstore=true).
+      - name: Build Play Store bundle
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          PICPISTE_KEYSTORE_PASSWORD: ${{ secrets.PICPISTE_KEYSTORE_PASSWORD }}
+          PICPISTE_KEY_ALIAS: ${{ secrets.PICPISTE_KEY_ALIAS }}
+          PICPISTE_KEY_PASSWORD: ${{ secrets.PICPISTE_KEY_PASSWORD }}
+        run: |
+          ./gradlew :app:bundleRelease --console=plain -Pstore=true -PversionCode=${{ github.run_number }} -PversionName="$VERSION"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/PicPiste-$VERSION-play.aab"
 
       - name: Test report
         if: failure()
@@ -61,10 +73,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: PicPiste-apk
-          path: dist/*.apk
+          path: dist/*
 
       - name: GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.apk --title "PicPiste $GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "PicPiste $GITHUB_REF_NAME" --generate-notes

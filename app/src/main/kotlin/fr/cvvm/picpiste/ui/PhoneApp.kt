@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import fr.cvvm.picpiste.BuildConfig
 import fr.cvvm.picpiste.R
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.airfield.Airfield
@@ -536,7 +537,7 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                     }
                     TextButton(onClick = onAddAirfield) { Text(stringResource(R.string.add_airfield)) }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (BuildConfig.DEV_TOOLS) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(stringResource(R.string.traffic), color = c(Palette.TEXT), fontSize = 16.sp)
                     Choice(Source.entries.map { stringResource(it.labelRes) }, source.ordinal) { repo.prefs.setSource(Source.entries[it]) }
                     Text(
@@ -561,7 +562,9 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                         color = c(Palette.MUTED), fontSize = 13.sp,
                     )
                 }
-                SettingSwitch(stringResource(R.string.record_day), stringResource(R.string.record_day_hint), record) { repo.prefs.setRecord(it) }
+                if (BuildConfig.DEV_TOOLS) {
+                    SettingSwitch(stringResource(R.string.record_day), stringResource(R.string.record_day_hint), record) { repo.prefs.setRecord(it) }
+                }
                 SettingSwitch(stringResource(R.string.voice_alert), stringResource(R.string.voice_alert_hint), sound) { repo.prefs.setSound(it) }
                 Column {
                     Text(stringResource(R.string.ceiling, ceiling), color = c(Palette.TEXT), fontSize = 16.sp)
