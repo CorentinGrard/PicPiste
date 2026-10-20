@@ -202,11 +202,14 @@ class CarOverlay(private val context: Context) {
         canvas.drawText(detail, 0, detail.length, left + pad, top + 70 * dp, text)
     }
 
-    /** Red frame around the whole screen while the cart is on a runway (spec §4.1b). */
+    /** Frame around the whole screen while something is coming: amber (circuit), red (final, takeoff). */
     fun drawRunwayBorder(canvas: Canvas, width: Float, height: Float, snap: Snapshot, dp: Float) {
-        if (snap.alert.level == AlertLevel.NONE) return
+        stroke.color = when (snap.alert.level) {
+            AlertLevel.DANGER -> colors.RED
+            AlertLevel.CAUTION -> colors.CAUTION_BANNER
+            else -> return
+        }
         val w = 10 * dp
-        stroke.color = colors.RED
         stroke.strokeWidth = w
         canvas.drawRect(w / 2, w / 2, width - w / 2, height - w / 2, stroke)
     }

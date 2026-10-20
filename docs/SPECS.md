@@ -138,12 +138,13 @@ zone. Deux niveaux, pas plus :
 
 | Situation | Réaction |
 |---|---|
-| Golfette **sur une piste**, rien dans le circuit | **Indication visuelle seulement** : bordure rouge autour de l’écran, rien d’autre (pas de libellé, pas de son, pas de bandeau). |
-| Golfette **sur une piste** **et** un aéronef dans le circuit, en finale ou en décollage | **Alerte** : son + bandeau rouge « Planeur en finale — 40 s » (ou « Circuit — ~2 min », « Décollage en cours »). Répétée tant que les deux conditions restent vraies ; s'arrête dès que la golfette sort de la piste. |
+| Golfette **sur une piste**, rien dans le circuit | **Rien** : pas de bordure, pas de bandeau (une alerte qui ne demande rien finit par ne plus être regardée). |
+| Golfette **sur une piste** **et** un aéronef dans le circuit | **Bordure et bandeau orange, sans son** (« Remorqueur dans le circuit — ~1 min ») : on ne sait pas encore sur quelle piste il se posera. |
+| Golfette **sur une piste** **et** une finale ou un décollage sur une piste de sa zone | **Alerte** : bordure et bandeau rouges + voix « Planeur en finale 23D — 40 s » (« Décollage en cours »). Répétée tant que les deux conditions restent vraies ; s'arrête dès que la golfette sort de la piste. Finale ou décollage sur une autre piste : rien. |
 | Golfette **hors piste** | Rien de particulier : l'info reste sur le radar et la liste « Arrivées ». |
 
 - Pas de pré-alerte avant l'entrée sur piste : le conducteur voit le radar en
-  permanence, et la bordure rouge apparaît dès l'entrée.
+  permanence.
 - Une seule alerte à la fois : si plusieurs aéronefs, on annonce le plus imminent.
 - Hystérésis (quelques mètres / secondes) sur l'entrée/sortie de zone pour éviter que la
   bordure clignote quand la golfette longe le bord de piste (précision GPS ~5 m).
@@ -156,10 +157,10 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 - **Liste « Arrivées »** triée par imminence :
   `🔴 F-CXYZ (AB) — Finale <sens> — 40 s`
   `🔄 F-CKLM (KL) — Circuit — ~2 min`
-- **Bordure rouge** quand la golfette est sur une piste (§4.1b). En plus :
-  - **bandeau orange, sans son** : un aéronef dans le circuit, à plus de 90 s du posé ;
-  - **bandeau rouge + voix** : finale, décollage, ou posé dans moins de 90 s. La voix
-    répète toutes les 30 s tant que la golfette reste sur la piste.
+- Golfette sur une piste (§4.1b) :
+  - **bordure et bandeau orange, sans son** : un aéronef dans le circuit ;
+  - **bordure et bandeau rouges + voix** : finale ou décollage sur une piste de la zone.
+    La voix répète toutes les 30 s tant que la golfette reste sur la piste.
   - Un planeur **perdu par OGN** (signal coupé) alors qu'il était en finale ou dans le circuit,
     en vol, compte encore 3 min (« · signal perdu ») : bas en finale, il passe souvent sous
     l'horizon du récepteur.

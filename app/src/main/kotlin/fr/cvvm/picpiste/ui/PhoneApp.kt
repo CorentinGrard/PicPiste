@@ -168,13 +168,18 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
         val replay by repo.replay.collectAsStateWithLifecycle()
         var selected by rememberSaveable { mutableStateOf<String?>(null) }
         var showSettings by rememberSaveable { mutableStateOf(false) }
-        val onRunway = snap.alert.level != AlertLevel.NONE
+        // Border only when something is coming: amber (circuit) or red (final, takeoff).
+        val border = when (snap.alert.level) {
+            AlertLevel.DANGER -> Palette.RED
+            AlertLevel.CAUTION -> Palette.CAUTION_BANNER
+            else -> null
+        }
 
         Box(
             Modifier
                 .fillMaxSize()
                 .background(c(Palette.BG))
-                .then(if (onRunway) Modifier.border(8.dp, c(Palette.RED)) else Modifier),
+                .then(if (border != null) Modifier.border(8.dp, c(border)) else Modifier),
         ) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 TopBar(snap, source, replay, onSettings = { showSettings = true })

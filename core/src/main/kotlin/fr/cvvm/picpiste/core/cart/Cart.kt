@@ -63,10 +63,10 @@ class RunwayPresenceDetector(
 }
 
 /**
- * NONE: off the runways. ON_RUNWAY: on a runway, circuit clear (red border only).
- * CAUTION: on a runway, someone in the circuit but not close (amber banner, no voice).
- * DANGER: on a runway with a glider on final, a takeoff, or a landing less than
- * [AlertEngine.DANGER_ETA_S] away (red banner and voice).
+ * NONE: off the runways. ON_RUNWAY: in a warning zone, nothing coming (nothing shown).
+ * CAUTION: in a zone, someone in the circuit (amber banner and border, no voice): which
+ * runway it will land on is not known yet.
+ * DANGER: in a zone, a final or a takeoff on one of its runways (red banner, border and voice).
  */
 enum class AlertLevel { NONE, ON_RUNWAY, CAUTION, DANGER }
 
@@ -95,8 +95,6 @@ data class CartAlert(
 object AlertEngine {
     private val THREATS = setOf(FlightStatus.FINAL, FlightStatus.TAKEOFF, FlightStatus.CIRCUIT)
 
-    /** A circuit landing closer than this is a danger, not just a caution. */
-    const val DANGER_ETA_S = 90.0
 
     /**
      * Low on final or base, OGN often loses a glider (below the receiver's horizon). One that went
@@ -153,11 +151,9 @@ object AlertEngine {
         val title = lost(what(threat.runwayRef))
         val spoken = lost(what(threat.spokenRunwayRef))
         val etaS = threat.etaS?.takeIf { threat.status != FlightStatus.TAKEOFF }
-        val level = when {
-            threat.status != FlightStatus.CIRCUIT -> AlertLevel.DANGER
-            etaS != null && etaS < DANGER_ETA_S -> AlertLevel.DANGER
-            else -> AlertLevel.CAUTION
-        }
+        // Red and voice only once we know it is coming to this zone's runways: a voice for an
+        // aircraft that then lands elsewhere teaches the driver to ignore it.
+        val level = if (threat.status == FlightStatus.CIRCUIT) AlertLevel.CAUTION else AlertLevel.DANGER
         val who = listOfNotNull(threat.identity.label, threat.identity.registration).distinct().joinToString(" · ")
         // A silent glider's ETA is a guess that has run out once it reaches 0: show none.
         val shownEta = etaS?.takeIf { !threat.signalLost || it > 0 }

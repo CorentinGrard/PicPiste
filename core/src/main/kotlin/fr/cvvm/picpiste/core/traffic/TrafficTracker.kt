@@ -69,7 +69,7 @@ class TrafficTracker(
             .filter { it !== track && it.type == AircraftType.TOW_PLANE && it.fixes.isNotEmpty() }
             .map { it.latest }
         val previous = if (track.hasStatus) track.c.status else null
-        val c = engine.classify(fix, track.fixes.toList(), previous, track.type, tugs).let { c ->
+        var c = engine.classify(fix, track.fixes.toList(), previous, track.type, tugs).let { c ->
             // Climbing away after takeoff: keep the runway it left from (the alert needs it).
             if (c.status == FlightStatus.TAKEOFF && c.runway == null && previous == FlightStatus.TAKEOFF) {
                 c.copy(runway = track.c.runway, runwayEnd = track.c.runwayEnd)
@@ -83,10 +83,17 @@ class TrafficTracker(
         }
         if (c.status == FlightStatus.LANDED && previous != FlightStatus.LANDED) {
             recordLanding(track, fix)
-        } else if (c.status == FlightStatus.LANDED && fix.groundSpeedKmh > MOVING_KMH) {
+        } else if (track.landedAtMs != null && fix.groundSpeedKmh > MOVING_KMH &&
+            (c.status == FlightStatus.LANDED || c.status == FlightStatus.ON_GROUND)
+        ) {
             // Taxiing after landing: say where it is now, so a glider back on the taxiway or
             // the apron no longer shows as on the runway.
             whereLanded(track, fix)
+        }
+        if (c.status == FlightStatus.LANDED && track.landedRunway == null) {
+            // Off the runway after landing: just on the ground now. It stays in the landed
+            // list (landedAtMs is kept) until it takes off again.
+            c = Classification(FlightStatus.ON_GROUND)
         }
         if (c.status == FlightStatus.TAKEOFF || c.status == FlightStatus.TOW) {
             track.landedAtMs = null

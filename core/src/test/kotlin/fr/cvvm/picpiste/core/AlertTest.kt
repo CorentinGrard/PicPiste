@@ -42,11 +42,12 @@ class AlertTest {
     }
 
     @Test
-    fun farCircuitIsACautionCloseOneADanger() {
+    fun circuitIsOnlyACautionHoweverClose() {
         val far = AlertEngine.evaluate(true, listOf(glider(FlightStatus.CIRCUIT, 180.0)))
         assertEquals(AlertLevel.CAUTION, far.level)
         assertEquals("~3 min", far.eta)
-        assertEquals(AlertLevel.DANGER, AlertEngine.evaluate(true, listOf(glider(FlightStatus.CIRCUIT, 60.0))).level)
+        // Its runway is not known yet: no red, no voice, even about to land.
+        assertEquals(AlertLevel.CAUTION, AlertEngine.evaluate(true, listOf(glider(FlightStatus.CIRCUIT, 30.0))).level)
         assertEquals(AlertLevel.CAUTION, AlertEngine.evaluate(true, listOf(glider(FlightStatus.CIRCUIT, null))).level)
     }
 
