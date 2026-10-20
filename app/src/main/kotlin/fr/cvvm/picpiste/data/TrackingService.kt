@@ -31,7 +31,7 @@ class TrackingService : Service() {
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("PicPiste")
             .setContentText(getString(R.string.tracking_text))
             .setContentIntent(open)
