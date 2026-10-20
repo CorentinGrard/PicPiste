@@ -1,5 +1,9 @@
 package fr.cvvm.picpiste.data
 
+import kotlin.coroutines.resume
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.suspendCancellableCoroutine
+import android.os.CancellationSignal
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -255,6 +259,42 @@ class TrafficRepository(private val context: Context) {
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, locationListener, Looper.getMainLooper())
             listening = true
         }.onFailure { Log.w(TAG, "No GPS updates", it) }
+    }
+
+    private fun locationGranted() =
+        context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    /** Where the phone last was, from any source (GPS, wifi, cell), without waiting. Null without permission. */
+    @SuppressLint("MissingPermission")
+    fun lastKnownPosition(): GeoPoint? {
+        if (!locationGranted()) return null
+        val lm = context.getSystemService(LocationManager::class.java)
+        return listOf(LocationManager.GPS_PROVIDER, LocationManager.FUSED_PROVIDER, LocationManager.NETWORK_PROVIDER)
+            .mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+            .maxByOrNull { it.time }
+            ?.let { GeoPoint(it.latitude, it.longitude) }
+    }
+
+    /**
+     * A fresh position, from GPS or, indoors, wifi and cell (to place a new airfield, not to
+     * survey points). Null without permission or after [timeoutMs].
+     */
+    @SuppressLint("MissingPermission")
+    suspend fun currentPosition(timeoutMs: Long = 20_000): GeoPoint? {
+        if (!locationGranted()) return null
+        val lm = context.getSystemService(LocationManager::class.java)
+        return withTimeoutOrNull(timeoutMs) {
+            suspendCancellableCoroutine { cont ->
+                val cancel = CancellationSignal()
+                cont.invokeOnCancellation { cancel.cancel() }
+                runCatching {
+                    lm.getCurrentLocation(LocationManager.FUSED_PROVIDER, cancel, context.mainExecutor) { loc ->
+                        if (cont.isActive) cont.resume(loc?.let { GeoPoint(it.latitude, it.longitude) })
+                    }
+                }.onFailure { if (cont.isActive) cont.resume(null) }
+            }
+        }
     }
 
     private fun stopLocation() {

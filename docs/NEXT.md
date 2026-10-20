@@ -52,6 +52,51 @@
   circuit : alerte encore 3 min. Plus jamais « Circuit libre » sans données OGN. Pastille
   « OGN · rien depuis … ». Thème Auto selon le soleil au terrain. Cibles tactiles ≥ 48 dp.
 
+- **Fond de carte dans l'éditeur** (20 oct.) : bouton sur la carte Photo → Plan → Sans fond
+  (`Prefs.mapBackground`). Photo : IGN (orthophotos, en France et un peu au-delà), Esri
+  ailleurs, tuile par tuile ; Plan : OpenStreetMap. Tuiles gardées sur le téléphone 30 jours
+  (cache de 200 Mo, `ui/editor/MapTiles.kt`) : une carte vue à la maison s'affiche sans
+  réseau au terrain. Calcul des tuiles : `core/geo/WebMercator.kt`.
+
+- **Plusieurs terrains** (20 oct.) : Réglages → liste des terrains chargés sur le téléphone
+  (toucher pour changer, « Modifier » sur celui en cours, « + Ajouter un terrain » par code OACI
+  ou fichier ; un code déjà chargé est juste sélectionné). Un fichier par terrain
+  (`files/airfields/<OACI>.json`), l'ancien `airfield.json` est repris tout seul. Dans
+  l'éditeur : plus de recherche par code ni de « terrain intégré » ; code et nom ne se
+  modifient plus, seule l'altitude ; « Supprimer ce terrain » (jamais le dernier).
+  LFNL reste dans l'app, seulement pour éviter OpenStreetMap quand on tape ce code.
+
+- **Terrain sans code OACI** (20 oct.) : « Créer un terrain à la main » (accueil et « Ajouter
+  un terrain ») : nom, code facultatif (sinon tiré du nom : « Les Mées » → LESMEES), croix sur la
+  position du téléphone (GPS, ou wifi / réseau à l'intérieur), qui suit le GPS tant qu'on n'a
+  pas déplacé la carte ; bouton « Ma position ». Crée une piste de 600 m est-ouest à cet endroit, altitude
+  Open-Meteo, puis ouvre l'éditeur pour placer la piste (`newAirfield`, `codeFromName`).
+
+- **Éditeur sur la carte** (20 oct.) : les pistes sont toujours des rectangles entre leurs deux
+  seuils (largeur = aire / longueur pour les anciens contours OSM, appliqué au chargement).
+  Piste sélectionnée : seuils (allonger / tourner), centre (déplacer), côté (largeur), poignée
+  ronde (tourner) ; les numéros suivent le cap s'ils lui correspondaient. Autres formes : un
+  « + » au milieu de chaque côté ajoute un point, le centre déplace tout. Plus de ◀ ▶,
+  « Ajouter un point », « Déplacer tout ».
+- **Orientation des cartes** par terrain (`mapUpDeg` : cap en haut de la carte, 0 = nord en
+  haut par défaut, enregistré dans le fichier) : dans l'éditeur, tourner à deux doigts fait
+  pivoter la carte (seuil de 10° pour ne pas tourner en zoomant ; aimantée à moins de 5° au nord et à chaque
+  piste verticale ou horizontale, `mapUpSnaps`) ;
+  la boussole en haut à gauche montre le nord, la toucher remet le nord en haut. Le radar du
+  téléphone et d'Android Auto suit.
+- Réglages : la fenêtre défile (le curseur du plafond était écrasé sous son titre).
+
+## Version GA (grand public) : à supprimer avant
+
+Ces fonctions servent au développement et au réglage, pas aux conducteurs :
+
+- **Choix du trafic** dans les réglages (En direct / Démo / Rejeu) : ne garder que le direct.
+  Supprimer `Source`, `Prefs.source` et `replaySpeed`, le mode démo (`DemoTraffic` côté app)
+  et le rejeu (`ReplayClock` côté app, bandeau de rejeu, vitesse ×1/×4/×10).
+- **Enregistrer la journée** (`Prefs.record`, écriture des trames OGN dans l'app).
+- Garder dans `core` ce qui sert aux tests et à l'outil PC (`./gradlew :core:record`,
+  rejeu dans les tests), sans rien de visible dans l'app.
+
 ## Reste à faire
 
 - **Mode clair en plein soleil** : à essayer dehors, ajuster les couleurs si besoin
@@ -63,7 +108,7 @@
   le moteur ; week-end avec un observateur au bord de piste.
 - **Overpass souvent saturé** : le repli Nominatim + API OSM marche, mais l'API OSM est
   surtout faite pour l'édition ; usage ponctuel seulement (un téléchargement par terrain).
-- Éditeur sans fond de carte (pas d'image satellite) : le relevé GPS sur place sert à
-  corriger les positions.
+- Fond de carte : les conditions d'Esri (World Imagery) visent un usage non commercial
+  avec attribution ; à revoir si l'app est diffusée largement.
 - Installation : les APK sont signés avec la clé PicPiste (`~/.picpiste/`) ; un téléphone
   qui a encore un ancien build signé autrement doit désinstaller une fois.

@@ -1,8 +1,14 @@
 package fr.cvvm.picpiste.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -52,13 +58,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * First launch: the driver picks the airfield. A code the app ships (LFNL) is used as is;
+ * Adds an airfield: on first launch (welcome) or from the settings ([onBack] set).
+ * A code already on the phone is just selected; one the app ships (LFNL) is used as is;
  * any other comes from OpenStreetMap, or from a file shared by another driver.
  *
- * @param onReady the airfield is saved; [warnings] lists what to check (OpenStreetMap import).
+ * @param onReady the airfield is saved and in use; [warnings] lists what to check (OpenStreetMap import).
  */
 @Composable
-fun Welcome(repo: TrafficRepository, onReady: (warnings: List<String>) -> Unit) {
+fun Welcome(
+    repo: TrafficRepository,
+    onBack: (() -> Unit)? = null,
+    /** No ICAO code: build it by hand ([CreateAirfield]). */
+    onCreate: () -> Unit,
+    onReady: (warnings: List<String>) -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var code by rememberSaveable { mutableStateOf("") }
@@ -79,10 +92,15 @@ fun Welcome(repo: TrafficRepository, onReady: (warnings: List<String>) -> Unit) 
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
+                    // Already on the phone: keep it (and the driver's corrections).
+                    if (repo.airfields.all.value.any { it.icao == c }) {
+                        repo.airfields.select(c)
+                        return@runCatching null
+                    }
                     // Shipped with the app: no need to ask OpenStreetMap.
                     Airfield.bundledConfigOrNull(c)?.let { it to emptyList() }
                         ?: AirfieldDownloader().download(c).let { r -> r.config to r.warnings + context.getString(R.string.osm_check) }
-                }.mapCatching { (config, warnings) -> save(config, warnings) }
+                }.mapCatching { it?.let { (config, warnings) -> save(config, warnings) } ?: emptyList() }
             }
             busy = false
             result.onSuccess(onReady).onFailure { error = (it as? AirfieldImportException)?.message ?: context.getString(R.string.error_detail, it.message ?: "") }
@@ -99,13 +117,24 @@ fun Welcome(repo: TrafficRepository, onReady: (warnings: List<String>) -> Unit) 
         }
     }
 
+    if (onBack != null) BackHandler(onBack = onBack)
+
     Column(
         Modifier.fillMaxSize().background(Color(Palette.BG)).safeDrawingPadding().verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(stringResource(R.string.welcome_title), color = Color(Palette.TEXT), fontSize = 30.sp, fontWeight = FontWeight.Bold)
-        Text(stringResource(R.string.welcome_text), color = Color(Palette.MUTED), fontSize = 16.sp)
+        if (onBack != null) {
+            Box(
+                Modifier.size(48.dp).clip(CircleShape).background(Color(Palette.SURFACE_2)).clickable(onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) { LineIcon(IconKind.BACK, Color(Palette.TEXT)) }
+        }
+        Text(
+            stringResource(if (onBack == null) R.string.welcome_title else R.string.add_airfield_title),
+            color = Color(Palette.TEXT), fontSize = 30.sp, fontWeight = FontWeight.Bold,
+        )
+        Text(stringResource(if (onBack == null) R.string.welcome_text else R.string.add_airfield_text), color = Color(Palette.MUTED), fontSize = 16.sp)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             code,
@@ -123,10 +152,15 @@ fun Welcome(repo: TrafficRepository, onReady: (warnings: List<String>) -> Unit) 
             onClick = ::search,
             enabled = code.length >= 3 && !busy,
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(Palette.CART), contentColor = Color(Palette.BG)),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(Palette.CART), contentColor = Color(Palette.BG),
+                // Stays blue while searching, so the spinner shows.
+                disabledContainerColor = if (busy) Color(Palette.CART) else Color(Palette.SURFACE_2),
+                disabledContentColor = if (busy) Color(Palette.BG) else Color(Palette.MUTED),
+            ),
             modifier = Modifier.fillMaxWidth().height(56.dp),
         ) {
-            if (busy) CircularProgressIndicator(color = Color(Palette.BG), strokeWidth = 2.dp, modifier = Modifier.height(24.dp))
+            if (busy) CircularProgressIndicator(color = Color(Palette.BG), strokeWidth = 2.5.dp, modifier = Modifier.size(24.dp))
             else Text(stringResource(R.string.welcome_continue), fontSize = 17.sp, fontWeight = FontWeight.Bold)
         }
         if (busy) {
@@ -140,5 +174,12 @@ fun Welcome(repo: TrafficRepository, onReady: (warnings: List<String>) -> Unit) 
             modifier = Modifier.fillMaxWidth().height(56.dp),
         ) { Text(stringResource(R.string.welcome_open_file), color = Color(Palette.TEXT), fontSize = 16.sp) }
         Text(stringResource(R.string.welcome_file_hint), color = Color(Palette.MUTED), fontSize = 13.sp)
+        OutlinedButton(
+            onClick = onCreate,
+            enabled = !busy,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+        ) { Text(stringResource(R.string.welcome_create), color = Color(Palette.TEXT), fontSize = 16.sp) }
+        Text(stringResource(R.string.welcome_create_hint), color = Color(Palette.MUTED), fontSize = 13.sp)
     }
 }

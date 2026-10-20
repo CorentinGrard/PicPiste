@@ -7,6 +7,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -122,6 +128,8 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
     }
     MaterialTheme(colorScheme = scheme) {
         var editing by rememberSaveable { mutableStateOf(false) }
+        var adding by rememberSaveable { mutableStateOf(false) }
+        var creating by rememberSaveable { mutableStateOf(false) }
         // After the welcome screen imported from OpenStreetMap: what to check, offered once.
         var toCheck by rememberSaveable { mutableStateOf<List<String>?>(null) }
         var editorWarnings by rememberSaveable { mutableStateOf(emptyList<String>()) }
@@ -131,8 +139,20 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
             AirfieldEditor(repo, incoming, onIncomingHandled, editorWarnings, onClose = { editing = false; editorWarnings = emptyList() })
             return@MaterialTheme
         }
-        if (!configured) {
-            Welcome(repo) { warnings -> if (warnings.isNotEmpty()) toCheck = warnings }
+        if (creating) {
+            CreateAirfield(repo, onBack = { creating = false }) { warnings ->
+                creating = false
+                adding = false
+                editorWarnings = warnings
+                editing = true
+            }
+            return@MaterialTheme
+        }
+        if (!configured || adding) {
+            Welcome(repo, onBack = if (configured) ({ adding = false }) else null, onCreate = { creating = true }) { warnings ->
+                adding = false
+                if (warnings.isNotEmpty()) toCheck = warnings
+            }
             return@MaterialTheme
         }
         toCheck?.let { warnings ->
@@ -177,7 +197,11 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
             if (a == null) selected = null else DetailSheet(a) { selected = null }
         }
         if (showSettings) {
-            SettingsDialog(repo, onEditAirfield = { showSettings = false; editing = true }) { showSettings = false }
+            SettingsDialog(
+                repo,
+                onEditAirfield = { showSettings = false; editing = true },
+                onAddAirfield = { showSettings = false; adding = true },
+            ) { showSettings = false }
         }
     }
 }
@@ -208,7 +232,7 @@ private fun TopBar(snap: Snapshot, source: Source, replay: ReplayInfo, onSetting
         Box(
             Modifier.size(52.dp).clip(CircleShape).background(c(Palette.SURFACE_2)).clickable(onClick = onSettings),
             contentAlignment = Alignment.Center,
-        ) { Text("⋯", color = c(Palette.TEXT), fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        ) { LineIcon(IconKind.MORE, c(Palette.TEXT)) }
     }
 }
 
@@ -466,8 +490,10 @@ private fun Stat(label: String, value: String, sub: String, modifier: Modifier) 
 }
 
 @Composable
-private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, onDismiss: () -> Unit) {
+private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, onAddAirfield: () -> Unit, onDismiss: () -> Unit) {
     val airfield by repo.airfields.current.collectAsStateWithLifecycle()
+    val airfields by repo.airfields.all.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val source by repo.prefs.source.collectAsStateWithLifecycle()
     val sound by repo.prefs.sound.collectAsStateWithLifecycle()
     val record by repo.prefs.record.collectAsStateWithLifecycle()
@@ -479,13 +505,31 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) } },
         title = { Text(stringResource(R.string.settings)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.airfield), color = c(Palette.TEXT), fontSize = 16.sp)
-                        Text("${airfield.icao} · ${airfield.name}", color = c(Palette.MUTED), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Scrolls: with several airfields the settings are taller than the dialog, and without
+            // scrolling the last rows (the ceiling slider) were squeezed on top of each other.
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Airfields on this phone: tap one to use it.
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.airfields), color = c(Palette.TEXT), fontSize = 16.sp)
+                    airfields.forEach { entry ->
+                        val inUse = entry.icao == airfield.icao
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp))
+                                .background(if (inUse) c(Palette.SURFACE_2) else Color.Transparent)
+                                .clickable(enabled = !inUse) { scope.launch(Dispatchers.IO) { repo.airfields.select(entry.icao) } }
+                                .padding(start = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "${entry.icao} · ${entry.name}",
+                                color = c(if (inUse) Palette.TEXT else Palette.MUTED), fontSize = 14.sp,
+                                fontWeight = if (inUse) FontWeight.SemiBold else FontWeight.Normal,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                            )
+                            if (inUse) TextButton(onClick = onEditAirfield) { Text(stringResource(R.string.edit)) }
+                        }
                     }
-                    TextButton(onClick = onEditAirfield) { Text(stringResource(R.string.edit)) }
+                    TextButton(onClick = onAddAirfield) { Text(stringResource(R.string.add_airfield)) }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(stringResource(R.string.traffic), color = c(Palette.TEXT), fontSize = 16.sp)

@@ -34,6 +34,8 @@ data class AirfieldConfig(
     val windsocks: List<List<Double>> = emptyList(),
     val starter: List<Double>? = null,
     val source: String? = null,
+    /** Compass direction at the top of the maps (editor and radar): 0 = north up, the default. */
+    val mapUpDeg: Double = 0.0,
 ) {
     companion object {
         const val FORMAT_VERSION = 2
@@ -78,6 +80,9 @@ class Airfield(val config: AirfieldConfig) {
     val elevationM get() = config.elevationM
     val reference = config.reference.geo()
     val frame = LocalFrame(reference, config.axisBearingDeg)
+
+    /** How much to turn the local frame (degrees, anticlockwise) so that [AirfieldConfig.mapUpDeg] is up. */
+    val mapRotationDeg: Double = 90.0 - config.axisBearingDeg + config.mapUpDeg
 
     val runways: List<Runway> = config.runways.map { Runway(it, frame) }
     val aprons = config.aprons.map { a -> Polygon(a.map { frame.toLocal(it.geo()) }) }
@@ -145,7 +150,7 @@ class Airfield(val config: AirfieldConfig) {
             }
             val problems = config.problems()
             require(problems.isEmpty()) { problems.joinToString("\n") }
-            return config
+            return config.squaredRunways()
         }
 
         fun encode(config: AirfieldConfig): String = json.encodeToString(AirfieldConfig.serializer(), config) + "\n"

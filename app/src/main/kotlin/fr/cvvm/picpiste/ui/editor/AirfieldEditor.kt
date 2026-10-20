@@ -6,6 +6,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.Path
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -24,7 +28,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
@@ -51,10 +54,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import fr.cvvm.picpiste.R
-import fr.cvvm.picpiste.core.airfield.AirfieldDownloader
-import fr.cvvm.picpiste.core.airfield.AirfieldImportException
 import fr.cvvm.picpiste.core.airfield.NewShape
 import fr.cvvm.picpiste.core.airfield.Shape
+import fr.cvvm.picpiste.core.airfield.moveRunwayEnd
+import fr.cvvm.picpiste.core.airfield.RunwayEnd
 import fr.cvvm.picpiste.core.airfield.add
 import fr.cvvm.picpiste.core.airfield.canDelete
 import fr.cvvm.picpiste.core.airfield.canDeletePoint
@@ -70,9 +73,11 @@ import fr.cvvm.picpiste.core.airfield.renameRunway
 import fr.cvvm.picpiste.core.airfield.setRunwayRefs
 import fr.cvvm.picpiste.core.airfield.setRunwaySurface
 import fr.cvvm.picpiste.core.i18n.Texts
-import fr.cvvm.picpiste.data.AirfieldStore
+import fr.cvvm.picpiste.data.MapBackground
 import fr.cvvm.picpiste.data.PhoneFix
 import fr.cvvm.picpiste.data.TrafficRepository
+import fr.cvvm.picpiste.ui.IconKind
+import fr.cvvm.picpiste.ui.LineIcon
 import fr.cvvm.picpiste.render.Palette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -86,8 +91,9 @@ private const val SURVEY_MAX_ACCURACY_M = 15.0
 private const val SURVEY_MAX_AGE_MS = 10_000L
 
 /**
- * Airfield screen: find an airfield by its code (OpenStreetMap), correct it by dragging points
- * or by driving to them ("Ici" records the phone's GPS position), save it, share it.
+ * Airfield screen: correct the airfield in use by dragging points or by driving to them
+ * ("Ici" records the phone's GPS position), set its altitude, save it, share it, delete it.
+ * Airfields are added from the settings (code or file), or by opening a shared file.
  *
  * @param incoming a file opened with PicPiste from another app, to import.
  */
@@ -104,11 +110,12 @@ fun AirfieldEditor(
     val scope = rememberCoroutineScope()
     val current by repo.airfields.current.collectAsStateWithLifecycle()
     val fix by repo.phoneFix.collectAsStateWithLifecycle()
+    val background by repo.prefs.mapBackground.collectAsStateWithLifecycle()
     val state = remember { EditorState(current.config).apply { warnings = initialWarnings } }
 
     var menu by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<EditorDialog?>(null) }
-    var busy by remember { mutableStateOf(false) }
+    val airfields by repo.airfields.all.collectAsStateWithLifecycle()
 
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
@@ -124,7 +131,6 @@ fun AirfieldEditor(
         incoming?.let { importUri(it); onIncomingHandled() }
     }
 
-    val openFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(::importUri) }
     val saveFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         val config = state.draft.normalized()
@@ -159,14 +165,12 @@ fun AirfieldEditor(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                RoundButton("←") { if (state.changed) dialog = EditorDialog.Discard else onClose() }
+                RoundButton(IconKind.BACK) { if (state.changed) dialog = EditorDialog.Discard else onClose() }
                 Text(stringResource(R.string.airfield), color = c(Palette.TEXT), fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                RoundButton("↶", enabled = state.canUndo) { state.undo() }
+                RoundButton(IconKind.UNDO, enabled = state.canUndo) { state.undo() }
                 Box {
-                    RoundButton("⋯") { menu = true }
+                    RoundButton(IconKind.MORE) { menu = true }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.menu_search)) }, onClick = { menu = false; dialog = EditorDialog.Search })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.menu_import)) }, onClick = { menu = false; openFile.launch(arrayOf("application/json", "application/octet-stream", "text/plain")) })
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_share)) },
                             enabled = problems.isEmpty(),
@@ -177,7 +181,12 @@ fun AirfieldEditor(
                             enabled = problems.isEmpty(),
                             onClick = { menu = false; saveFile.launch(AirfieldFiles.fileName(state.draft)) },
                         )
-                        DropdownMenuItem(text = { Text(stringResource(R.string.menu_reset, AirfieldStore.BUNDLED)) }, onClick = { menu = false; dialog = EditorDialog.Reset })
+                        // Only an airfield saved on the phone, and never the last one.
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.menu_delete)) },
+                            enabled = airfields.size > 1 && airfields.any { it.icao == state.saved.icao },
+                            onClick = { menu = false; dialog = EditorDialog.Delete },
+                        )
                     }
                 }
                 Box(
@@ -211,37 +220,20 @@ fun AirfieldEditor(
                 }
             }
 
-            EditorMap(state, fix, Modifier.fillMaxWidth().weight(1f))
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                EditorMap(state, fix, background, Modifier.fillMaxSize())
+                MapBackgroundButton(background, Modifier.align(Alignment.TopEnd)) { repo.prefs.setMapBackground(background.next()) }
+                // Points north; tap: north up again. Turn the map with two fingers.
+                Compass(state.upDeg, Modifier.align(Alignment.TopStart)) { state.northUp() }
+            }
 
             SelectionPanel(state, fix, onRunway = { dialog = EditorDialog.Runway(it) }, onAdd = { dialog = EditorDialog.Add })
         }
 
-        if (busy) {
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    CircularProgressIndicator()
-                    Text(stringResource(R.string.searching_osm), color = c(Palette.TEXT), fontSize = 16.sp)
-                    Text(stringResource(R.string.searching_hint), color = c(Palette.MUTED), fontSize = 13.sp)
-                }
-            }
-        }
     }
 
     when (val d = dialog) {
         null -> Unit
-        EditorDialog.Search -> SearchDialog(
-            initial = if (state.draft.icao == AirfieldStore.BUNDLED) "" else state.draft.icao,
-            onDismiss = { dialog = null },
-        ) { code ->
-            dialog = null
-            busy = true
-            scope.launch {
-                val result = withContext(Dispatchers.IO) { runCatching { AirfieldDownloader().download(code) } }
-                busy = false
-                result.onSuccess { state.load(it.config, it.warnings + context.getString(R.string.osm_check)) }
-                    .onFailure { toast((it as? AirfieldImportException)?.message ?: context.getString(R.string.error_detail, it.message ?: "")) }
-            }
-        }
         EditorDialog.Info -> InfoDialog(state, onDismiss = { dialog = null })
         is EditorDialog.Runway -> RunwayDialog(state, d.index, onDismiss = { dialog = null })
         EditorDialog.Add -> AddDialog(onDismiss = { dialog = null }) { kind, atGps ->
@@ -257,28 +249,28 @@ fun AirfieldEditor(
             confirm = stringResource(R.string.discard),
             onDismiss = { dialog = null },
         ) { dialog = null; onClose() }
-        EditorDialog.Reset -> Confirm(
-            title = stringResource(R.string.reset_title, AirfieldStore.BUNDLED),
-            text = stringResource(R.string.reset_text),
-            confirm = stringResource(R.string.reset),
+        EditorDialog.Delete -> Confirm(
+            title = stringResource(R.string.delete_title, state.saved.icao),
+            text = stringResource(R.string.delete_text),
+            confirm = stringResource(R.string.delete),
             onDismiss = { dialog = null },
         ) {
             dialog = null
-            repo.airfields.resetToBundled()
-            val bundled = repo.airfields.current.value.config
-            state.load(bundled, emptyList())
-            state.markSaved(bundled)
+            val icao = state.saved.icao
+            scope.launch {
+                withContext(Dispatchers.IO) { repo.airfields.delete(icao) }
+                onClose()
+            }
         }
     }
 }
 
 private sealed interface EditorDialog {
-    data object Search : EditorDialog
     data object Info : EditorDialog
     data class Runway(val index: Int) : EditorDialog
     data object Add : EditorDialog
     data object Discard : EditorDialog
-    data object Reset : EditorDialog
+    data object Delete : EditorDialog
 }
 
 /** Bottom panel: what is selected and what can be done with it. */
@@ -307,13 +299,19 @@ private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -
             return@Column
         }
 
+        val runway = (s as? Shape.RunwayOutline)?.index ?: (s as? Shape.Threshold)?.index
         val pts = state.draft.points(s)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(state.draft.label(s), color = c(Palette.TEXT), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                if (pts.size > 1) Text(stringResource(R.string.point_n_of, state.vertex + 1, pts.size), color = c(Palette.MUTED), fontSize = 13.sp)
+                val sub = when {
+                    s is Shape.RunwayOutline -> stringResource(R.string.threshold_ref, state.draft.runways[s.index].ends[state.vertex.coerceIn(0, 1)].ref)
+                    pts.size > 1 -> stringResource(R.string.point_n_of, state.vertex + 1, pts.size)
+                    else -> null
+                }
+                sub?.let { Text(it, color = c(Palette.MUTED), fontSize = 13.sp) }
             }
-            RoundButton("✕") { state.select(null) }
+            RoundButton(IconKind.CLOSE) { state.select(null) }
         }
 
         // Survey: drive to the point, then record the phone's position.
@@ -327,45 +325,47 @@ private fun SelectionPanel(state: EditorState, fix: PhoneFix?, onRunway: (Int) -
             else -> stringResource(R.string.place_here)
         }
         Chip(gpsLabel, enabled = usable, accent = true, modifier = Modifier.fillMaxWidth()) {
-            state.edit(state.draft.movePoint(s, state.vertex, fix!!.geo))
-            // Next point, so a survey is: drive, tap, drive, tap…
-            if (pts.size > 1) state.vertex = (state.vertex + 1) % pts.size
+            if (s is Shape.RunwayOutline) {
+                // Runway: place this threshold, then the other one.
+                val end = state.vertex.coerceIn(0, 1)
+                state.edit(state.draft.moveRunwayEnd(s.index, RunwayEnd.entries[end], fix!!.geo))
+                state.vertex = 1 - end
+            } else {
+                state.edit(state.draft.movePoint(s, state.vertex, fix!!.geo))
+                // Next point, so a survey is: drive, tap, drive, tap…
+                if (pts.size > 1) state.vertex = (state.vertex + 1) % pts.size
+            }
         }
 
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (pts.size > 1) {
-                Chip("◀") { state.vertex = (state.vertex - 1 + pts.size) % pts.size }
-                Chip("▶") { state.vertex = (state.vertex + 1) % pts.size }
-            }
-            if (s.kind != Shape.Kind.POINT) {
-                Chip(stringResource(R.string.add_point)) {
-                    val (config, at) = state.draft.insertPoint(s, state.vertex)
-                    state.edit(config)
-                    state.vertex = at
-                }
-                Chip(stringResource(R.string.delete_point), enabled = state.draft.canDeletePoint(s)) { state.edit(state.draft.deletePoint(s, state.vertex)) }
-                Chip(ticked(state.moveWhole, stringResource(R.string.move_all)), accent = state.moveWhole) { state.moveWhole = !state.moveWhole }
-            }
-            val runway = (s as? Shape.RunwayOutline)?.index ?: (s as? Shape.Threshold)?.index
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (runway != null) Chip(stringResource(R.string.properties)) { onRunway(runway) }
+            if (s.kind != Shape.Kind.POINT && s !is Shape.RunwayOutline) {
+                Chip(stringResource(R.string.delete_point), enabled = state.draft.canDeletePoint(s)) { state.edit(state.draft.deletePoint(s, state.vertex)) }
+            }
             Chip(stringResource(R.string.delete), enabled = state.draft.canDelete(s), danger = true) {
                 state.edit(state.draft.delete(s))
                 state.select(null)
             }
         }
         Text(
-            stringResource(if (state.moveWhole) R.string.drag_all else R.string.drag_one),
+            stringResource(
+                when {
+                    s is Shape.RunwayOutline -> R.string.hint_runway
+                    s.kind == Shape.Kind.POINT -> R.string.hint_point
+                    else -> R.string.hint_shape
+                },
+            ),
             color = c(Palette.FAINT), fontSize = 12.sp,
         )
     }
 }
 
 @Composable
-private fun RoundButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+private fun RoundButton(icon: IconKind, enabled: Boolean = true, onClick: () -> Unit) {
     Box(
         Modifier.size(48.dp).clip(CircleShape).background(c(Palette.SURFACE_2)).clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Text(label, color = if (enabled) c(Palette.TEXT) else c(Palette.FAINT), fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+    ) { LineIcon(icon, if (enabled) c(Palette.TEXT) else c(Palette.FAINT)) }
 }
 
 /** "✓ Grass" when selected, "Grass" when not. */
@@ -400,42 +400,15 @@ private fun Chip(
 }
 
 @Composable
-private fun SearchDialog(initial: String, onDismiss: () -> Unit, onSearch: (String) -> Unit) {
-    var code by remember { mutableStateOf(initial) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.search_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.search_text), fontSize = 14.sp)
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { code = it.uppercase().filter { ch -> ch.isLetterOrDigit() }.take(7) },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.code)) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, keyboardType = KeyboardType.Ascii),
-                )
-            }
-        },
-        confirmButton = { TextButton(enabled = code.length >= 3, onClick = { onSearch(code) }) { Text(stringResource(R.string.search)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
-}
-
-@Composable
 private fun InfoDialog(state: EditorState, onDismiss: () -> Unit) {
     val d = state.draft
-    var icao by remember { mutableStateOf(d.icao) }
-    var name by remember { mutableStateOf(d.name) }
     var ele by remember { mutableStateOf(d.elevationM.toInt().toString()) }
     val eleValue = ele.toDoubleOrNull()?.takeIf { it in -500.0..5_000.0 }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.airfield)) },
+        title = { Text("${d.icao} · ${d.name}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(icao, { icao = it.uppercase().filter { ch -> ch.isLetterOrDigit() }.take(7) }, label = { Text(stringResource(R.string.code)) }, singleLine = true)
-                OutlinedTextField(name, { name = it.take(60) }, label = { Text(stringResource(R.string.name)) }, singleLine = true)
                 OutlinedTextField(
                     ele, { ele = it.filter { ch -> ch.isDigit() || ch == '-' }.take(5) },
                     label = { Text(stringResource(R.string.elevation_label)) }, singleLine = true, isError = eleValue == null,
@@ -445,8 +418,8 @@ private fun InfoDialog(state: EditorState, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(enabled = icao.length >= 3 && name.isNotBlank() && eleValue != null, onClick = {
-                state.edit(d.copy(icao = icao, name = name.trim(), elevationM = eleValue!!))
+            TextButton(enabled = eleValue != null, onClick = {
+                state.edit(d.copy(elevationM = eleValue!!))
                 state.warnings = state.warnings.filterNot { it.startsWith(Texts.current.elevationWarningPrefix) }
                 onDismiss()
             }) { Text(stringResource(R.string.ok)) }
@@ -528,4 +501,53 @@ private fun Confirm(title: String, text: String, confirm: String, onDismiss: () 
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirm) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+/** Map background switch, over the map: photo → streets → none. */
+@Composable
+fun MapBackgroundButton(background: MapBackground, modifier: Modifier = Modifier, onClick: () -> Unit) =
+    MapPill(stringResource(background.labelRes), modifier, onClick)
+
+/** A small rounded button over a map. */
+@Composable
+fun MapPill(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier.padding(8.dp)
+            .clip(RoundedCornerShape(50))
+            .background(c(Palette.SURFACE_2).copy(alpha = 0.92f))
+            .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = c(Palette.TEXT), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/**
+ * Compass over a map turned so that [upDeg] (compass direction) is at the top: the red needle
+ * points north. Tapping it turns the map back to north up.
+ */
+@Composable
+fun Compass(upDeg: Double, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val red = c(Palette.RED)
+    val ink = c(Palette.MUTED)
+    Box(
+        modifier.padding(8.dp).size(48.dp).clip(CircleShape)
+            .background(c(Palette.SURFACE_2).copy(alpha = 0.92f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(30.dp)) {
+            rotate(-upDeg.toFloat()) {
+                val cx = size.width / 2
+                val cy = size.height / 2
+                val w = size.width * 0.17f
+                val north = Path().apply { moveTo(cx, 0f); lineTo(cx + w, cy); lineTo(cx - w, cy); close() }
+                val south = Path().apply { moveTo(cx, size.height); lineTo(cx + w, cy); lineTo(cx - w, cy); close() }
+                drawPath(north, red)
+                drawPath(south, ink)
+            }
+        }
+    }
 }

@@ -30,6 +30,16 @@ enum class Theme(@StringRes val labelRes: Int) {
     }
 }
 
+/** What the airfield editor shows under the airfield. */
+enum class MapBackground(@StringRes val labelRes: Int) {
+    PHOTO(R.string.map_photo),
+    PLAN(R.string.map_plan),
+    NONE(R.string.map_none),
+    ;
+
+    fun next() = entries[(ordinal + 1) % entries.size]
+}
+
 /** Per-phone settings. Nothing here is shared with other drivers. */
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("picpiste", Context.MODE_PRIVATE)
@@ -44,6 +54,9 @@ class Prefs(context: Context) {
     private val _zoom = MutableStateFlow(sp.getFloat(KEY_ZOOM_RADIUS, 1_500f).toDouble().coerceIn(MIN_RADIUS_M, MAX_RADIUS_M))
     private val _replaySpeed = MutableStateFlow(sp.getInt(KEY_REPLAY_SPEED, 4))
     private val _theme = MutableStateFlow(runCatching { Theme.valueOf(sp.getString(KEY_THEME, null) ?: "") }.getOrDefault(Theme.AUTO))
+    private val _mapBackground = MutableStateFlow(
+        runCatching { MapBackground.valueOf(sp.getString(KEY_MAP_BACKGROUND, null) ?: "") }.getOrDefault(MapBackground.PHOTO),
+    )
 
     val source: StateFlow<Source> = _source.asStateFlow()
     val sound: StateFlow<Boolean> = _sound.asStateFlow()
@@ -56,6 +69,12 @@ class Prefs(context: Context) {
     val replaySpeed: StateFlow<Int> = _replaySpeed.asStateFlow()
     /** Auto follows the phone's dark theme setting. */
     val theme: StateFlow<Theme> = _theme.asStateFlow()
+    val mapBackground: StateFlow<MapBackground> = _mapBackground.asStateFlow()
+
+    fun setMapBackground(v: MapBackground) {
+        sp.edit().putString(KEY_MAP_BACKGROUND, v.name).apply()
+        _mapBackground.value = v
+    }
 
     fun setTheme(v: Theme) {
         sp.edit().putString(KEY_THEME, v.name).apply()
@@ -109,6 +128,7 @@ class Prefs(context: Context) {
         private const val KEY_ZOOM_RADIUS = "zoomRadius"
         private const val KEY_REPLAY_SPEED = "replaySpeed"
         private const val KEY_THEME = "theme"
+        private const val KEY_MAP_BACKGROUND = "mapBackground"
 
         /** Zoom button presets, metres from the centre to the nearest edge of the map. */
         val ZOOM_RADII_M = listOf(700.0, 1_500.0, 4_000.0)

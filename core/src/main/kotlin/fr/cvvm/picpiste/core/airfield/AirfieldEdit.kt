@@ -4,6 +4,8 @@ import fr.cvvm.picpiste.core.geo.GeoPoint
 import fr.cvvm.picpiste.core.geo.LocalFrame
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.geo.haversineM
+import fr.cvvm.picpiste.core.geo.normalizeDeg
+import fr.cvvm.picpiste.core.geo.angleDiffDeg
 import fr.cvvm.picpiste.core.i18n.Texts
 import java.text.Normalizer
 import kotlin.math.round
@@ -85,10 +87,12 @@ fun AirfieldConfig.label(shape: Shape): String = when (shape) {
 
 fun AirfieldConfig.withPoints(shape: Shape, pts: List<LatLon>): AirfieldConfig = when (shape) {
     Shape.Boundary -> copy(boundary = pts)
-    is Shape.RunwayOutline -> copy(runways = runways.replace(shape.index) { it.copy(outline = pts) })
+    // Runways stay rectangles: their outline follows the thresholds.
+    is Shape.RunwayOutline -> this
     is Shape.Threshold -> copy(
         runways = runways.replace(shape.index) { rw ->
-            rw.copy(ends = rw.ends.replace(shape.end.ordinal) { it.copy(threshold = pts.single()) })
+            val width = rw.widthM()
+            rw.copy(ends = rw.ends.replace(shape.end.ordinal) { it.copy(threshold = pts.single()) }).squared(width)
         },
     )
     is Shape.Apron -> copy(aprons = aprons.replace(shape.index) { pts })
@@ -104,10 +108,118 @@ fun AirfieldConfig.movePoint(shape: Shape, index: Int, to: GeoPoint): AirfieldCo
 /** Moves the whole shape by the same offset as point [index] going to [to]. */
 fun AirfieldConfig.moveShape(shape: Shape, index: Int, to: GeoPoint): AirfieldConfig {
     val from = points(shape)[index]
-    val dLat = to.lat - from[0]
-    val dLon = to.lon - from[1]
-    return withPoints(shape, points(shape).map { listOf(round7(it[0] + dLat), round7(it[1] + dLon)) })
+    return translate(shape, to.lat - from[0], to.lon - from[1])
 }
+
+/** Moves the whole shape (a runway with its thresholds) by [dLat], [dLon] degrees. */
+fun AirfieldConfig.translate(shape: Shape, dLat: Double, dLon: Double): AirfieldConfig {
+    fun t(p: LatLon) = listOf(round7(p[0] + dLat), round7(p[1] + dLon))
+    return when (shape) {
+        is Shape.RunwayOutline, is Shape.Threshold -> {
+            val i = (shape as? Shape.RunwayOutline)?.index ?: (shape as Shape.Threshold).index
+            copy(
+                runways = runways.replace(i) { rw ->
+                    rw.copy(ends = rw.ends.map { it.copy(threshold = t(it.threshold)) }, outline = rw.outline.map(::t))
+                },
+            )
+        }
+        else -> withPoints(shape, points(shape).map(::t))
+    }
+}
+
+/** Width of a runway (metres): its outline's area over the distance between its thresholds. */
+fun RunwayConfig.widthM(): Double {
+    val frame = LocalFrame(ends[0].threshold.geo(), 0.0)
+    val length = frame.toLocal(ends[1].threshold.geo()).length
+    val pts = outline.map { frame.toLocal(it.geo()) }
+    if (pts.size < 3 || length < 1) return DEFAULT_RUNWAY_WIDTH_M
+    val area = kotlin.math.abs(pts.indices.sumOf { i -> pts[i] cross pts[(i + 1) % pts.size] }) / 2
+    return (area / length).coerceIn(MIN_RUNWAY_WIDTH_M, MAX_RUNWAY_WIDTH_M)
+}
+
+/** The runway as a rectangle [width] wide, from one threshold to the other. */
+fun RunwayConfig.squared(width: Double = widthM()): RunwayConfig {
+    val frame = LocalFrame(ends[0].threshold.geo(), 0.0)
+    val a = Vec2(0.0, 0.0)
+    val b = frame.toLocal(ends[1].threshold.geo())
+    val dir = (b - a).normalized()
+    val half = Vec2(-dir.y, dir.x) * (width.coerceIn(MIN_RUNWAY_WIDTH_M, MAX_RUNWAY_WIDTH_M) / 2)
+    val corners = listOf(a - half, b - half, b + half, a + half)
+    // Already that rectangle (to rounding): keep it, so loading and saving change nothing.
+    if (outline.size == 4 && outline.zip(corners).all { (p, c) -> frame.toLocal(p.geo()).distanceTo(c) < 0.05 }) return this
+    return copy(outline = corners.map { latLon(frame.toGeo(it)) })
+}
+
+/** Every runway as a rectangle (older files and OpenStreetMap give any outline). */
+fun AirfieldConfig.squaredRunways(): AirfieldConfig = copy(runways = runways.map { it.squared() })
+
+private fun AirfieldConfig.runwayCentre(index: Int): GeoPoint {
+    val (a, b) = runways[index].ends.map { it.threshold }
+    return GeoPoint((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+}
+
+/** Turns a runway by [degrees] (clockwise, as a compass) around its middle. */
+fun AirfieldConfig.rotateRunway(index: Int, degrees: Double): AirfieldConfig {
+    val frame = LocalFrame(runwayCentre(index), 0.0)
+    val before = runways[index]
+    return copy(
+        runways = runways.replace(index) { rw ->
+            val width = rw.widthM()
+            rw.copy(
+                ends = rw.ends.map { e ->
+                    val v = frame.toLocal(e.threshold.geo())
+                    val turned = frame.directionOf(frame.bearingOf(v) + degrees) * v.length
+                    e.copy(threshold = latLon(frame.toGeo(turned)))
+                },
+            ).squared(width)
+        },
+    ).refsFollow(index, before)
+}
+
+/**
+ * Map directions worth snapping to when turning the map: north up, and every runway straight
+ * up or straight across the screen.
+ */
+fun AirfieldConfig.mapUpSnaps(): List<Double> =
+    listOf(0.0) + runways.flatMap { rw -> listOf(0.0, 90.0, 180.0, 270.0).map { normalizeDeg(rw.headingA() + it) } }
+
+/** [upDeg] moved onto the closest of [snaps] within [toleranceDeg] (north first on a tie), else as is. */
+fun snapMapUp(upDeg: Double, snaps: List<Double>, toleranceDeg: Double): Double =
+    snaps.map { it to angleDiffDeg(it, upDeg) }
+        .filter { it.second <= toleranceDeg }
+        .minByOrNull { it.second }?.first ?: normalizeDeg(upDeg)
+
+/** Heading (degrees) from the A threshold to the B threshold. */
+private fun RunwayConfig.headingA(): Double {
+    val frame = LocalFrame(ends[0].threshold.geo(), 0.0)
+    return frame.bearingOf(frame.toLocal(ends[1].threshold.geo()))
+}
+
+/**
+ * After a runway turned: designators that matched its old heading follow the new one
+ * ("09" → "14", "09L" → "14L"). Ones the driver set otherwise are left alone.
+ */
+private fun AirfieldConfig.refsFollow(index: Int, before: RunwayConfig): AirfieldConfig {
+    val after = runways[index]
+    val oldHeadings = listOf(before.headingA(), normalizeDeg(before.headingA() + 180))
+    val newHeadings = listOf(after.headingA(), normalizeDeg(after.headingA() + 180))
+    val ends = after.ends.mapIndexed { i, e ->
+        val number = e.ref.takeWhile { it.isDigit() }
+        if (number == runwayRef(oldHeadings[i])) e.copy(ref = runwayRef(newHeadings[i]) + e.ref.drop(number.length)) else e
+    }
+    return copy(runways = runways.replace(index) { it.copy(ends = ends) })
+}
+
+fun AirfieldConfig.setRunwayWidth(index: Int, widthM: Double): AirfieldConfig =
+    copy(runways = runways.replace(index) { it.squared(widthM) })
+
+/** Moves one threshold; the runway keeps its width and follows, its numbers too (see [rotateRunway]). */
+fun AirfieldConfig.moveRunwayEnd(index: Int, end: RunwayEnd, to: GeoPoint): AirfieldConfig =
+    withPoints(Shape.Threshold(index, end), listOf(latLon(to))).refsFollow(index, runways[index])
+
+const val DEFAULT_RUNWAY_WIDTH_M = 30.0
+const val MIN_RUNWAY_WIDTH_M = 3.0
+const val MAX_RUNWAY_WIDTH_M = 200.0
 
 /**
  * Adds a point in the middle of the edge after [index] (for a line, before the last point
@@ -193,6 +305,22 @@ fun AirfieldConfig.add(kind: NewShape, at: GeoPoint): Pair<AirfieldConfig, Shape
         NewShape.STARTER -> copy(starter = latLon(at)) to Shape.Starter
         NewShape.BOUNDARY -> copy(boundary = rect(500.0, 150.0)) to Shape.Boundary
     }
+}
+
+/**
+ * An airfield drawn by hand (no ICAO code, or not in OpenStreetMap): one 600 m grass runway
+ * centred on [at], east–west, for the driver to move onto the real one in the editor.
+ */
+fun newAirfield(code: String, name: String, at: GeoPoint, elevationM: Double): AirfieldConfig =
+    AirfieldConfig(
+        icao = code, name = name.trim(), elevationM = elevationM,
+        reference = latLon(at), axisBearingDeg = 90.0, runways = emptyList(), source = "manual",
+    ).add(NewShape.RUNWAY, at).first.normalized()
+
+/** A code for an airfield without one, from its name ("Les Mées" → "LESMEES"), not in [taken]. */
+fun codeFromName(name: String, taken: Set<String>): String {
+    val base = slug(name).replace("-", "").uppercase().take(8).ifEmpty { "TERRAIN" }
+    return generateSequence(1) { it + 1 }.map { if (it == 1) base else base.take(7) + it }.first { it !in taken }
 }
 
 /** Renames a runway (its id follows, kept unique). */

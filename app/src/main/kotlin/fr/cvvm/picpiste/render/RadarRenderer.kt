@@ -19,6 +19,8 @@ import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
+import kotlin.math.sin
+import kotlin.math.cos
 import kotlin.math.atan2
 import kotlin.math.min
 
@@ -48,12 +50,22 @@ class RadarRenderer(private val context: Context) {
     private var runwayLabels: List<Pair<Vec2, String>> = emptyList()
     private var labelsForScale = -1f
 
+    // Map orientation: the local frame turned by the airfield's setting (north up by default).
+    private var rotCos = 1.0
+    private var rotSin = 0.0
+
     private fun use(a: Airfield) {
         if (a === airfield) return
         airfield = a
         fieldCentre = a.centre
         labelsForScale = -1f
+        val r = Math.toRadians(a.mapRotationDeg)
+        rotCos = cos(r)
+        rotSin = sin(r)
     }
+
+    /** A local vector as drawn (y up), turned to the map orientation. */
+    private fun turned(v: Vec2) = Vec2(v.x * rotCos - v.y * rotSin, v.x * rotSin + v.y * rotCos)
 
     private val condensedBold = Typeface.create("sans-serif-condensed", Typeface.BOLD)
     private val sans = Typeface.create("sans-serif", Typeface.NORMAL)
@@ -74,8 +86,8 @@ class RadarRenderer(private val context: Context) {
     private var cy = 0f
     private var scale = 1f
 
-    private fun sx(v: Vec2) = cx + ((v.x - fieldCentre.x) * scale).toFloat()
-    private fun sy(v: Vec2) = cy - ((v.y - fieldCentre.y) * scale).toFloat()
+    private fun sx(v: Vec2) = cx + (turned(v - fieldCentre).x * scale).toFloat()
+    private fun sy(v: Vec2) = cy - (turned(v - fieldCentre).y * scale).toFloat()
 
     /**
      * @param radiusM metres from the centre to the nearest edge.
@@ -221,16 +233,20 @@ class RadarRenderer(private val context: Context) {
         }
     }
 
-    /** The starter: a plain box like the hangars, aligned with the runways (local axes = screen axes). */
+    /** The starter: a plain box like the hangars, aligned with the main runway. */
     private fun drawStarter(canvas: Canvas, p: Vec2) {
         val halfLong = maxOf((STARTER_LENGTH_M / 2 * scale).toFloat(), 3f)
         val halfWide = maxOf((STARTER_WIDTH_M / 2 * scale).toFloat(), 2f)
         rect.set(sx(p) - halfLong, sy(p) - halfWide, sx(p) + halfLong, sy(p) + halfWide)
+        canvas.save()
+        // The local x axis (main runway) is turned by the map orientation; screen y points down.
+        canvas.rotate(-Math.toDegrees(atan2(rotSin, rotCos)).toFloat(), sx(p), sy(p))
         fill.color = colors.HANGAR
         canvas.drawRect(rect, fill)
         stroke.color = colors.HANGAR_EDGE
         stroke.strokeWidth = 1f
         canvas.drawRect(rect, stroke)
+        canvas.restore()
     }
 
     private fun drawTraffic(canvas: Canvas, snap: Snapshot, dp: Float, selected: String?) {
@@ -276,7 +292,7 @@ class RadarRenderer(private val context: Context) {
     private fun drawIcon(canvas: Canvas, a: AircraftState, x: Float, y: Float, color: Int, dp: Float) {
         val size = (if (a.status.isAirborne || a.status == FlightStatus.TAKEOFF) 26 else 22) * dp
         val angle = a.fix.trackDeg?.let { track ->
-            val d = airfield!!.frame.directionOf(track)
+            val d = turned(airfield!!.frame.directionOf(track))
             Math.toDegrees(atan2(d.x, d.y)).toFloat() // screen y is flipped: up = +y local
         } ?: 0f
         canvas.save()
@@ -365,7 +381,7 @@ class RadarRenderer(private val context: Context) {
         fill.alpha = 230
         canvas.drawRoundRect(rect, 8 * dp, 8 * dp, fill)
         fill.alpha = 255
-        val d = airfield!!.frame.directionOf(0.0)
+        val d = turned(airfield!!.frame.directionOf(0.0))
         val angle = Math.toDegrees(atan2(d.x, d.y)).toFloat()
         canvas.save()
         canvas.translate(x + 16 * dp, y + 16 * dp)

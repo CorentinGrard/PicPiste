@@ -86,7 +86,8 @@ class AirfieldDownloader(
         }
     }
 
-    private fun elevationAt(lat: Double, lon: Double): Double? {
+    /** Ground elevation (metres) from Open-Meteo, or null. Network call: not on the main thread. */
+    fun elevationAt(lat: Double, lon: Double): Double? {
         val url = String.format(Locale.ROOT, "%s?latitude=%.6f&longitude=%.6f", ELEVATION_URL, lat, lon)
         val o = Json.parseToJsonElement(get(url)).jsonObject
         return (o["elevation"] as? JsonArray)?.firstOrNull()?.jsonPrimitive?.doubleOrNull

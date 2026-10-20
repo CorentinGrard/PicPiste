@@ -153,7 +153,7 @@ object OsmImport {
             hangars = hangars,
             windsocks = windsocks,
             source = "OpenStreetMap contributors (ODbL)",
-        ).normalized()
+        ).normalized().squaredRunways()
         return ImportResult(config, warnings, elevationMissing = elevation == null)
     }
 
