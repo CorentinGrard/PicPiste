@@ -87,6 +87,17 @@ class StatusEngine(private val airfield: Airfield) {
         }
 
         val climb = fix.climbMs ?: derivedClimb(fix, history)
+        // Already in tow: stay so while the pair holds together. A weak second on the vario or a
+        // missed OGN beacon must not flick it to "circuit" and back. Released: the glider turns
+        // away from the tug, the tug dives back down.
+        if (previous == FlightStatus.TOW) {
+            if (type == AircraftType.TOW_PLANE && climb != null && climb > 0.0) {
+                return Classification(FlightStatus.TOW)
+            }
+            if (type != AircraftType.TOW_PLANE && tugs.any { stillTowing(fix, it) }) {
+                return Classification(FlightStatus.TOW)
+            }
+        }
         if (climb != null && climb > CLIMBING_MS) {
             if (type == AircraftType.TOW_PLANE && previous in setOf(null, FlightStatus.TAKEOFF, FlightStatus.TOW, FlightStatus.ON_GROUND)) {
                 return Classification(FlightStatus.TOW)
@@ -151,6 +162,14 @@ class StatusEngine(private val airfield: Airfield) {
     private fun derivedClimb(fix: Fix, history: List<Fix>): Double? {
         val ref = history.lastOrNull { fix.timeMs - it.timeMs >= 5_000 } ?: return null
         return (fix.altitudeM - ref.altitudeM) / ((fix.timeMs - ref.timeMs) / 1000.0)
+    }
+
+    /** Glider and tug still flying as a pair, allowing for an older tug fix (it moved since). */
+    private fun stillTowing(glider: Fix, tug: Fix): Boolean {
+        val ageS = abs(tug.timeMs - glider.timeMs) / 1000.0
+        return ageS < 20 &&
+            glider.pos.distanceTo(tug.pos) < TOW_MAX_DIST_M + ageS * tug.groundSpeedKmh / 3.6 &&
+            abs(glider.altitudeM - tug.altitudeM) < TOW_MAX_ALT_DIFF_M
     }
 
     private fun isTowing(glider: Fix, tug: Fix): Boolean =
