@@ -28,9 +28,9 @@ class StatusEngine(private val airfield: Airfield) {
         const val FINAL_MAX_AGL_M = 200.0
         const val FINAL_MAX_DIST_M = 2_500.0
         const val FINAL_MAX_TRACK_DIFF = 30.0
+        const val FINAL_SMOOTHING_MS = 20_000L
         const val CIRCUIT_MAX_DIST_M = 3_000.0
         const val CIRCUIT_MAX_AGL_M = 350.0
-        const val RUNWAY_MARGIN_M = 15.0
         const val TOW_MAX_DIST_M = 300.0
         const val TOW_MAX_ALT_DIFF_M = 120.0
     }
@@ -49,7 +49,7 @@ class StatusEngine(private val airfield: Airfield) {
     ): Classification {
         val gs = fix.groundSpeedKmh
         val nearGround = fix.aglM < GROUND_AGL_M
-        val onRunway = airfield.runways.firstOrNull { it.outline.containsWithin(fix.pos, RUNWAY_MARGIN_M) }
+        val onRunway = airfield.runwayUnder(fix.pos, fix.trackDeg)
         val wasFlying = previous?.isAirborne == true
 
         // Rolling on a runway between the takeoff and the stopped speeds counts as a takeoff, not
@@ -70,12 +70,16 @@ class StatusEngine(private val airfield: Airfield) {
                 else -> Classification(FlightStatus.TAKEOFF, onRunway, end)
             }
         }
+        if (nearGround && previous == FlightStatus.TAKEOFF && gs >= TAKEOFF_MIN_KMH) {
+            // Past the end of the runway, still low: the takeoff goes on (the tracker keeps its runway).
+            return Classification(FlightStatus.TAKEOFF)
+        }
         if (nearGround && !wasFlying) {
             return Classification(FlightStatus.ON_GROUND) // fast on the ground off the runways: towed or taxiing
         }
         if (nearGround) {
             // Low and fast but not over a runway: short final, or rolling out just off the mapped outline.
-            finalApproach(fix, fix.climbMs)?.let { return it }
+            finalApproach(fix, fix.climbMs, history)?.let { return it }
             if (previous == FlightStatus.FINAL) {
                 val (rw, _) = airfield.nearestRunway(fix.pos)
                 return Classification(FlightStatus.FINAL, rw, endFromTrack(rw, fix.trackDeg), 0.0)
@@ -95,7 +99,7 @@ class StatusEngine(private val airfield: Airfield) {
             }
         }
 
-        finalApproach(fix, climb)?.let { return it }
+        finalApproach(fix, climb, history)?.let { return it }
 
         val dist = fix.pos.length
         if (dist < CIRCUIT_MAX_DIST_M && fix.aglM < CIRCUIT_MAX_AGL_M) {
@@ -104,22 +108,34 @@ class StatusEngine(private val airfield: Airfield) {
         return Classification(FlightStatus.AIRBORNE)
     }
 
-    private fun finalApproach(fix: Fix, climb: Double?): Classification? {
+    /**
+     * On final towards one of the runways: aligned with it, in the approach cone, low and not
+     * climbing. Of the runways that fit, the one most centred in its cone, averaged over the
+     * last [FINAL_SMOOTHING_MS] so that GPS noise does not swap parallel runways back and forth.
+     */
+    private fun finalApproach(fix: Fix, climb: Double?, history: List<Fix>): Classification? {
         if (fix.aglM > FINAL_MAX_AGL_M) return null
         if (climb != null && climb > 0.5) return null
         val track = fix.trackDeg ?: return null
+        val recent = history.filter { fix.timeMs - it.timeMs <= FINAL_SMOOTHING_MS } + fix
         var best: Classification? = null
-        var bestLateral = Double.MAX_VALUE
+        var bestScore = Double.MAX_VALUE
         for (rw in airfield.runways) for (end in RunwayEnd.entries) {
             if (angleDiffDeg(track, rw.heading(end)) > FINAL_MAX_TRACK_DIFF) continue
-            val rel = fix.pos - rw.threshold(end)
             val dir = rw.landingDir(end)
-            val s = rel dot dir // negative before the threshold
+            val s = (fix.pos - rw.threshold(end)) dot dir // negative before the threshold
             if (s < -FINAL_MAX_DIST_M || s > rw.length * 0.6) continue
-            val lateral = abs(dir cross rel)
+            val lateral = abs(dir cross (fix.pos - rw.threshold(end)))
             val maxLateral = 120 + max(0.0, -s) * 0.27 // about ±15° cone from the threshold
-            if (lateral > maxLateral || lateral >= bestLateral) continue
-            bestLateral = lateral
+            if (lateral > maxLateral) continue
+            // How far off the centreline, relative to the cone width there, on average over the
+            // fixes already lined up with this runway (not the base turn before).
+            val score = recent.filter { f -> f.trackDeg?.let { angleDiffDeg(it, rw.heading(end)) <= FINAL_MAX_TRACK_DIFF } ?: false }.map { f ->
+                val rel = f.pos - rw.threshold(end)
+                abs(dir cross rel) / (120 + max(0.0, -(rel dot dir)) * 0.27)
+            }.average()
+            if (score >= bestScore) continue
+            bestScore = score
             val speedMs = max(fix.groundSpeedKmh, 40.0) / 3.6
             best = Classification(FlightStatus.FINAL, rw, end, max(0.0, -s) / speedMs)
         }

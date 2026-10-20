@@ -142,13 +142,16 @@ object AlertEngine {
 
         val t = Texts.current
         val noun = threat.identity.type.label
-        // Only the direction: from the air we cannot tell parallel runways apart.
-        val what = when (threat.status) {
-            FlightStatus.FINAL -> t.onFinal(noun, threat.direction)
-            FlightStatus.TAKEOFF -> t.takingOff(threat.direction)
+        // The most likely runway ("23R"), said in words ("23 right"). Which zones it matters in
+        // still goes by the whole group of parallel runways (Airfield.protects).
+        fun what(ref: String?) = when (threat.status) {
+            FlightStatus.FINAL -> t.onFinal(noun, ref)
+            FlightStatus.TAKEOFF -> t.takingOff(ref)
             else -> t.inCircuit(noun)
         }
-        val title = if (threat.signalLost) t.signalLost(what) else what
+        fun lost(s: String) = if (threat.signalLost) t.signalLost(s) else s
+        val title = lost(what(threat.runwayRef))
+        val spoken = lost(what(threat.spokenRunwayRef))
         val etaS = threat.etaS?.takeIf { threat.status != FlightStatus.TAKEOFF }
         val level = when {
             threat.status != FlightStatus.CIRCUIT -> AlertLevel.DANGER
@@ -164,7 +167,7 @@ object AlertEngine {
             title = title,
             detail = t.clearRunway(who),
             eta = shownEta?.let(::formatEta) ?: "",
-            speech = listOfNotNull(t.caution, title, shownEta?.let(t::spokenEta)).joinToString(". ") + ".",
+            speech = listOfNotNull(t.caution, spoken, shownEta?.let(t::spokenEta)).joinToString(". ") + ".",
         )
     }
 

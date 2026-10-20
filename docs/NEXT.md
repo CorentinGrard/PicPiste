@@ -15,7 +15,8 @@
 - Modèle de terrain générique : `RunwayEnd` A/B (A = plus petit numéro), numéros libres par
   extrémité (`RunwayConfig.ends`), format JSON v2 (`formatVersion`).
 - Statuts et alertes : chaque aéronef est comparé à toutes les pistes et aux deux sens
-  (`StatusEngine.finalApproach`) ; texte « Finale <sens> » sans L/C/R (`Runway.direction`).
+  (`StatusEngine.finalApproach`) ; texte « Finale 23D » avec la piste la plus probable (moyenne sur 20 s), lettres G/D en
+  français (`Texts.runwayRef`).
 - Zone piste : bandes d'herbe seulement entre pistes **parallèles à l'axe principal** et à
   moins de 150 m (`Airfield.runwayZone`).
 - Radar : numéros par groupe de pistes parallèles (`RadarRenderer.runwayLabels`).

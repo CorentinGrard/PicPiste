@@ -21,6 +21,9 @@ class TrafficTracker(
     private val engine = StatusEngine(airfield)
     private val tracks = LinkedHashMap<String, Track>()
 
+    /** Field altitude as the aircraft see it (see [ElevationCalibration]); heights are above it. */
+    val calibration = ElevationCalibration(airfield)
+
     private class Track(val address: String) {
         val fixes = ArrayDeque<Fix>()
         var type = AircraftType.UNKNOWN
@@ -50,12 +53,14 @@ class TrafficTracker(
         track.stealth = b.stealth
 
         val geo = GeoPoint(b.lat, b.lon)
+        val pos = airfield.frame.toLocal(geo)
+        calibration.onFix(b.address, pos, b.altitudeM, b.groundSpeedKmh)
         val fix = Fix(
             timeMs = receivedAtMs,
-            pos = airfield.frame.toLocal(geo),
+            pos = pos,
             geo = geo,
             altitudeM = b.altitudeM,
-            aglM = b.altitudeM - airfield.elevationM,
+            aglM = b.altitudeM - calibration.fieldAltitudeM,
             groundSpeedKmh = b.groundSpeedKmh,
             trackDeg = b.trackDeg,
             climbMs = b.climbMs,
@@ -78,6 +83,10 @@ class TrafficTracker(
         }
         if (c.status == FlightStatus.LANDED && previous != FlightStatus.LANDED) {
             recordLanding(track, fix)
+        } else if (c.status == FlightStatus.LANDED && fix.groundSpeedKmh > MOVING_KMH) {
+            // Taxiing after landing: say where it is now, so a glider back on the taxiway or
+            // the apron no longer shows as on the runway.
+            whereLanded(track, fix)
         }
         if (c.status == FlightStatus.TAKEOFF || c.status == FlightStatus.TOW) {
             track.landedAtMs = null
@@ -96,13 +105,29 @@ class TrafficTracker(
 
     private fun recordLanding(track: Track, fix: Fix) {
         track.landedAtMs = fix.timeMs
+        // Just stopped after the landing roll: the runway it rolled on, even near its edge.
         val (rw, lateral) = airfield.nearestRunway(fix.pos)
         val onIt = rw.outline.containsWithin(fix.pos, 30.0) || lateral < 40
-        val end = track.lastFinal?.takeIf { it.first === rw }?.second
-            ?: engine.endFromTrack(rw, track.fixes.lastOrNull()?.trackDeg)
-            ?: RunwayEnd.B
-        track.landedRunway = if (onIt) rw else null
-        track.landedThird = if (onIt) rw.third(fix.pos, end) else null
+        setLanded(track, if (onIt) rw else null, fix)
+    }
+
+    private fun whereLanded(track: Track, fix: Fix) {
+        setLanded(track, airfield.runwayUnder(fix.pos, fix.trackDeg), fix)
+    }
+
+    private fun setLanded(track: Track, rw: Runway?, fix: Fix) {
+        track.landedRunway = rw
+        track.landedThird = rw?.let {
+            val end = track.lastFinal?.takeIf { f -> f.first === rw }?.second
+                ?: engine.endFromTrack(rw, track.fixes.lastOrNull()?.trackDeg)
+                ?: RunwayEnd.B
+            rw.third(fix.pos, end)
+        }
+    }
+
+    private companion object {
+        /** Faster than this on the ground, a landed aircraft is taxiing (or being pulled). */
+        const val MOVING_KMH = 5.0
     }
 
     /**

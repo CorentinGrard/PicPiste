@@ -173,6 +173,14 @@ class Airfield(val config: AirfieldConfig) {
 
     fun runway(id: String): Runway? = runways.firstOrNull { it.id == id }
 
+    /**
+     * The runway an aircraft on the ground at [p] is on, or null (taxiway, apron, grass).
+     * Where runways cross, the one it rolls along. See [Runway.hasOnIt].
+     */
+    fun runwayUnder(p: Vec2, trackDeg: Double?): Runway? =
+        runways.filter { it.hasOnIt(p, trackDeg) }
+            .minWithOrNull(compareBy({ if (trackDeg != null && it.alignedWith(trackDeg)) 0 else 1 }, { abs(it.lateral(p)) }))
+
     /** The runway whose centreline is closest to [p], with that lateral distance. */
     fun nearestRunway(p: Vec2): Pair<Runway, Double> =
         runways.map { it to abs(it.lateral(p)) }.minBy { it.second }
@@ -259,6 +267,32 @@ class Runway(val config: RunwayConfig, frame: LocalFrame) {
 
     /** Half the runway width, from its outline. */
     val halfWidth: Double = outline.points.maxOfOrNull { abs(lateral(it)) } ?: 15.0
+
+    /** Rolling along the runway, either way (within 30°). */
+    fun alignedWith(trackDeg: Double): Boolean =
+        minOf(angleDiffDeg(trackDeg, headingA), angleDiffDeg(trackDeg, headingB)) < ALIGNED_DEG
+
+    /**
+     * An aircraft on the ground at [p] is on this runway: inside the outline, with a margin for
+     * GPS error on narrow runways only (a grass strip mapped 80 m wide needs none). Near either
+     * end it must also roll along the runway: taxiways often skirt the ends, and a mapped strip
+     * may run past the part really used.
+     */
+    fun hasOnIt(p: Vec2, trackDeg: Double?): Boolean {
+        val margin = (GPS_MARGIN_M - (halfWidth - NARROW_HALF_WIDTH_M)).coerceIn(0.0, GPS_MARGIN_M)
+        if (!outline.containsWithin(p, margin)) return false
+        val s = along(p)
+        if (s > END_ZONE_M && s < length - END_ZONE_M) return true
+        return trackDeg == null || alignedWith(trackDeg)
+    }
+
+    companion object {
+        const val GPS_MARGIN_M = 15.0
+        const val NARROW_HALF_WIDTH_M = 15.0
+        /** Within this distance of an end, only an aircraft rolling along the runway is on it. */
+        const val END_ZONE_M = 60.0
+        const val ALIGNED_DEG = 30.0
+    }
 
     /** The runway rectangle stretched [m] beyond each threshold. */
     fun extended(m: Double): Polygon {

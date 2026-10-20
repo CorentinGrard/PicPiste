@@ -17,6 +17,7 @@ import fr.cvvm.picpiste.core.cart.formatEta
 import fr.cvvm.picpiste.core.geo.Polygon
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
+import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
 import kotlin.math.sin
@@ -49,6 +50,7 @@ class RadarRenderer(private val context: Context) {
     private var fieldCentre = Vec2(0.0, 0.0)
     private var runwayLabels: List<Pair<Vec2, String>> = emptyList()
     private var labelsForScale = -1f
+    private var labelsForRotation = 2.0
 
     // Map orientation: the local frame turned by the airfield's setting (north up by default).
     private var rotCos = 1.0
@@ -200,9 +202,10 @@ class RadarRenderer(private val context: Context) {
             text.textSize = 13 * dp
             text.color = colors.MUTED
             text.textAlign = Paint.Align.CENTER
-            if (labelsForScale != scale) {
-                runwayLabels = runwayLabels(airfield, (14 * dp / scale).toDouble())
+            if (labelsForScale != scale || labelsForRotation != rotCos) {
+                runwayLabels = runwayLabels(airfield, dp)
                 labelsForScale = scale
+                labelsForRotation = rotCos
             }
             for ((p, label) in runwayLabels) canvas.drawText(label, sx(p), sy(p) + 4.5f * dp, text)
         }
@@ -211,27 +214,42 @@ class RadarRenderer(private val context: Context) {
     }
 
     /**
-     * Parallel runways share their numbers: one "14" and one "32" beside the whole group,
-     * direction only (no L/R). Crossing runways each get their own pair.
+     * Each runway end gets its full designator just past its threshold ("05G", "23D"). Labels
+     * that would overlap on screen (parallel runways close together, zoomed out) are merged
+     * into one per direction, without the letter ("05"), in the middle of them.
      */
-    private fun runwayLabels(airfield: Airfield, offM: Double): List<Pair<Vec2, String>> {
-        val groups = mutableListOf<MutableList<Runway>>()
-        for (rw in airfield.runways) {
-            groups.firstOrNull { angleDiffDeg(it[0].headingA, rw.headingA) < 15 }?.add(rw)
-                ?: groups.add(mutableListOf(rw))
+    private fun runwayLabels(airfield: Airfield, dp: Float): List<Pair<Vec2, String>> {
+        val texts = Texts.current
+        val h = 13 * dp
+        val pad = 3 * dp
+        data class Label(val pos: Vec2, val full: String, val direction: String)
+        val labels = airfield.runways.flatMap { rw ->
+            RunwayEnd.entries.map { end ->
+                // Before the threshold, as seen landing on it: about one label height away.
+                val text = texts.runwayRef(rw.ref(end))
+                val offM = ((text.length * 4 + 10) * dp / scale).toDouble()
+                Label(rw.threshold(end) - rw.landingDir(end) * offM, text, rw.direction(end))
+            }
         }
-        return groups.flatMap { g ->
-            val dir = g[0].dirA
-            val normal = Vec2(-dir.y, dir.x)
-            val mid = g.map { (it.thresholdA + it.thresholdB) * 0.5 }.reduce { a, b -> a + b } * (1.0 / g.size)
-            val across = mid dot normal
-            fun onAxis(p: Vec2) = dir * (p dot dir) + normal * across
-            val a = onAxis(g.minBy { it.thresholdA dot dir }.thresholdA) - dir * offM
-            val b = onAxis(g.maxBy { it.thresholdB dot dir }.thresholdB) + dir * offM
-            listOf(
-                a to g[0].direction(RunwayEnd.A),
-                b to g[0].direction(RunwayEnd.B),
-            )
+        fun box(l: Label, text: String): RectF {
+            val w = this.text.measureText(text) / 2 + pad
+            val x = sx(l.pos)
+            val y = sy(l.pos)
+            return RectF(x - w, y - h / 2 - pad, x + w, y + h / 2 + pad)
+        }
+        // Groups of labels that touch, transitively.
+        val boxes = labels.map { box(it, it.full) }
+        val group = IntArray(labels.size) { it }
+        fun root(i: Int): Int = if (group[i] == i) i else root(group[i]).also { group[i] = it }
+        for (i in labels.indices) for (j in i + 1 until labels.size) {
+            if (RectF.intersects(boxes[i], boxes[j])) group[root(i)] = root(j)
+        }
+        return labels.indices.groupBy(::root).values.flatMap { members ->
+            if (members.size == 1) return@flatMap listOf(labels[members[0]].pos to labels[members[0]].full)
+            members.groupBy { labels[it].direction }.map { (direction, same) ->
+                val mid = same.map { labels[it].pos }.reduce { a, b -> a + b } * (1.0 / same.size)
+                mid to direction
+            }
         }
     }
 

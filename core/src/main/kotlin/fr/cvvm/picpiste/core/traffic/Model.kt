@@ -86,8 +86,11 @@ data class AircraftState(
 ) {
     val address get() = identity.address
 
-    /** Landing or takeoff direction, without the L/R letter: "22", "14". */
-    val direction: String? get() = runwayEnd?.let { end -> runway?.direction(end) }
+    /** Landing or takeoff runway end, as written in the phone language: "22", "14G". */
+    val runwayRef: String? get() = runwayEnd?.let { end -> runway?.ref(end) }?.let(Texts.current::runwayRef)
+
+    /** The same, said aloud: "14 gauche". */
+    val spokenRunwayRef: String? get() = runwayEnd?.let { end -> runway?.ref(end) }?.let(Texts.current::spokenRunwayRef)
 
     /** "Final 22", "Circuit", "Landed"… */
     val statusText: String
@@ -95,14 +98,15 @@ data class AircraftState(
 
     private val liveStatusText: String
         get() = when (status) {
-            // Direction only ("Finale 14", not "14L"): parallel runways are too close to tell apart from the air.
-            FlightStatus.FINAL, FlightStatus.TAKEOFF -> direction?.let { "${status.label} $it" } ?: status.label
+            // The most likely runway, letter included ("Finale 14G"): see StatusEngine.finalApproach.
+            FlightStatus.FINAL, FlightStatus.TAKEOFF -> runwayRef?.let { "${status.label} $it" } ?: status.label
             FlightStatus.LANDED -> landedText ?: status.label
             else -> status.label
         }
 
     val landedText: String?
         get() = landedRunway?.let { rw -> "${rw.name}, ${landedThird?.label ?: Texts.current.onTheRunway}" }
+            ?: landedAtMs?.let { Texts.current.offTheRunway }
 }
 
 /** [retryInMs]: when offline, how long before the next attempt (null while connecting). */

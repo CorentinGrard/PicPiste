@@ -20,6 +20,25 @@ sealed class Texts(val locale: Locale) {
     abstract fun aircraftType(t: AircraftType): String
     abstract fun third(t: RunwayThird): String
     abstract val onTheRunway: String
+    /** A landed aircraft no longer on any runway (taxiway, apron, grass). */
+    abstract val offTheRunway: String
+
+    /** Letters of parallel runways (L, C, R), in the phone language: "05L" → "05G" in French. */
+    protected abstract val sideLetters: Map<Char, String>
+    /** The same letters said aloud: "23R" → "23 right". */
+    protected abstract val sideWords: Map<Char, String>
+
+    /** A designator as written in this language: "05L", or "05G" in French. */
+    fun runwayRef(ref: String): String = sideOf(ref)?.let { (num, side) -> num + (sideLetters[side] ?: side.toString()) } ?: ref
+
+    /** A designator said aloud: "23 droite"; "23" without a letter. */
+    fun spokenRunwayRef(ref: String): String = sideOf(ref)?.let { (num, side) -> num + " " + (sideWords[side] ?: side.toString()) } ?: ref
+
+    private fun sideOf(ref: String): Pair<String, Char>? {
+        val num = ref.takeWhile { it.isDigit() }
+        val rest = ref.drop(num.length)
+        return if (num.isNotEmpty() && rest.length == 1 && rest[0].uppercaseChar() in "LCR") num to rest[0].uppercaseChar() else null
+    }
 
     // Connection
     abstract val connecting: String
@@ -130,6 +149,9 @@ sealed class Texts(val locale: Locale) {
         }
 
         override val onTheRunway = "on the runway"
+        override val offTheRunway = "clear of the runway"
+        override val sideLetters = mapOf('L' to "L", 'C' to "C", 'R' to "R")
+        override val sideWords = mapOf('L' to "left", 'C' to "centre", 'R' to "right")
 
         override val connecting = "Connecting…"
         override val connected = "OGN connected"
@@ -232,6 +254,9 @@ sealed class Texts(val locale: Locale) {
         }
 
         override val onTheRunway = "sur la piste"
+        override val offTheRunway = "piste dégagée"
+        override val sideLetters = mapOf('L' to "G", 'C' to "C", 'R' to "D")
+        override val sideWords = mapOf('L' to "gauche", 'C' to "centre", 'R' to "droite")
 
         override val connecting = "Connexion…"
         override val connected = "OGN connecté"

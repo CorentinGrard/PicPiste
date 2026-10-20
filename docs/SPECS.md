@@ -99,10 +99,18 @@ Pour « En finale » et « Dans le circuit » : **ETA estimée** (distance / vit
 **sens d'atterrissage** d'après la route suivie : l'extrémité de piste (seuil) vers laquelle
 l'aéronef est aligné, quelle que soit l'orientation de la piste. Chaque aéronef est rapproché
 de **toutes** les pistes et de leurs deux sens ; on garde la mieux alignée.
-- Pistes **parallèles** (quelques dizaines de mètres d'écart) : on ne devine pas laquelle
-  depuis l'air ; on affiche le **sens seul**, sans la lettre L/C/R (« Finale <numéro> »).
+- Pistes **parallèles** : on affiche la **plus probable**, lettre comprise (« Finale 23D ») :
+  celle où l'aéronef est le mieux centré dans le cône d'approche, en moyenne sur les 20 s
+  déjà alignées (pas de saut d'une piste à l'autre au bruit GPS près). Les alertes golfette,
+  elles, valent pour tout le groupe de pistes parallèles (on peut se tromper de piste).
+- Lettres en français : G / D / C (« 05G »), L / R / C en anglais ; dans le fichier : L/C/R.
+  À voix haute : « 23 droite ».
 - Pistes **non parallèles** (croisées, en V) : le sens suffit à les distinguer.
-- Aéronef posé : la piste est connue (position au sol) : « <nom de piste>, fin de piste ».
+- Au sol, **sur la piste** = dans son contour (marge GPS de 15 m seulement pour les pistes
+  étroites, aucune pour une bande d'herbe large) ; à moins de 60 m d'un bout, seulement en
+  roulant dans l'axe (les taxiways contournent souvent les bouts de piste).
+- Aéronef posé : la piste est connue (position au sol) : « <nom de piste>, fin de piste » ;
+  dès qu'il roule hors de la piste : « piste dégagée ».
 
 ### 4.1a Trafic affiché
 **Tout le trafic OGN** autour du terrain, pas seulement le club : planeurs, remorqueurs,
@@ -115,7 +123,10 @@ visiteurs, ULM… chacun avec une icône par type et sa **position en direct**.
   circuit, finale, décollage, remorquage, posés. Pas de statut « en vol local » ni
   « vache » : ce qui est plus haut ou plus loin n'est pas affiché.
 - AGL = altitude GPS de la trame − altitude du terrain (terrain quasi plat à l'échelle
-  du circuit, pas besoin de modèle de relief en v1).
+  du circuit, pas besoin de modèle de relief en v1). L'altitude du terrain est **calibrée**
+  sur les aéronefs arrêtés sur le terrain (médiane), car les altitudes OGN et celle du
+  fichier (OSM, modèle de terrain) diffèrent souvent de plusieurs dizaines de mètres
+  (≈ 20 m à LFXB) ; sans aéronef arrêté, celle du fichier.
 
 ### 4.1b Golfette sur piste : indication et alerte
 La golfette circule **partout** sur le terrain. La **zone piste** est l'union de toutes les
@@ -158,8 +169,9 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 - **Liste « Posés »** : derniers planeurs posés, avec position (début/milieu/fin de piste) → tap = position sur le radar.
 - **Vue radar** (écran principal, v1) : vue de dessus **fixe**, **orientée selon l'axe de
   la piste principale** (la plus longue ; pas de rotation pendant la conduite). Les autres
-  pistes sont dessinées avec leur propre orientation. Numéros de piste à chaque bout de
-  chaque groupe de pistes parallèles (sens seul, sans L/C/R). Fond de carte épuré : pistes herbe et revêtues,
+  pistes sont dessinées avec leur propre orientation. Numéro complet devant chaque seuil (« 05G »,
+  « 23D ») ; quand des numéros se chevauchent à l'écran (pistes parallèles proches, zoom
+  large), un seul par sens, sans lettre (« 05 »). Fond de carte épuré : pistes herbe et revêtues,
   taxiways, hangars, club-house et zone du starter ; golfette au centre ou position réelle, aéronefs en icônes colorées par
   statut avec étiquette (CN). Zoom au pincement (300 m à 6 km), plus un bouton qui passe d'un niveau préréglé à l'autre (700 m, 1,5 km, 4 km).
 
