@@ -1,89 +1,70 @@
 # PicPiste
 
-App Android / Android Auto pour suivre les planeurs du club depuis la golfette (données FLARM via OGN).
+**Le radar des planeurs pour la golfette du club.**
 
-Spécifications : [docs/SPECS.md](docs/SPECS.md)
+PicPiste montre en direct où sont les planeurs autour du terrain, qui va se poser et où,
+et prévient le conducteur de la golfette quand il est sur une piste alors qu'un planeur
+arrive. Sur l'écran Android Auto de la golfette, ou simplement sur le téléphone.
 
-## Structure
+> PicPiste est une **aide à l'information**, pas un outil de contrôle aérien.
+> Regarder dehors reste la règle.
 
-- `core/` — Kotlin pur, sans Android, testé : flux OGN (APRS), base OGN DDB, terrain (tout
-  terrain : choisi à l'accueil, import OpenStreetMap, édition ; LFNL intégré),
-  moteur de statuts (décollage, remorquage, retour, circuit, finale, posé), golfette sur piste,
-  alertes, trafic de démo.
-- `app/` — l'app Android : écran téléphone (Compose) et écran Android Auto (catégorie
-  navigation, radar dessiné sur la surface).
-- `tools/osm_to_airfield.py` — génère `core/src/main/resources/airfields/LFNL.json` (le
-  terrain intégré à l'app) depuis un export OpenStreetMap (Overpass).
+## Ce que fait PicPiste
 
-## Construire et installer
+- **Radar en direct** : tous les planeurs, remorqueurs et autres aéronefs équipés FLARM
+  autour du terrain, mis à jour toutes les quelques secondes.
+- **Statut de chaque planeur** : décollage, remorqué, en vol, retour, circuit, finale, posé —
+  on sait qui arrive et dans combien de temps.
+- **Qui s'est posé où** : touchez un planeur posé pour le voir sur le radar et aller le
+  chercher au bon endroit.
+- **Alerte piste** : si la golfette est sur une piste pendant qu'un planeur est en finale,
+  en circuit ou au décollage, un son et un bandeau rouge préviennent (« Planeur en finale —
+  40 s »). Peu d'alertes, donc des alertes qu'on écoute.
+- **N'importe quel terrain** : choisissez votre terrain par son code OACI, ajustez pistes et
+  bâtiments sur la carte (ou sur place avec le GPS), puis partagez-le aux autres conducteurs.
+- **Mode jour / nuit** automatique, en **français ou en anglais** selon la langue du téléphone.
+- **Respect de la vie privée** : les aéronefs qui ont demandé à ne pas être suivis ne sont
+  pas affichés, ceux qui ont demandé l'anonymat sont affichés sans nom.
 
-```bash
-./gradlew :core:test            # tests du moteur
-./gradlew :app:installDebug     # installe sur le téléphone branché en USB
-```
+Les données viennent du réseau **OGN (Open Glider Network)**, qui relaie les positions
+FLARM des aéronefs. Il faut un récepteur OGN près du terrain pour voir les planeurs jusqu'au
+sol, et une connexion internet (4G) sur le téléphone.
 
-Ou ouvrir le dossier dans Android Studio.
+## Installer
 
-## Android Auto (app installée hors Play Store)
+1. Télécharger le dernier `PicPiste-x.y.apk` depuis les
+   [Releases](https://github.com/CorentinGrard/PicPiste/releases).
+2. L'ouvrir sur le téléphone Android et autoriser l'installation (« sources inconnues »).
+3. Les mises à jour s'installent de la même façon, par-dessus l'ancienne version.
+
+### Activer PicPiste dans Android Auto
+
+L'app n'étant pas sur le Play Store, il faut l'autoriser une fois :
 
 1. Sur le téléphone : Android Auto → Réglages → taper 10 fois sur « Version » → menu
    ⋮ → Paramètres pour les développeurs → cocher **Sources inconnues**.
 2. Brancher le téléphone sur la golfette : PicPiste apparaît dans le lanceur Android Auto.
 
-## Tester Android Auto sur l'ordinateur
+## Premiers pas
 
-1. Sur le téléphone, Android Auto → réglages développeur (voir ci-dessus) → ⋮ →
-   **Démarrer le serveur de l'unité principale**.
-2. `./tools/dhu.sh` : ouvre un écran de voiture (Desktop Head Unit de Google, 1280×720).
-   Installation : `sdkmanager "extras;google;auto"` ; la bibliothèque libc++ vient du NDK.
+1. **Choisir le terrain** : au premier lancement, entrez le code OACI (ex. LFNL, LFLE) ou
+   ouvrez un fichier terrain envoyé par un autre conducteur.
+2. **Vérifier le terrain** : Réglages (⋯) → Terrain → **Modifier**. Touchez une piste, un
+   seuil ou un hangar pour le sélectionner et glissez ses points. Sur place, roulez jusqu'au
+   point et touchez **Placer ce point ici**. Puis **Enregistrer**.
+3. **Partager le terrain** : dans l'éditeur, ⋯ → **Partager** envoie un fichier
+   `PicPiste-XXXX.json`. L'autre conducteur l'ouvre avec PicPiste, vérifie, puis enregistre.
 
-## Enregistrer et rejouer une journée
+## Essayer sans vol
 
-OGN ne garde pas l'historique des positions : il faut enregistrer le jour même.
+- **Démo** — Réglages (⋯) → Trafic → **Démo** : des planeurs et une golfette simulés autour
+  de votre terrain (circuit, finale, remorqué, alertes).
+- **Enregistrer une journée** — Réglages (⋯) → **Enregistrer la journée** pendant que ça
+  vole. OGN ne garde pas l'historique : il faut enregistrer le jour même.
+- **Rejeu** — Réglages (⋯) → Trafic → **Rejeu** (×1, ×4, ×10) rejoue le dernier
+  enregistrement, avec une golfette simulée.
 
-- Sur le téléphone : Réglages (⋯) → **Enregistrer la journée** (en direct). Le fichier va
-  dans `Android/data/fr.cvvm.picpiste/files/recordings/`.
-- Sur un PC ou un serveur, sans téléphone : `./gradlew :core:record` (Ctrl-C pour arrêter),
-  fichiers dans `recordings/`. Autre terrain : `-Pairfield=LFLE` (téléchargé depuis
-  OpenStreetMap) ou `-Pairfield=mon-terrain.json` (fichier partagé depuis l'app). Pour rejouer sur le téléphone :
-  `adb push recordings/LFNL-2026-10-25.tsv /sdcard/Android/data/fr.cvvm.picpiste/files/recordings/`
-- Réglages → Trafic : **Rejeu** (×1, ×4, ×10) rejoue le dernier enregistrement, avec une
-  golfette simulée qui va sur une piste.
+## Pour les développeurs
 
-## Changer de terrain
-
-Au premier lancement, l'accueil demande le code OACI du terrain (LFNL est intégré, les
-autres viennent d'OpenStreetMap) ou un fichier terrain partagé. Ensuite, Réglages (⋯) →
-Terrain → **Modifier** :
-
-- ⋯ → **Chercher un terrain par son code** (ex. LFLE) : dessin OpenStreetMap, à vérifier.
-- Toucher une piste, un seuil, un hangar… pour le sélectionner ; glisser ses points.
-  Sur place : rouler jusqu'au point et **Placer ce point ici** (GPS du téléphone).
-- **Enregistrer** : le radar et les alertes utilisent ce terrain.
-- ⋯ → **Partager** envoie `PicPiste-XXXX.json` ; l'autre conducteur l'ouvre avec PicPiste
-  (ou ⋯ → Importer un fichier), vérifie, puis enregistre.
-- ⋯ → **Revenir au terrain intégré** prend LFNL.
-
-## Mode démo
-
-Réglages (⋯) → Trafic : **Démo** : trafic et golfette simulés autour du terrain choisi, pour
-essayer l'app sans vol (circuit, finale, remorqué, alertes).
-
-## Reprise du travail
-
-Ce qui reste à faire : [docs/NEXT.md](docs/NEXT.md).
-
-## CI et versions
-
-GitHub Actions (`.github/workflows/ci.yml`) lance les tests du moteur et construit l'APK
-signé à chaque push et pull request ; l'APK est dans les artefacts du run.
-
-Publier une version : `git tag v0.2 && git push origin v0.2` → l'APK `PicPiste-0.2.apk`
-apparaît dans les **Releases** GitHub, à télécharger et installer sur les téléphones.
-
-### Clé de signature
-
-Tous les APK (CI et local) sont signés avec la même clé PicPiste, pour qu'une version
-s'installe par-dessus la précédente. Elle est dans `~/.picpiste/` (`picpiste-release.jks` +
-`signing.properties`) et dans les secrets GitHub du dépôt. **En garder une copie à l'abri** :
-sans elle, plus de mise à jour possible sans désinstaller l'app sur chaque téléphone.
+Construction, tests, CI et clé de signature : [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md).
+Spécifications : [docs/SPECS.md](docs/SPECS.md).
