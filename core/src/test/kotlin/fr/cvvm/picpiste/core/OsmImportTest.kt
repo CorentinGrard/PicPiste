@@ -8,6 +8,7 @@ import fr.cvvm.picpiste.core.airfield.RunwayEnd
 import fr.cvvm.picpiste.core.airfield.problems
 import fr.cvvm.picpiste.core.airfield.refHeading
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
+import fr.cvvm.picpiste.core.geo.normalizeDeg
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -47,6 +48,9 @@ class OsmImportTest {
         assertTrue(a.hangars.size >= 4 && a.taxiways.isNotEmpty() && a.aprons.isNotEmpty())
         // Same frame axis as the hand-made file (119.2°), within a few degrees.
         assertTrue(angleDiffDeg(r.config.axisBearingDeg, 119.2) < 5, "axis ${r.config.axisBearingDeg}")
+        // The map shows the main runway across the screen, the top as close to north as can be.
+        assertEquals(normalizeDeg(r.config.axisBearingDeg - 90), r.config.mapUpDeg, 0.1)
+        assertEquals(0.0, Airfield(r.config).mapRotationDeg, 0.1)
         // The three runways and the grass between them still form one runway zone.
         val herbe = a.runways.single { it.isGrass }
         val southmost = a.runways.minBy { it.thresholdA.y }

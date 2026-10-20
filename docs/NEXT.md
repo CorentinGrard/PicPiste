@@ -78,8 +78,9 @@
   ronde (tourner) ; les numéros suivent le cap s'ils lui correspondaient. Autres formes : un
   « + » au milieu de chaque côté ajoute un point, le centre déplace tout. Plus de ◀ ▶,
   « Ajouter un point », « Déplacer tout ».
-- **Orientation des cartes** par terrain (`mapUpDeg` : cap en haut de la carte, 0 = nord en
-  haut par défaut, enregistré dans le fichier) : dans l'éditeur, tourner à deux doigts fait
+- **Orientation des cartes** par terrain (`mapUpDeg` : cap en haut de la carte, enregistré dans le fichier ; par défaut
+  la piste principale en travers de l'écran, haut au plus près du nord, et la carte suit la piste
+  tant qu'on ne l'a pas tournée à la main) : dans l'éditeur, tourner à deux doigts fait
   pivoter la carte (seuil de 10° pour ne pas tourner en zoomant ; aimantée à moins de 5° au nord et à chaque
   piste verticale ou horizontale, `mapUpSnaps`) ;
   la boussole en haut à gauche montre le nord, la toucher remet le nord en haut. Le radar du

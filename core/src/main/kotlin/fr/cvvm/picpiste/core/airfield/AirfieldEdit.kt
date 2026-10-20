@@ -388,8 +388,20 @@ fun AirfieldConfig.setRunwayRefs(index: Int, refA: String, refB: String) =
     )
 
 /**
+ * Map orientation with a runway along [axisDeg] across the screen: of the two, the one closest
+ * to [nearDeg] (north for a new airfield, the current orientation when following an edit).
+ */
+fun runwayAcrossUpDeg(axisDeg: Double, nearDeg: Double = 0.0): Double =
+    listOf(axisDeg - 90, axisDeg + 90).map { round(normalizeDeg(it) * 10) / 10 }.minBy { angleDiffDeg(it, nearDeg) }
+
+/** The map shows the main runway across the screen (set at creation, or chosen in the editor). */
+private fun AirfieldConfig.mapFollowsRunway(): Boolean =
+    runways.isNotEmpty() && (angleDiffDeg(mapUpDeg, axisBearingDeg - 90) < 0.5 || angleDiffDeg(mapUpDeg, axisBearingDeg + 90) < 0.5)
+
+/**
  * Ready to save: the radar axis follows the longest runway, the frame origin sits in the middle
- * of the runways, and every runway lists its lower designator first.
+ * of the runways, and every runway lists its lower designator first. A map that showed the main
+ * runway across the screen keeps doing so when the runway is turned.
  */
 fun AirfieldConfig.normalized(): AirfieldConfig {
     val rws = runways.map { rw ->
@@ -411,6 +423,7 @@ fun AirfieldConfig.normalized(): AirfieldConfig {
         runways = rws,
         reference = latLon(centre),
         axisBearingDeg = round(axis * 10) / 10,
+        mapUpDeg = if (mapFollowsRunway()) runwayAcrossUpDeg(axis, mapUpDeg) else mapUpDeg,
     )
 }
 

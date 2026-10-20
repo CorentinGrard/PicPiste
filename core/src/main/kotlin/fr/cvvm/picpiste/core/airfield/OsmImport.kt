@@ -154,6 +154,7 @@ object OsmImport {
             windsocks = windsocks,
             source = "OpenStreetMap contributors (ODbL)",
         ).normalized().squaredRunways()
+            .let { it.copy(mapUpDeg = runwayAcrossUpDeg(it.axisBearingDeg)) } // main runway across the screen
         return ImportResult(config, warnings, elevationMissing = elevation == null)
     }
 

@@ -27,6 +27,7 @@ import fr.cvvm.picpiste.core.airfield.renameRunway
 import fr.cvvm.picpiste.core.airfield.setRunwayRefs
 import fr.cvvm.picpiste.core.airfield.shapes
 import fr.cvvm.picpiste.core.geo.GeoPoint
+import fr.cvvm.picpiste.core.geo.angleDiffDeg
 import fr.cvvm.picpiste.core.geo.haversineM
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -103,6 +104,20 @@ class AirfieldEditTest {
         val twins = lfnl.renameRunway(1, "dur").renameRunway(2, "dur")
         assertNotEquals(twins.runways[1].id, twins.runways[2].id)
         assertEquals(emptyList(), twins.problems())
+    }
+
+    @Test
+    fun mapFollowsTheRunwayUntilTurnedByHand() {
+        val created = newAirfield("TEST", "Test", GeoPoint(45.0, 1.0), 200.0)
+        assertEquals(0.0, Airfield(created).mapRotationDeg, 0.1) // runway across the screen
+        val turned = created.rotateRunway(0, 30.0).normalized()
+        assertEquals(0.0, Airfield(turned).mapRotationDeg, 0.1)
+        assertEquals(30.0, angleDiffDeg(turned.mapUpDeg, 0.0), 0.2)
+        // Map turned by hand (here north up again): it stays as chosen.
+        val chosen = turned.copy(mapUpDeg = 0.0).rotateRunway(0, 20.0).normalized()
+        assertEquals(0.0, chosen.mapUpDeg)
+        // Existing north-up airfield: unchanged.
+        assertEquals(lfnl.mapUpDeg, lfnl.normalized().mapUpDeg)
     }
 
     @Test
