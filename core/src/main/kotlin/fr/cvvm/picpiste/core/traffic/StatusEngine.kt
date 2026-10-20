@@ -23,7 +23,7 @@ class StatusEngine(private val airfield: Airfield) {
     companion object {
         const val GROUND_AGL_M = 25.0
         const val STOPPED_KMH = 25.0
-        const val TAKEOFF_MIN_KMH = 40.0
+        const val TAKEOFF_MIN_KMH = 20.0
         const val CLIMBING_MS = 0.8
         const val FINAL_MAX_AGL_M = 200.0
         const val FINAL_MAX_DIST_M = 2_500.0
@@ -52,7 +52,10 @@ class StatusEngine(private val airfield: Airfield) {
         val onRunway = airfield.runways.firstOrNull { it.outline.containsWithin(fix.pos, RUNWAY_MARGIN_M) }
         val wasFlying = previous?.isAirborne == true
 
-        if (nearGround && gs < STOPPED_KMH) {
+        // Rolling on a runway between the takeoff and the stopped speeds counts as a takeoff, not
+        // stopped; except just after landing, when it is still slowing down.
+        val startingRoll = onRunway != null && !wasFlying && previous != FlightStatus.LANDED && gs >= TAKEOFF_MIN_KMH
+        if (nearGround && gs < STOPPED_KMH && !startingRoll) {
             val landed = wasFlying || previous == FlightStatus.LANDED
             return Classification(if (landed) FlightStatus.LANDED else FlightStatus.ON_GROUND)
         }

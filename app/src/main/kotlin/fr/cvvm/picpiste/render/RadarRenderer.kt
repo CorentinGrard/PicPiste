@@ -85,6 +85,7 @@ class RadarRenderer(private val context: Context) {
     private var cx = 0f
     private var cy = 0f
     private var scale = 1f
+    private val view = RectF()
 
     private fun sx(v: Vec2) = cx + (turned(v - fieldCentre).x * scale).toFloat()
     private fun sy(v: Vec2) = cy - (turned(v - fieldCentre).y * scale).toFloat()
@@ -115,6 +116,7 @@ class RadarRenderer(private val context: Context) {
         cx = left + width / 2
         cy = top + height / 2
         scale = (min(width, height) / 2 / radiusM).toFloat()
+        view.set(left, top, left + width, top + height)
 
         drawRings(canvas, radiusM, dp)
         drawAirfield(canvas, snap, dp)
@@ -277,6 +279,10 @@ class RadarRenderer(private val context: Context) {
                 fill.alpha = 255
             }
 
+            if (!view.contains(x, y)) {
+                newHits += drawOffScreen(canvas, a, x, y, color, dp, selected == a.address)
+                continue
+            }
             if (selected == a.address) {
                 stroke.color = colors.TEXT
                 stroke.strokeWidth = 2.5f * dp
@@ -287,6 +293,80 @@ class RadarRenderer(private val context: Context) {
             newHits += Hit(a.address, x, y)
         }
         hits = newHits
+    }
+
+    /**
+     * Zoomed in, an aircraft outside the view: an arrow on the edge pointing to it, with its tag
+     * next to it. Returns where it can be tapped.
+     */
+    private fun drawOffScreen(canvas: Canvas, a: AircraftState, x: Float, y: Float, color: Int, dp: Float, selected: Boolean): Hit {
+        val size = (if (selected) 14 else 11) * dp
+        val inset = size + 6 * dp
+        val dx = x - cx
+        val dy = y - cy
+        val len = kotlin.math.hypot(dx, dy)
+        val ux = dx / len
+        val uy = dy / len
+        // Where the line from the centre to the aircraft meets the (inset) edge.
+        val t = min(
+            if (dx != 0f) (view.width() / 2 - inset) / kotlin.math.abs(dx) else Float.MAX_VALUE,
+            if (dy != 0f) (view.height() / 2 - inset) / kotlin.math.abs(dy) else Float.MAX_VALUE,
+        )
+        val ex = cx + dx * t
+        val ey = cy + dy * t
+
+        path.reset()
+        path.moveTo(ex + ux * size, ey + uy * size)
+        path.lineTo(ex - ux * size * 0.6f - uy * size * 0.8f, ey - uy * size * 0.6f + ux * size * 0.8f)
+        path.lineTo(ex - ux * size * 0.6f + uy * size * 0.8f, ey - uy * size * 0.6f - ux * size * 0.8f)
+        path.close()
+        fill.color = color
+        if (a.signalLost) fill.alpha = 200
+        canvas.drawPath(path, fill)
+        fill.alpha = 255
+        stroke.color = colors.BG
+        stroke.strokeWidth = 1.5f * dp
+        canvas.drawPath(path, stroke)
+
+        // Tag just inside the arrow, kept within the view.
+        val w = tagWidth(a, dp)
+        val h = 19 * dp
+        val px = ex - ux * (size + 6 * dp + w / 2)
+        val py = ey - uy * (size + 6 * dp + h / 2)
+        val tx = (px - w / 2).coerceIn(view.left + 4 * dp, maxOf(view.left + 4 * dp, view.right - 4 * dp - w))
+        val ty = py.coerceIn(view.top + 4 * dp + h / 2, maxOf(view.top + 4 * dp + h / 2, view.bottom - 4 * dp - h / 2))
+        drawTag(canvas, a, tx, ty, color, dp, selected)
+        return Hit(a.address, ex, ey)
+    }
+
+    private fun tagSub(a: AircraftState): String = when {
+        a.signalLost -> context.getString(R.string.signal_lost_ago, (a.ageMs / 1000).toInt())
+        !a.status.isAirborne && a.status != FlightStatus.TAKEOFF -> ""
+        a.status == FlightStatus.FINAL && a.etaS != null -> "${a.fix.aglM.coerceAtLeast(0.0).toInt()} m · ${formatEta(a.etaS!!)}"
+        else -> "${a.fix.aglM.coerceAtLeast(0.0).toInt()} m"
+    }
+
+    private fun tagWidth(a: AircraftState, dp: Float): Float {
+        text.textSize = 14 * dp
+        text.typeface = condensedBold
+        val wMain = text.measureText(a.identity.label)
+        text.typeface = condensedRegular
+        val sub = tagSub(a)
+        val wSub = if (sub.isEmpty()) 0f else text.measureText(" $sub")
+        return wMain + wSub + 10 * dp
+    }
+
+    /** Low-wing single-engine plane seen from above, nose up, in a 40 × 40 box (propeller drawn apart). */
+    private val planePath = Path().apply {
+        val right = floatArrayOf(
+            20f, 4.2f, 21.3f, 4.6f, 22.2f, 6.2f, 22.6f, 11.6f, // cowling
+            34.6f, 12.6f, 35.8f, 13.6f, 36f, 16.6f, 35.2f, 17.6f, 22.6f, 18.6f, // wing
+            21.5f, 28.4f, 27.4f, 29.4f, 28f, 30.6f, 27.4f, 32.2f, 21.2f, 32.6f, 20f, 32.6f, // tail
+        )
+        moveTo(right[0], right[1])
+        for (i in 2 until right.size step 2) lineTo(right[i], right[i + 1])
+        for (i in right.size - 4 downTo 2 step 2) lineTo(40f - right[i], right[i + 1]) // mirrored left half
+        close()
     }
 
     private fun drawIcon(canvas: Canvas, a: AircraftState, x: Float, y: Float, color: Int, dp: Float) {
@@ -310,10 +390,8 @@ class RadarRenderer(private val context: Context) {
                 rect.set(13f, 31f, 27f, 33.5f); canvas.drawRoundRect(rect, 1f, 1f, fill)
             }
             AircraftType.TOW_PLANE, AircraftType.POWERED, AircraftType.DROP_PLANE, AircraftType.JET -> {
-                rect.set(7f, 13f, 33f, 18f); canvas.drawRoundRect(rect, 2f, 2f, fill)
-                rect.set(17.5f, 5f, 22.5f, 33f); canvas.drawRoundRect(rect, 2f, 2f, fill)
-                rect.set(12f, 29f, 28f, 32f); canvas.drawRoundRect(rect, 1f, 1f, fill)
-                rect.set(14f, 3f, 26f, 5f); canvas.drawRoundRect(rect, 1f, 1f, fill)
+                canvas.drawPath(planePath, fill)
+                rect.set(13.5f, 2.4f, 26.5f, 3.9f); canvas.drawRoundRect(rect, 0.75f, 0.75f, fill)
             }
             else -> {
                 path.reset()
@@ -327,12 +405,7 @@ class RadarRenderer(private val context: Context) {
 
     private fun drawTag(canvas: Canvas, a: AircraftState, x: Float, y: Float, color: Int, dp: Float, selected: Boolean) {
         val main = a.identity.label
-        val sub = when {
-            a.signalLost -> context.getString(R.string.signal_lost_ago, (a.ageMs / 1000).toInt())
-            !a.status.isAirborne && a.status != FlightStatus.TAKEOFF -> ""
-            a.status == FlightStatus.FINAL && a.etaS != null -> "${a.fix.aglM.coerceAtLeast(0.0).toInt()} m · ${formatEta(a.etaS!!)}"
-            else -> "${a.fix.aglM.coerceAtLeast(0.0).toInt()} m"
-        }
+        val sub = tagSub(a)
         text.textSize = 14 * dp
         text.typeface = condensedBold
         text.textAlign = Paint.Align.LEFT

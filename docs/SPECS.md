@@ -87,7 +87,7 @@ vitesse, vario et cap :
 
 | Statut | Règle indicative (paramétrable) |
 |---|---|
-| 🟠 **Décollage** | Au sol sur une piste, accélère (> 30 km/h) → **piste occupée** |
+| 🟠 **Décollage** | Au sol sur une piste, accélère (> 20 km/h) → **piste occupée** |
 | 🛫 **Remorquage** | Monte, < 1 500 m AGL, avec le remorqueur à proximité (seul mode de lancement géré pour l'instant ; pas de treuil) |
 | 🛩️ **Remorqueur en descente** | Remorqueur largué, descend vers le terrain (affiché comme une arrivée) |
 | 🔄 **Dans le circuit** | < 3 km, < 350 m AGL (vent arrière / étape de base) |
