@@ -69,7 +69,6 @@ class TextsTest {
         assertTrue("Planeur en finale 30" in titles, titles.toString())
         assertTrue(speech.all { it.startsWith("Attention. ") }, speech.toString())
         assertTrue("Finale 30" in statuses, statuses.toString())
-        assertTrue(statuses.any { it.startsWith("Retour · ") && it.contains(",") }, "French decimal comma: $statuses")
     }
 
     @Test

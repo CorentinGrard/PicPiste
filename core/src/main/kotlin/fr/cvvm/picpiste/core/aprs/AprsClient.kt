@@ -46,6 +46,12 @@ class AprsClient(
         private const val MIN_BACKOFF_MS = 2_000L
         private const val MAX_BACKOFF_MS = 60_000L
 
+        /**
+         * Radius asked from the OGN server: the radar shows 5 km, plus 1 km so an aircraft
+         * entering it already has a heading and a climb rate.
+         */
+        const val FEED_RADIUS_KM = 6
+
         /** Filter for every station within [radiusKm] of a point. */
         fun rangeFilter(lat: Double, lon: Double, radiusKm: Int) = "r/%.4f/%.4f/%d".format(java.util.Locale.ROOT, lat, lon, radiusKm)
     }

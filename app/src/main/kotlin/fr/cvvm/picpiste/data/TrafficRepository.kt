@@ -170,7 +170,7 @@ class TrafficRepository(private val context: Context) {
 
     private suspend fun runLive() {
         val ref = airfield.reference
-        val client = AprsClient(AprsClient.rangeFilter(ref.lat, ref.lon, 30))
+        val client = AprsClient(AprsClient.rangeFilter(ref.lat, ref.lon, AprsClient.FEED_RADIUS_KM))
         var day: LocalDate? = null
         var out: Writer? = null
         try {

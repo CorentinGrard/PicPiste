@@ -21,10 +21,6 @@ sealed class Texts(val locale: Locale) {
     abstract fun third(t: RunwayThird): String
     abstract val onTheRunway: String
 
-    /** "Returning · 2.4 km · 290 m" */
-    fun approach(distanceM: Double, aglM: Int): String =
-        "%s · %.1f km · %d m".format(locale, status(FlightStatus.APPROACH), distanceM / 1000, aglM)
-
     // Connection
     abstract val connecting: String
     abstract val connected: String
@@ -103,7 +99,6 @@ sealed class Texts(val locale: Locale) {
         override fun status(s: FlightStatus) = when (s) {
             FlightStatus.TAKEOFF -> "Takeoff"
             FlightStatus.TOW -> "Tow"
-            FlightStatus.APPROACH -> "Returning"
             FlightStatus.CIRCUIT -> "Circuit"
             FlightStatus.FINAL -> "Final"
             FlightStatus.LANDED -> "Landed"
@@ -206,7 +201,6 @@ sealed class Texts(val locale: Locale) {
         override fun status(s: FlightStatus) = when (s) {
             FlightStatus.TAKEOFF -> "Décollage"
             FlightStatus.TOW -> "Remorquage"
-            FlightStatus.APPROACH -> "Retour"
             FlightStatus.CIRCUIT -> "Circuit"
             FlightStatus.FINAL -> "Finale"
             FlightStatus.LANDED -> "Posé"

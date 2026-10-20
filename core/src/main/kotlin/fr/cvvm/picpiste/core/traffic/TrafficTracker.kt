@@ -107,7 +107,7 @@ class TrafficTracker(
 
     /**
      * Current picture: every aircraft within the radar radius, [AircraftState.shown] false above
-     * the display ceiling (still used for the alerts). Also drops tracks silent for too long.
+     * the display ceiling or silent for [TrafficSettings.hideAfterMs] (still used for the alerts). Also drops tracks silent for too long.
      */
     fun snapshot(nowMs: Long): List<AircraftState> {
         tracks.values.removeAll { nowMs - it.latest.timeMs > settings.forgetAfterMs }
@@ -115,10 +115,10 @@ class TrafficTracker(
             val fix = t.latest
             val onField = fix.aglM < StatusEngine.GROUND_AGL_M && airfield.boundary.containsWithin(fix.pos, 300.0)
             if (fix.pos.length > settings.radarRadiusM) return@mapNotNull null
-            val shown = fix.aglM <= settings.ceilingAglM || onField
+            val age = nowMs - fix.timeMs
+            val shown = (fix.aglM <= settings.ceilingAglM || onField) && age <= settings.hideAfterMs
             // No-ident: from the beacon's stealth bit or the owner's DDB setting.
             val dev = ddb.lookup(t.address)?.takeUnless { t.stealth }
-            val age = nowMs - fix.timeMs
             AircraftState(
                 identity = Identity(
                     address = t.address,

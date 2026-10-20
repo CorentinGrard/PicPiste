@@ -52,7 +52,6 @@ class Colors(
     val OK: Int,
     val TAKEOFF: Int,
     val CIRCUIT: Int,
-    val APPROACH: Int,
     val TOW: Int,
     val ON_GROUND: Int,
     val AIRBORNE: Int,
@@ -65,7 +64,6 @@ class Colors(
         FlightStatus.FINAL -> FINAL
         FlightStatus.TAKEOFF -> TAKEOFF
         FlightStatus.CIRCUIT -> CIRCUIT
-        FlightStatus.APPROACH -> APPROACH
         FlightStatus.TOW -> TOW
         FlightStatus.LANDED -> LANDED
         FlightStatus.ON_GROUND -> ON_GROUND
@@ -110,7 +108,6 @@ class Colors(
             OK = rgb("#3DDC97"),
             TAKEOFF = rgb("#F472D0"),
             CIRCUIT = rgb("#FFC53D"),
-            APPROACH = rgb("#5AB0FF"),
             TOW = rgb("#A78BFA"),
             ON_GROUND = rgb("#7FA88C"),
             AIRBORNE = rgb("#C3CBD5"),
@@ -152,7 +149,6 @@ class Colors(
             OK = rgb("#087443"),
             TAKEOFF = rgb("#B81F86"),
             CIRCUIT = rgb("#865500"),
-            APPROACH = rgb("#1660C4"),
             TOW = rgb("#6A43D6"),
             ON_GROUND = rgb("#3F6E50"),
             AIRBORNE = rgb("#3A4350"),

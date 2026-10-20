@@ -28,7 +28,7 @@ fun main(args: Array<String>) = runBlocking {
         System.err.println(e.message)
         kotlin.system.exitProcess(1)
     }
-    val client = AprsClient(AprsClient.rangeFilter(airfield.reference.lat, airfield.reference.lon, 30))
+    val client = AprsClient(AprsClient.rangeFilter(airfield.reference.lat, airfield.reference.lon, AprsClient.FEED_RADIUS_KM))
     var day: LocalDate? = null
     var out: java.io.Writer? = null
     var count = 0

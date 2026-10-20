@@ -14,23 +14,25 @@ data class TrafficSettings(
     val radarRadiusM: Double = 5_000.0,
     /** No beacon for this long: the aircraft is shown greyed, "signal lost". */
     val lostAfterMs: Long = 60_000,
+    /** No beacon for this long: the aircraft leaves the screen (still tracked for the alerts). */
+    val hideAfterMs: Long = 5 * 60_000,
     /** No beacon for this long: the aircraft is dropped. */
     val forgetAfterMs: Long = 15 * 60_000,
     val trailMs: Long = 120_000,
 )
 
 enum class FlightStatus {
-    TAKEOFF, TOW, APPROACH, CIRCUIT, FINAL, LANDED, ON_GROUND, AIRBORNE;
+    TAKEOFF, TOW, CIRCUIT, FINAL, LANDED, ON_GROUND, AIRBORNE;
 
     /** "Final", "Finale"… in the phone language. */
     val label: String get() = Texts.current.status(this)
 
     val isAirborne get() = this in AIRBORNE_STATUSES
-    val isArrival get() = this == APPROACH || this == CIRCUIT || this == FINAL
+    val isArrival get() = this == CIRCUIT || this == FINAL
 }
 
 private val AIRBORNE_STATUSES = setOf(
-    FlightStatus.TOW, FlightStatus.APPROACH, FlightStatus.CIRCUIT, FlightStatus.FINAL, FlightStatus.AIRBORNE,
+    FlightStatus.TOW, FlightStatus.CIRCUIT, FlightStatus.FINAL, FlightStatus.AIRBORNE,
 )
 
 /** One position of one aircraft, in the airfield's local frame. */
@@ -87,7 +89,7 @@ data class AircraftState(
     /** Landing or takeoff direction, without the L/R letter: "22", "14". */
     val direction: String? get() = runwayEnd?.let { end -> runway?.direction(end) }
 
-    /** "Final 22", "Circuit", "Returning · 2.4 km · 290 m"… */
+    /** "Final 22", "Circuit", "Landed"… */
     val statusText: String
         get() = if (signalLost) Texts.current.signalLost(liveStatusText) else liveStatusText
 
@@ -95,7 +97,6 @@ data class AircraftState(
         get() = when (status) {
             // Direction only ("Finale 14", not "14L"): parallel runways are too close to tell apart from the air.
             FlightStatus.FINAL, FlightStatus.TAKEOFF -> direction?.let { "${status.label} $it" } ?: status.label
-            FlightStatus.APPROACH -> Texts.current.approach(distanceM, fix.aglM.toInt())
             FlightStatus.LANDED -> landedText ?: status.label
             else -> status.label
         }

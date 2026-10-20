@@ -38,6 +38,22 @@ class EngineScenarioTest {
     }
 
     @Test
+    fun silentAircraftLeavesTheScreenAfterFiveMinutes() {
+        val demo = DemoTraffic(lfnl)
+        val engine = PicPisteEngine(lfnl).apply { ddb = demo.devices }
+        for (s in 0..200) demo.beaconsAt(s * 1000L, t0 + s * 1000L).forEach { engine.onLine(it, t0 + s * 1000L) }
+        val last = t0 + 200_000L
+        val before = engine.snapshot(last).aircraft.map { it.address }
+        assertTrue(before.isNotEmpty())
+
+        val at90s = engine.snapshot(last + 240_000).aircraft
+        assertEquals(before.toSet(), at90s.map { it.address }.toSet(), "still shown, greyed")
+        assertTrue(at90s.all { it.signalLost })
+
+        assertTrue(engine.snapshot(last + 301_000).aircraft.isEmpty(), "gone from the screen after 5 min")
+    }
+
+    @Test
     fun gliderGoesThroughCircuitFinalAndLandsOnTheMainRunway() {
         val seen = statusesOf("AB", 420)
         val statuses = seen.mapNotNull { it.second?.status }.distinct()

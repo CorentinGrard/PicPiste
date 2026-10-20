@@ -13,7 +13,7 @@ arrive. Sur l'écran Android Auto de la golfette, ou simplement sur le télépho
 
 - **Radar en direct** : tous les planeurs, remorqueurs et autres aéronefs équipés FLARM
   autour du terrain, mis à jour toutes les quelques secondes.
-- **Statut de chaque planeur** : décollage, remorqué, en vol, retour, circuit, finale, posé —
+- **Statut de chaque planeur** : décollage, remorqué, en vol, circuit, finale, posé —
   on sait qui arrive et dans combien de temps.
 - **Qui s'est posé où** : touchez un planeur posé pour le voir sur le radar et aller le
   chercher au bon endroit.

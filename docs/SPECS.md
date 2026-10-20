@@ -90,11 +90,10 @@ vitesse, vario et cap :
 | 🟠 **Décollage** | Au sol sur une piste, accélère (> 30 km/h) → **piste occupée** |
 | 🛫 **Remorquage** | Monte, < 1 500 m AGL, avec le remorqueur à proximité (seul mode de lancement géré pour l'instant ; pas de treuil) |
 | 🛩️ **Remorqueur en descente** | Remorqueur largué, descend vers le terrain (affiché comme une arrivée) |
-| ↩️ **Retour** | < 5 km, se rapproche, sous le plafond (400 m AGL) : rejoint le circuit |
 | 🔄 **Dans le circuit** | < 3 km, < 350 m AGL (vent arrière / étape de base) |
 | 🔴 **En finale** | Aligné sur l'axe d'une piste (±30°), < 2,5 km du seuil, < 200 m AGL, descend |
 | 🟢 **Posé** | Vitesse sol < 10 km/h, altitude ≈ terrain, sur l'emprise du terrain |
-| ❔ **Signal perdu** | Pas de trame depuis > 60 s (dernière position affichée, grisée) |
+| ❔ **Signal perdu** | Pas de trame depuis > 60 s (dernière position affichée, grisée) ; retiré de l'écran après 5 min |
 
 Pour « En finale » et « Dans le circuit » : **ETA estimée** (distance / vitesse sol) et
 **sens d'atterrissage** d'après la route suivie : l'extrémité de piste (seuil) vers laquelle
@@ -146,7 +145,6 @@ Priorité absolue : **lisible en 1 seconde**, gros éléments, aucune saisie.
 - **Liste « Arrivées »** triée par imminence :
   `🔴 F-CXYZ (AB) — Finale <sens> — 40 s`
   `🔄 F-CKLM (KL) — Circuit — ~2 min`
-  `↩️ F-CABC — Retour — 4 km, 450 m`
 - **Bordure rouge** quand la golfette est sur une piste (§4.1b). En plus :
   - **bandeau orange, sans son** : un aéronef dans le circuit, à plus de 90 s du posé ;
   - **bandeau rouge + voix** : finale, décollage, ou posé dans moins de 90 s. La voix
@@ -243,7 +241,7 @@ L'app a un **mode clair** en plus du sombre :
 
 ```
 [FLARM planeurs] → [récepteurs OGN] → aprs.glidernet.org
-                                            │ TCP APRS (filtre 30 km)
+                                            │ TCP APRS (filtre 6 km)
                                             ▼
                          ┌──────── Téléphone Android ────────┐
                          │ Service premier plan (Kotlin)      │
@@ -264,10 +262,10 @@ L'app a un **mode clair** en plus du sombre :
 
 | Option | Principe | + | − |
 |---|---|---|---|
-| **1. Direct APRS (recommandé v1)** | Le téléphone ouvre lui-même la connexion `aprs.glidernet.org:14580`, filtre `r/<lat>/<lon>/30` centré sur le terrain | Latence minimale (~1–2 s après le récepteur), **0 serveur**, marche même si le serveur PicBoard est en panne | Statuts calculés sur chaque téléphone ; 4G nécessaire |
+| **1. Direct APRS (recommandé v1)** | Le téléphone ouvre lui-même la connexion `aprs.glidernet.org:14580`, filtre `r/<lat>/<lon>/6` centré sur le terrain | Latence minimale (~1–2 s après le récepteur), **0 serveur**, marche même si le serveur PicBoard est en panne | Statuts calculés sur chaque téléphone ; 4G nécessaire |
 | 2. Via le serveur PicBoard | Nouveau service sur le serveur PicBoard qui relaie les **positions** de la zone LFNL en WebSocket (la chaîne actuelle ne transporte que des évènements) | Un seul « cerveau » partagé avec PicBoard ; possibilité d'afficher le nom du pilote depuis la planche | Développement côté PicBoard, auth à prévoir, un saut réseau de plus, dépendance au serveur |
 
-Recommandation : **option 1 en v1** (le flux APRS filtré sur 30 km est léger, c'est
+Recommandation : **option 1 en v1** (le flux APRS filtré sur 6 km est léger, c'est
 exactement la source que la chaîne live de PicBoard consomme). L'option 2 reste possible
 plus tard pour enrichir (pilote, planche) sans changer le moteur de statuts, qui sera
 écrit comme une bibliothèque indépendante de la source.

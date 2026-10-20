@@ -30,7 +30,6 @@ class StatusEngine(private val airfield: Airfield) {
         const val FINAL_MAX_TRACK_DIFF = 30.0
         const val CIRCUIT_MAX_DIST_M = 3_000.0
         const val CIRCUIT_MAX_AGL_M = 350.0
-        const val APPROACH_MAX_DIST_M = 5_000.0
         const val RUNWAY_MARGIN_M = 15.0
         const val TOW_MAX_DIST_M = 300.0
         const val TOW_MAX_ALT_DIFF_M = 120.0
@@ -99,10 +98,6 @@ class StatusEngine(private val airfield: Airfield) {
         if (dist < CIRCUIT_MAX_DIST_M && fix.aglM < CIRCUIT_MAX_AGL_M) {
             return Classification(FlightStatus.CIRCUIT, etaS = circuitEta(fix))
         }
-        if (dist < APPROACH_MAX_DIST_M && isClosing(fix, history)) {
-            val speedMs = max(gs, 60.0) / 3.6
-            return Classification(FlightStatus.APPROACH, etaS = (dist - CIRCUIT_MAX_DIST_M / 2) / speedMs + 90)
-        }
         return Classification(FlightStatus.AIRBORNE)
     }
 
@@ -132,11 +127,6 @@ class StatusEngine(private val airfield: Airfield) {
         // Rough: remaining circuit is about 1.5 × the straight distance to the field, flown at ~90 km/h.
         val speedMs = max(fix.groundSpeedKmh, 70.0) / 3.6
         return 30 + 1.5 * fix.pos.length / speedMs
-    }
-
-    private fun isClosing(fix: Fix, history: List<Fix>): Boolean {
-        val ref = history.lastOrNull { fix.timeMs - it.timeMs >= 15_000 } ?: return false
-        return ref.pos.length - fix.pos.length > 100
     }
 
     private fun derivedClimb(fix: Fix, history: List<Fix>): Double? {
