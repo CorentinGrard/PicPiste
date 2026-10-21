@@ -8,6 +8,7 @@ import fr.cvvm.picpiste.core.aprs.AircraftBeacon
 import fr.cvvm.picpiste.core.aprs.AircraftType
 import fr.cvvm.picpiste.core.ddb.DeviceDatabase
 import fr.cvvm.picpiste.core.geo.GeoPoint
+import fr.cvvm.picpiste.core.geo.Vec2
 
 /**
  * Keeps one track per aircraft and its status. Not thread-safe: feed it from one thread.
@@ -36,6 +37,8 @@ class TrafficTracker(
         var landedAtMs: Long? = null
         var landedRunway: Runway? = null
         var landedThird: RunwayThird? = null
+        /** Where the landed aircraft was when its runway was last checked. */
+        var landedPos: Vec2? = null
         val latest get() = fixes.last()
     }
 
@@ -83,23 +86,22 @@ class TrafficTracker(
         }
         if (c.status == FlightStatus.LANDED && previous != FlightStatus.LANDED) {
             recordLanding(track, fix)
-        } else if (track.landedAtMs != null && fix.groundSpeedKmh > MOVING_KMH &&
+        } else if (track.landedAtMs != null && movedSinceLanding(track, fix) &&
             (c.status == FlightStatus.LANDED || c.status == FlightStatus.ON_GROUND)
         ) {
-            // Taxiing after landing: say where it is now, so a glider back on the taxiway or
-            // the apron no longer shows as on the runway.
-            whereLanded(track, fix)
+            // Taxiing, or pulled by the cart at walking pace: once off the runway it has been
+            // cleared and leaves the landed list. Still on a runway: say where it is now.
+            track.landedPos = fix.pos
+            val rw = airfield.runwayUnder(fix.pos, fix.trackDeg)
+            if (rw == null) clearLanding(track) else setLanded(track, rw, fix)
         }
         if (c.status == FlightStatus.LANDED && track.landedRunway == null) {
-            // Off the runway after landing: just on the ground now. It stays in the landed
-            // list (landedAtMs is kept) until it takes off again.
+            // Stopped beside the runway after landing: on the ground, still listed as landed
+            // (off the runway) until it is moved.
             c = Classification(FlightStatus.ON_GROUND)
         }
         if (c.status == FlightStatus.TAKEOFF || c.status == FlightStatus.TOW) {
-            track.landedAtMs = null
-            track.landedRunway = null
-            track.landedThird = null
-            track.lastFinal = null
+            clearLanding(track)
         }
 
         track.c = c
@@ -112,14 +114,24 @@ class TrafficTracker(
 
     private fun recordLanding(track: Track, fix: Fix) {
         track.landedAtMs = fix.timeMs
+        track.landedPos = fix.pos
         // Just stopped after the landing roll: the runway it rolled on, even near its edge.
         val (rw, lateral) = airfield.nearestRunway(fix.pos)
         val onIt = rw.outline.containsWithin(fix.pos, 30.0) || lateral < 40
         setLanded(track, if (onIt) rw else null, fix)
     }
 
-    private fun whereLanded(track: Track, fix: Fix) {
-        setLanded(track, airfield.runwayUnder(fix.pos, fix.trackDeg), fix)
+    /** Faster than taxiing speed, or moved further than GPS noise since the last check. */
+    private fun movedSinceLanding(track: Track, fix: Fix): Boolean =
+        fix.groundSpeedKmh > MOVING_KMH ||
+            track.landedPos.let { it == null || it.distanceTo(fix.pos) > MOVED_M }
+
+    private fun clearLanding(track: Track) {
+        track.landedAtMs = null
+        track.landedRunway = null
+        track.landedThird = null
+        track.landedPos = null
+        track.lastFinal = null
     }
 
     private fun setLanded(track: Track, rw: Runway?, fix: Fix) {
@@ -135,6 +147,8 @@ class TrafficTracker(
     private companion object {
         /** Faster than this on the ground, a landed aircraft is taxiing (or being pulled). */
         const val MOVING_KMH = 5.0
+        /** Moved this far since landing, even slowly (the cart pulls at walking pace): check again. */
+        const val MOVED_M = 20.0
     }
 
     /**
