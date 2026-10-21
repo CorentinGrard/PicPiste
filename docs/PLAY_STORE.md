@@ -137,9 +137,17 @@ développeur d'Android Auto.
 
 ## Publication automatique
 
-Chaque tag `v*` envoie le bundle Play dans le test fermé (piste `alpha`) : étape « Play Store
-closed test » de la CI. Notes de version : `distribution/whatsnew/whatsnew-fr-FR` et
-`whatsnew-en-US` (500 caractères max), à mettre à jour avant chaque tag. La CI utilise le compte
-de service `github-play@picpiste-publish.iam.gserviceaccount.com` (secret GitHub
-`PLAY_SERVICE_ACCOUNT_JSON`) ; sans ce secret, l'étape est ignorée. Le passage en production se
-fait à la main dans la Play Console (promouvoir la version du test fermé).
+1. **Tag `v*`** → la CI envoie le bundle Play dans le **test interne** (piste `internal`) : pas
+   d'examen Google, disponible en quelques minutes. Notes de version :
+   `distribution/whatsnew/whatsnew-fr-FR` et `whatsnew-en-US` (500 caractères max), à mettre à
+   jour avant chaque tag.
+2. **Vérifier sur le téléphone** la version installée depuis le Play Store (lien d'inscription
+   du test interne) : c'est la version sans outils de développement, signée par Google.
+3. **Actions → Promote → Run workflow** : la même version (même code de version, mêmes notes)
+   passe dans le **test fermé** (piste `alpha`), après examen Google. Cocher *dry run* pour voir
+   ce qui serait publié sans rien changer.
+4. **Production** : à la main dans la Play Console (promouvoir la version du test fermé).
+
+En local : `scripts/play.py --key <fichier.json> tracks` liste ce que contient chaque piste.
+La CI utilise le compte de service `github-play@picpiste-publish.iam.gserviceaccount.com`
+(secret GitHub `PLAY_SERVICE_ACCOUNT_JSON`) ; sans ce secret, l'envoi est ignoré.
