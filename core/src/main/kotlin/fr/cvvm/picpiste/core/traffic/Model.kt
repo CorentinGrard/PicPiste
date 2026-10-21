@@ -56,12 +56,12 @@ data class Identity(
     /** Owner asked not to be identified, or the device is unknown to OGN. */
     val anonymous: Boolean,
 ) {
-    /** Short label for the radar: competition number, else end of the registration. */
+    /** Short label for the radar: competition number, else the last 2 letters of the registration. */
     val label: String
         get() = when {
             anonymous -> "??"
             !cn.isNullOrBlank() -> cn
-            !registration.isNullOrBlank() -> registration.takeLast(3)
+            !registration.isNullOrBlank() -> registration.takeLast(2)
             else -> "??"
         }
 }
