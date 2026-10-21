@@ -12,7 +12,7 @@ Ce qui est prêt dans le dépôt, et ce qu'il reste à faire dans la Play Consol
 - **Politique de confidentialité** : `docs/PRIVACY.md`, URL à donner à la Play Console :
   https://github.com/CorentinGrard/PicPiste/blob/main/docs/PRIVACY.md
 - **Visuels** : `docs/play/icon-512.png` (icône 512 × 512) et `docs/play/feature-graphic.png`
-  (bannière 1024 × 500).
+  (bannière 1024 × 500, en français ; `feature-graphic-en.png` pour la fiche anglaise).
 
 ## Étapes dans la Play Console
 
@@ -34,44 +34,72 @@ Ce qui est prêt dans le dépôt, et ce qu'il reste à faire dans la Play Consol
 
 **Description courte** (80 caractères max)
 
-- FR : `Le trafic OGN du terrain de vol à voile, pour le conducteur de la golfette.`
-- EN : `Live OGN traffic of your gliding airfield, for the golf-cart driver.`
+- FR : `Traversez les pistes en sécurité : planeurs en direct et alerte de finale.`
+- EN : `Cross runways safely: live gliders and tow planes, alerts on final.`
 
-**Description complète**
+**Description complète** (texte brut, à coller tel quel)
 
 FR :
 
-> PicPiste aide le conducteur de la golfette à traverser et longer les pistes en sécurité.
->
-> • Radar du terrain : planeurs, remorqueurs et avions autour du terrain, en direct (Open
->   Glider Network).
-> • Statut de chaque appareil : décollage, remorqué, circuit, finale (avec la piste la plus
->   probable), posé.
-> • Alerte quand la golfette est sur une piste : orange si quelqu'un est dans le circuit,
->   rouge et vocale pour une finale ou un décollage sur cette piste.
-> • Android Auto : le radar et les alertes sur l'écran de la voiture.
-> • Tout terrain : import depuis OpenStreetMap par code OACI, éditeur de pistes et de zones,
->   partage du terrain par fichier.
->
-> Aide à la vigilance : ne remplace pas l'observation visuelle. Les données dépendent de la
-> couverture OGN et des balises des appareils.
+```
+Traversez et longez les pistes en sécurité. PicPiste montre au conducteur de la golfette le trafic du terrain en direct et le prévient quand un planeur ou un avion arrive sur sa piste.
+
+RADAR DU TERRAIN
+• Planeurs, remorqueurs et avions autour du terrain, en direct grâce à l'Open Glider Network (OGN).
+• Statut de chaque appareil : décollage, remorqué, circuit, finale (avec la piste la plus probable), posé.
+• Liste des arrivées : qui va se poser, et sur quelle piste.
+
+ALERTES DE PISTE
+• Quand la golfette est sur une piste, PicPiste surveille le trafic pour vous.
+• Orange : un appareil est dans le circuit.
+• Rouge avec annonce vocale : une finale ou un décollage sur votre piste.
+• L'alerte fonctionne aussi écran éteint.
+
+ANDROID AUTO
+• Le radar et les alertes sur l'écran de la voiture.
+
+TOUS LES TERRAINS
+• Import du terrain depuis OpenStreetMap avec son code OACI.
+• Éditeur de pistes et de zones sur fond de carte.
+• Partage du terrain avec les autres membres du club par fichier.
+
+GRATUIT, SANS COMPTE, SANS PUBLICITÉ
+• Aucune donnée n'est envoyée au développeur. Votre position reste sur le téléphone.
+
+IMPORTANT
+PicPiste est une aide à la vigilance : il ne remplace pas l'observation visuelle. Seuls les appareils équipés d'une balise (FLARM, OGN…) et à portée d'une station OGN apparaissent.
+```
 
 EN :
 
-> PicPiste helps the golf-cart driver cross and drive along runways safely.
->
-> • Airfield radar: gliders, tow planes and aircraft around the field, live (Open Glider
->   Network).
-> • Status of each aircraft: takeoff, tow, circuit, final (with the most likely runway),
->   landed.
-> • Alert when the cart is on a runway: amber when someone is in the circuit, red with voice
->   for a final or a takeoff on that runway.
-> • Android Auto: radar and alerts on the car screen.
-> • Any airfield: import from OpenStreetMap by ICAO code, runway and zone editor, share the
->   airfield as a file.
->
-> An aid to vigilance: it does not replace looking outside. Data depends on OGN coverage and
-> on the aircraft's beacons.
+```
+Cross and drive along runways safely. PicPiste shows the golf-cart driver the airfield's live traffic and warns them when a glider or an aircraft is coming onto their runway.
+
+AIRFIELD RADAR
+• Gliders, tow planes and aircraft around the field, live from the Open Glider Network (OGN).
+• Status of each aircraft: takeoff, on tow, circuit, final (with the most likely runway), landed.
+• Arrivals list: who is about to land, and on which runway.
+
+RUNWAY ALERTS
+• When the cart is on a runway, PicPiste watches the traffic for you.
+• Amber: an aircraft is in the circuit.
+• Red with a voice call: a final or a takeoff on your runway.
+• Alerts keep working with the screen off.
+
+ANDROID AUTO
+• The radar and alerts on the car screen.
+
+ANY AIRFIELD
+• Import the airfield from OpenStreetMap with its ICAO code.
+• Runway and zone editor on a map.
+• Share the airfield with other club members as a file.
+
+FREE, NO ACCOUNT, NO ADS
+• No data is sent to the developer. Your location stays on the phone.
+
+IMPORTANT
+PicPiste is an aid to vigilance: it does not replace looking outside. Only aircraft with a beacon (FLARM, OGN…) and within range of an OGN station are shown.
+```
 
 **Catégorie** : Cartes et navigation (ou Sports). **Contact** : adresse e-mail du compte.
 
