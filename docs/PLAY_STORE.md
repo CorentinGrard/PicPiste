@@ -13,6 +13,8 @@ Ce qui est prêt dans le dépôt, et ce qu'il reste à faire dans la Play Consol
   https://github.com/CorentinGrard/PicPiste/blob/main/docs/PRIVACY.md
 - **Visuels** : `docs/play/icon-512.png` (icône 512 × 512) et `docs/play/feature-graphic.png`
   (bannière 1024 × 500, en français ; `feature-graphic-en.png` pour la fiche anglaise).
+- **Captures d'écran** (1080 × 2160, trafic de démo) : `docs/play/screenshots/` (français)
+  et `docs/play/screenshots-en/` (anglais).
 
 ## Étapes dans la Play Console
 
@@ -101,7 +103,7 @@ IMPORTANT
 PicPiste is an aid to vigilance: it does not replace looking outside. Only aircraft with a beacon (FLARM, OGN…) and within range of an OGN station are shown.
 ```
 
-**Catégorie** : Cartes et navigation (ou Sports). **Contact** : adresse e-mail du compte.
+**Catégorie** : Cartes et navigation. **Contact** : adresse e-mail du compte.
 
 ## Contenu de l'app (formulaires)
 
