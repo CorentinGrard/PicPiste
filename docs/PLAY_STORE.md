@@ -134,3 +134,12 @@ Android Auto avant publication et pourrait refuser une app de navigation qui ne 
 vers une destination. Si c'est refusé : publier l'app téléphone seule (retirer le service
 voiture de la version Play) et garder la version Android Auto sur GitHub, avec le mode
 développeur d'Android Auto.
+
+## Publication automatique
+
+Chaque tag `v*` envoie le bundle Play dans le test fermé (piste `alpha`) : étape « Play Store
+closed test » de la CI. Notes de version : `distribution/whatsnew/whatsnew-fr-FR` et
+`whatsnew-en-US` (500 caractères max), à mettre à jour avant chaque tag. La CI utilise le compte
+de service `github-play@picpiste-publish.iam.gserviceaccount.com` (secret GitHub
+`PLAY_SERVICE_ACCOUNT_JSON`) ; sans ce secret, l'étape est ignorée. Le passage en production se
+fait à la main dans la Play Console (promouvoir la version du test fermé).
