@@ -58,4 +58,12 @@ class AirfieldTest {
         assertEquals("30 herbe", rw.label(RunwayEnd.B))
         assertTrue(abs(rw.lateral(nearThreshold30)) < 1e-6)
     }
+
+    @Test
+    fun bundledAirfieldAddedWithMainRunwayAcrossTheScreen() {
+        val config = assertNotNull(Airfield.bundledConfigOrNull("lfnl"))
+        // The main runway is drawn horizontally: the map is turned a quarter turn from it.
+        val rotation = Airfield(config).mapRotationDeg
+        assertTrue(abs(Math.floorMod(Math.round(rotation).toInt(), 180)) == 0, "map rotation $rotation")
+    }
 }

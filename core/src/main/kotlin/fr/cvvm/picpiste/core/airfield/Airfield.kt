@@ -217,9 +217,13 @@ class Airfield(val config: AirfieldConfig) {
         /** The airfield shipped inside the app: chosen on the welcome screen without asking OpenStreetMap. */
         const val BUNDLED = "LFNL"
 
-        /** The bundled config for [code], or null when the app does not ship that airfield. */
+        /**
+         * The bundled config for [code], or null when the app does not ship that airfield.
+         * Added as a new airfield: main runway across the screen, like an OSM import.
+         */
         fun bundledConfigOrNull(code: String): AirfieldConfig? =
             code.trim().uppercase().takeIf { it == BUNDLED }?.let(::bundledConfig)
+                ?.let { it.copy(mapUpDeg = runwayAcrossUpDeg(it.axisBearingDeg)) }
 
         /** Loads a bundled airfield from the core resources, e.g. [BUNDLED]. */
         fun bundled(icao: String): Airfield = Airfield(bundledConfig(icao))
