@@ -52,9 +52,12 @@ jobs:
           PICPISTE_KEY_ALIAS: ${{ secrets.PICPISTE_KEY_ALIAS }}
           PICPISTE_KEY_PASSWORD: ${{ secrets.PICPISTE_KEY_PASSWORD }}
         run: |
+          # +100: above the test builds installed by hand (up to 32) before 1.0.
+          VERSION_CODE=$(( ${{ github.run_number }} + 100 ))
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           VERSION="${GITHUB_REF_NAME#v}"
           [[ "$GITHUB_REF" == refs/tags/v* ]] || VERSION="0.1-${GITHUB_SHA::7}"
-          ./gradlew :app:assembleRelease --console=plain -PversionCode=${{ github.run_number }} -PversionName="$VERSION"
+          ./gradlew :app:assembleRelease --console=plain -PversionCode=$VERSION_CODE -PversionName="$VERSION"
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/PicPiste-$VERSION.apk"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -67,7 +70,7 @@ jobs:
           PICPISTE_KEY_ALIAS: ${{ secrets.PICPISTE_KEY_ALIAS }}
           PICPISTE_KEY_PASSWORD: ${{ secrets.PICPISTE_KEY_PASSWORD }}
         run: |
-          ./gradlew :app:bundleRelease --console=plain -PversionCode=${{ github.run_number }} -PversionName="$VERSION"
+          ./gradlew :app:bundleRelease --console=plain -PversionCode=$VERSION_CODE -PversionName="$VERSION"
           cp app/build/outputs/bundle/release/app-release.aab "dist/PicPiste-$VERSION-play.aab"
 
       - name: Test report
@@ -97,7 +100,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: fr.cvvm.picpiste
           releaseFiles: dist/PicPiste-${{ env.VERSION }}-play.aab
-          releaseName: ${{ github.run_number }} (${{ env.VERSION }})
+          releaseName: ${{ env.VERSION_CODE }} (${{ env.VERSION }})
           track: internal
           status: completed
           whatsNewDirectory: distribution/whatsnew
