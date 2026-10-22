@@ -55,15 +55,6 @@ L'app n'étant pas sur le Play Store, il faut l'autoriser une fois :
 3. **Partager le terrain** : dans l'éditeur, ⋯ → **Partager** envoie un fichier
    `PicPiste-XXXX.json`. L'autre conducteur l'ouvre avec PicPiste, vérifie, puis enregistre.
 
-## Essayer sans vol
-
-- **Démo** — Réglages (⋯) → Trafic → **Démo** : des planeurs et une golfette simulés autour
-  de votre terrain (circuit, finale, remorqué, alertes).
-- **Enregistrer une journée** — Réglages (⋯) → **Enregistrer la journée** pendant que ça
-  vole. OGN ne garde pas l'historique : il faut enregistrer le jour même.
-- **Rejeu** — Réglages (⋯) → Trafic → **Rejeu** (×1, ×4, ×10) rejoue le dernier
-  enregistrement, avec une golfette simulée.
-
 ## Pour les développeurs
 
 Construction, tests, CI et clé de signature : [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md).

@@ -59,7 +59,7 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "dist/PicPiste-$VERSION.apk"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      # Play Store bundle: same version, without the development tools (-Pstore=true).
+      # Play Store bundle: same version as the APK.
       - name: Build Play Store bundle
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -67,7 +67,7 @@ jobs:
           PICPISTE_KEY_ALIAS: ${{ secrets.PICPISTE_KEY_ALIAS }}
           PICPISTE_KEY_PASSWORD: ${{ secrets.PICPISTE_KEY_PASSWORD }}
         run: |
-          ./gradlew :app:bundleRelease --console=plain -Pstore=true -PversionCode=${{ github.run_number }} -PversionName="$VERSION"
+          ./gradlew :app:bundleRelease --console=plain -PversionCode=${{ github.run_number }} -PversionName="$VERSION"
           cp app/build/outputs/bundle/release/app-release.aab "dist/PicPiste-$VERSION-play.aab"
 
       - name: Test report

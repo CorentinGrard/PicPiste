@@ -1,2 +1,6 @@
-Étiquettes des appareils : les 2 dernières lettres de l'immatriculation.
-Liste « Posés » : un planeur sorti de la piste n'y apparaît plus.
+Noms des aéronefs dès l'installation, même sans réseau au terrain ; base OGN mise à jour chaque jour en Wi-Fi.
+Trafic ADS-B : indicatif affiché au lieu de « ?? ».
+Nouveau réglage : altitude (QNH) ou hauteur (QFE).
+Revenir dans l'app ne vide plus le radar ni la liste « Posés ».
+Terrain fourni avec l'app : piste principale horizontale.
+Logiciel libre (GPL v3), crédits dans Réglages → À propos.

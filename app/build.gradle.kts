@@ -33,9 +33,6 @@ android {
         // CI passes the tag (v0.2 → 0.2) and the run number.
         versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (findProperty("versionName") as String?) ?: "0.1-dev"
-        // -Pstore=true: the Play Store build, without the development tools (traffic source
-        // choice, demo, replay, day recording). The GitHub APK keeps them.
-        buildConfigField("boolean", "DEV_TOOLS", (findProperty("store") != "true").toString())
     }
 
     signingConfigs {

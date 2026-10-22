@@ -81,8 +81,6 @@ import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
 import fr.cvvm.picpiste.data.AltitudeRef
 import fr.cvvm.picpiste.data.Prefs
-import fr.cvvm.picpiste.data.ReplayInfo
-import fr.cvvm.picpiste.data.Source
 import fr.cvvm.picpiste.data.Theme
 import fr.cvvm.picpiste.data.TrafficRepository
 import fr.cvvm.picpiste.render.Colors
@@ -166,8 +164,6 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
         }
         val snap by repo.snapshot.collectAsStateWithLifecycle()
         val radius by repo.prefs.zoomRadiusM.collectAsStateWithLifecycle()
-        val source by repo.prefs.source.collectAsStateWithLifecycle()
-        val replay by repo.replay.collectAsStateWithLifecycle()
         var selected by rememberSaveable { mutableStateOf<String?>(null) }
         var showSettings by rememberSaveable { mutableStateOf(false) }
         // Border only when something is coming: amber (circuit) or red (final, takeoff).
@@ -184,10 +180,7 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
                 .then(if (border != null) Modifier.border(8.dp, c(border)) else Modifier),
         ) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                TopBar(snap, source, replay, onSettings = { showSettings = true })
-                replay.message?.let {
-                    Text(it, color = c(Palette.CIRCUIT), fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp))
-                }
+                TopBar(snap, onSettings = { showSettings = true })
                 Box(Modifier.fillMaxWidth().weight(1.15f)) {
                     Radar(repo, snap, radius, selected, onZoom = { repo.prefs.zoomBy(it) }) { selected = it }
                     ZoomButton(Prefs.zoomLabel(radius), Modifier.align(Alignment.TopEnd).padding(12.dp)) {
@@ -214,18 +207,13 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
 }
 
 @Composable
-private fun TopBar(snap: Snapshot, source: Source, replay: ReplayInfo, onSettings: () -> Unit) {
+private fun TopBar(snap: Snapshot, onSettings: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text("PicPiste", color = c(Palette.TEXT), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        when (source) {
-            Source.DEMO -> Pill(stringResource(R.string.source_demo), c(Palette.CIRCUIT))
-            Source.REPLAY -> Pill(replay.nowMs?.let { stringResource(R.string.replay_at, hhmm(it)) } ?: stringResource(R.string.source_replay), c(Palette.CIRCUIT))
-            Source.LIVE -> Unit
-        }
         val live = snap.connection.isLive(snap.timeMs)
         val silentMs = snap.connection.silentForMs(snap.timeMs)
         Pill(
@@ -530,10 +518,7 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
     val airfield by repo.airfields.current.collectAsStateWithLifecycle()
     val airfields by repo.airfields.all.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val source by repo.prefs.source.collectAsStateWithLifecycle()
     val sound by repo.prefs.sound.collectAsStateWithLifecycle()
-    val record by repo.prefs.record.collectAsStateWithLifecycle()
-    val speed by repo.prefs.replaySpeed.collectAsStateWithLifecycle()
     val ceiling by repo.prefs.ceilingAglM.collectAsStateWithLifecycle()
     val altitudeRef by repo.prefs.altitudeRef.collectAsStateWithLifecycle()
     val theme by repo.prefs.theme.collectAsStateWithLifecycle()
@@ -569,23 +554,6 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                     }
                     TextButton(onClick = onAddAirfield) { Text(stringResource(R.string.add_airfield)) }
                 }
-                if (BuildConfig.DEV_TOOLS) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.traffic), color = c(Palette.TEXT), fontSize = 16.sp)
-                    Choice(Source.entries.map { stringResource(it.labelRes) }, source.ordinal) { repo.prefs.setSource(Source.entries[it]) }
-                    Text(
-                        when (source) {
-                            Source.LIVE -> stringResource(R.string.source_live_hint, airfield.icao)
-                            Source.DEMO -> stringResource(R.string.source_demo_hint)
-                            Source.REPLAY -> stringResource(R.string.source_replay_hint)
-                        },
-                        color = c(Palette.MUTED), fontSize = 13.sp,
-                    )
-                    if (source == Source.REPLAY) {
-                        Choice(Prefs.REPLAY_SPEEDS.map { "×$it" }, Prefs.REPLAY_SPEEDS.indexOf(speed).coerceAtLeast(0)) {
-                            repo.prefs.setReplaySpeed(Prefs.REPLAY_SPEEDS[it])
-                        }
-                    }
-                }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(stringResource(R.string.theme), color = c(Palette.TEXT), fontSize = 16.sp)
                     Choice(Theme.entries.map { stringResource(it.labelRes) }, theme.ordinal) { repo.prefs.setTheme(Theme.entries[it]) }
@@ -593,9 +561,6 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                         stringResource(R.string.theme_hint),
                         color = c(Palette.MUTED), fontSize = 13.sp,
                     )
-                }
-                if (BuildConfig.DEV_TOOLS) {
-                    SettingSwitch(stringResource(R.string.record_day), stringResource(R.string.record_day_hint), record) { repo.prefs.setRecord(it) }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(stringResource(R.string.altitude_ref), color = c(Palette.TEXT), fontSize = 16.sp)
@@ -655,9 +620,6 @@ private fun Choice(options: List<String>, selected: Int, onSelect: (Int) -> Unit
         }
     }
 }
-
-private fun hhmm(ms: Long): String =
-    java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.of("Europe/Paris")).let { "%02d:%02d".format(it.hour, it.minute) }
 
 @Composable
 private fun SettingSwitch(title: String, sub: String, checked: Boolean, onChange: (Boolean) -> Unit) {

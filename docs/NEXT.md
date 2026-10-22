@@ -99,16 +99,16 @@
 - **Plafond d'affichage** : ne cache plus les menaces (il masquait aussi les alertes).
 - Ajouter : plus de starter ; « Hangar » devient « Bâtiment ».
 
-## Version GA (grand public) : à supprimer avant
+## Version 1.0 (22 oct. 2026)
 
-Ces fonctions servent au développement et au réglage, pas aux conducteurs :
-
-- **Choix du trafic** dans les réglages (En direct / Démo / Rejeu) : ne garder que le direct.
-  Supprimer `Source`, `Prefs.source` et `replaySpeed`, le mode démo (`DemoTraffic` côté app)
-  et le rejeu (`ReplayClock` côté app, bandeau de rejeu, vitesse ×1/×4/×10).
-- **Enregistrer la journée** (`Prefs.record`, écriture des trames OGN dans l'app).
-- Garder dans `core` ce qui sert aux tests et à l'outil PC (`./gradlew :core:record`,
-  rejeu dans les tests), sans rien de visible dans l'app.
+- Outils de développement retirés de l'app : choix du trafic (démo, rejeu) et enregistrement
+  de la journée. `core` garde la démo et le rejeu pour les tests, et l'outil PC
+  `./gradlew :core:record`.
+- Base OGN livrée avec l'app, mise à jour chaque jour en Wi-Fi (WorkManager) ; indicatif ADS-B
+  pour les appareils absents de la base ; état de la base dans les réglages.
+- Réglage altitude (QNH) / hauteur (QFE). Le flux continue 2 min hors de l'app, et revenir sur
+  le même terrain garde le radar et la liste « Posés ».
+- Licence GPL v3, crédits des données dans Réglages → À propos.
 
 ## Reste à faire
 

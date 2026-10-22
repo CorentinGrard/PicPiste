@@ -1,2 +1,6 @@
-Aircraft labels: the last 2 letters of the registration.
-Landed list: a glider pulled off the runway no longer appears in it.
+Aircraft names from first install, even without signal at the field; OGN database refreshed daily on Wi-Fi.
+ADS-B traffic: callsign shown instead of "??".
+New setting: altitude (QNH) or height (QFE).
+Coming back to the app no longer empties the radar or the landed list.
+Bundled airfield: main runway horizontal.
+Free software (GPL v3), credits in Settings → About.

@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="source_live">En direct</string>
-    <string name="source_demo">Démo</string>
-    <string name="source_replay">Rejeu</string>
-    <string name="replay_at">Rejeu %1$s</string>
     <string name="theme_auto">Auto</string>
     <string name="theme_light">Clair</string>
     <string name="theme_dark">Sombre</string>
@@ -41,14 +37,8 @@
     <string name="settings">Réglages</string>
     <string name="airfield">Terrain</string>
     <string name="edit">Modifier</string>
-    <string name="traffic">Trafic</string>
-    <string name="source_live_hint">Flux OGN en direct autour de %1$s.</string>
-    <string name="source_demo_hint">Trafic et golfette simulés, pour essayer sans vol.</string>
-    <string name="source_replay_hint">Rejoue le dernier jour enregistré, avec une golfette simulée sur la piste principale.</string>
     <string name="theme">Thème</string>
     <string name="theme_hint">Auto : clair le jour, sombre du coucher au lever du soleil au terrain. Android Auto suit le jour / nuit de la voiture.</string>
-    <string name="record_day">Enregistrer la journée</string>
-    <string name="record_day_hint">En direct, garde les positions OGN du jour pour les rejouer.</string>
     <string name="ddb_title">Base OGN des aéronefs</string>
     <string name="ddb_status">%1$,d aéronefs · mise à jour %2$s. Actualisée chaque jour en Wi-Fi.</string>
     <string name="ddb_none">Aucune base : les aéronefs s\'affichent ??.</string>
@@ -60,7 +50,7 @@
     <string name="age_days">il y a %1$d j</string>
     <string name="about_title">À propos</string>
     <string name="about_text">PicPiste %1$s · © 2026 Corentin Grard. Logiciel libre sous licence GNU GPL v3, sans aucune garantie.</string>
-    <string name="credits_text">Positions des aéronefs : Open Glider Network (ODbL). Noms des aéronefs : base OGN (ODC-BY). Terrains : ©\u00A0les contributeurs d\'OpenStreetMap (ODbL). Altitude des terrains : Open-Meteo. Photos aériennes : ©\u00A0IGN.</string>
+    <string name="credits_text">Positions des aéronefs : Open Glider Network (ODbL)\nNoms des aéronefs : base OGN (ODC-BY)\nTerrains : ©\u00A0les contributeurs d\'OpenStreetMap (ODbL)\nAltitude des terrains : Open-Meteo\nPhotos aériennes : ©\u00A0IGN</string>
     <string name="about_source">Code source et licence</string>
     <string name="voice_alert">Alerte vocale</string>
     <string name="voice_alert_hint">Annonce quand la golfette est sur une piste et qu\'un planeur est dans le circuit.</string>
@@ -73,8 +63,6 @@
     <string name="no_landings">Aucun atterrissage pour l\'instant</string>
     <string name="tracking_channel">Suivi du trafic</string>
     <string name="tracking_text">Suivi du trafic autour du terrain</string>
-    <string name="no_recording">Aucun enregistrement dans %1$s</string>
-    <string name="empty_recording">Enregistrement vide</string>
     <string name="cannot_open_file">Impossible d\'ouvrir ce fichier.</string>
     <string name="file_too_big">Ce fichier est trop gros pour être un terrain.</string>
     <string name="cannot_write_file">Impossible d\'écrire ce fichier.</string>

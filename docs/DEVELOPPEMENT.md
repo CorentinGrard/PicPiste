@@ -7,7 +7,7 @@ Spécifications : [SPECS.md](SPECS.md) · Ce qui reste à faire : [NEXT.md](NEXT
 - `core/` — Kotlin pur, sans Android, testé : flux OGN (APRS), base OGN DDB, terrain (tout
   terrain : choisi à l'accueil, import OpenStreetMap, édition ; LFNL intégré),
   moteur de statuts (décollage, remorquage, retour, circuit, finale, posé), golfette sur piste,
-  alertes, trafic de démo.
+  alertes, trafic de démo et rejeu d'enregistrements (pour les tests, rien dans l'app).
 - `app/` — l'app Android : écran téléphone (Compose) et écran Android Auto (catégorie
   navigation, radar dessiné sur la surface).
 - `tools/osm_to_airfield.py` — génère `core/src/main/resources/airfields/LFNL.json` (le
@@ -33,11 +33,17 @@ Ou ouvrir le dossier dans Android Studio.
 
 Sur un PC ou un serveur : `./gradlew :core:record` (Ctrl-C pour arrêter), fichiers dans
 `recordings/`. Autre terrain : `-Pairfield=LFLE` (téléchargé depuis OpenStreetMap) ou
-`-Pairfield=mon-terrain.json` (fichier partagé depuis l'app). Pour rejouer sur le téléphone :
+`-Pairfield=mon-terrain.json` (fichier partagé depuis l'app). OGN ne garde pas
+l'historique : il faut enregistrer le jour même. Les enregistrements se rejouent dans les
+tests du moteur (`Recording`, `ReplayClock`) ; l'app n'a plus de démo ni de rejeu depuis la
+1.0.
 
-```bash
-adb push recordings/LFNL-2026-10-25.tsv /sdcard/Android/data/fr.cvvm.picpiste/files/recordings/
-```
+## Base OGN livrée avec l'app
+
+`app/src/main/assets/ogn-ddb.dat` : copie compacte de la base des appareils OGN, pour avoir
+les noms dès l'installation. La CI la met à jour avant chaque construction ; à la main :
+`./gradlew :core:updateDdb`. Extension `.dat` et pas `.gz` : la construction Android
+décompresse et renomme les `.gz` des assets.
 
 ## CI et versions
 

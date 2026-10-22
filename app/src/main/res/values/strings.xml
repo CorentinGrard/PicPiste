@@ -2,10 +2,6 @@
 <!-- Default language: English. French is in values-fr. -->
 <resources>
     <string name="app_name" translatable="false">PicPiste</string>
-    <string name="source_live">Live</string>
-    <string name="source_demo">Demo</string>
-    <string name="source_replay">Replay</string>
-    <string name="replay_at">Replay %1$s</string>
     <string name="theme_auto">Auto</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
@@ -43,14 +39,8 @@
     <string name="settings">Settings</string>
     <string name="airfield">Airfield</string>
     <string name="edit">Edit</string>
-    <string name="traffic">Traffic</string>
-    <string name="source_live_hint">Live OGN feed around %1$s.</string>
-    <string name="source_demo_hint">Simulated traffic and cart, to try it without flights.</string>
-    <string name="source_replay_hint">Replays the last recorded day, with a simulated cart on the main runway.</string>
     <string name="theme">Theme</string>
     <string name="theme_hint">Auto: light by day, dark from sunset to sunrise at the airfield. Android Auto follows the car\'s day / night.</string>
-    <string name="record_day">Record the day</string>
-    <string name="record_day_hint">When live, keeps the day\'s OGN positions to replay them.</string>
     <string name="ddb_title">OGN aircraft database</string>
     <string name="ddb_status">%1$,d aircraft · updated %2$s. Refreshed daily on Wi-Fi.</string>
     <string name="ddb_none">No database: aircraft show as ??.</string>
@@ -62,7 +52,7 @@
     <string name="age_days">%1$d d ago</string>
     <string name="about_title">About</string>
     <string name="about_text">PicPiste %1$s · © 2026 Corentin Grard. Free software under the GNU GPL v3 licence, without any warranty.</string>
-    <string name="credits_text">Aircraft positions: Open Glider Network (ODbL). Aircraft names: OGN device database (ODC-BY). Airfields: ©\u00A0OpenStreetMap contributors (ODbL). Airfield elevation: Open-Meteo. Aerial photos: ©\u00A0IGN.</string>
+    <string name="credits_text">Aircraft positions: Open Glider Network (ODbL)\nAircraft names: OGN device database (ODC-BY)\nAirfields: ©\u00A0OpenStreetMap contributors (ODbL)\nAirfield elevation: Open-Meteo\nAerial photos: ©\u00A0IGN</string>
     <string name="about_source">Source code and licence</string>
     <string name="voice_alert">Voice alert</string>
     <string name="voice_alert_hint">Speaks up when the cart is on a runway and a glider is in the circuit.</string>
@@ -75,8 +65,6 @@
     <string name="no_landings">No landings yet</string>
     <string name="tracking_channel">Traffic tracking</string>
     <string name="tracking_text">Tracking traffic around the airfield</string>
-    <string name="no_recording">No recording in %1$s</string>
-    <string name="empty_recording">Empty recording</string>
     <string name="cannot_open_file">Cannot open this file.</string>
     <string name="file_too_big">This file is too big to be an airfield.</string>
     <string name="cannot_write_file">Cannot write this file.</string>

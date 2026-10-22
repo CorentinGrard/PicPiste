@@ -5,10 +5,8 @@ Ce qui est prêt dans le dépôt, et ce qu'il reste à faire dans la Play Consol
 ## Déjà prêt
 
 - **Bundle Play Store** : à chaque tag `v*`, la CI joint `PicPiste-<version>-play.aab` à la
-  release GitHub (à côté de l'APK). C'est la même version, compilée avec `-Pstore=true` :
-  sans le choix du trafic (démo, rejeu) ni l'enregistrement de journée
-  (`BuildConfig.DEV_TOOLS`). L'APK GitHub les garde.
-  En local : `./gradlew :app:bundleRelease -Pstore=true`.
+  release GitHub (à côté de l'APK), même version et même contenu que l'APK.
+  En local : `./gradlew :app:bundleRelease`.
 - **Politique de confidentialité** : `docs/PRIVACY.md`, URL à donner à la Play Console :
   https://github.com/CorentinGrard/PicPiste/blob/main/docs/PRIVACY.md
 - **Visuels** : `docs/play/icon-512.png` (icône 512 × 512) et `docs/play/feature-graphic.png`
