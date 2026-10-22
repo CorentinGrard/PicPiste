@@ -31,6 +31,10 @@ jobs:
       - name: Core tests
         run: ./gradlew :core:test --console=plain
 
+      # Fresh OGN device database in the app; keeps the committed copy if OGN is unreachable.
+      - name: OGN device database
+        run: ./gradlew :core:updateDdb --console=plain
+
       - name: Signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.PICPISTE_KEYSTORE_BASE64 }}

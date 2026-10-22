@@ -64,4 +64,14 @@ class AprsParserTest {
         assertEquals(92.0, b.groundSpeedKmh, 1.0)
         assertEquals(-1.5, b.climbMs!!, 0.01)
     }
+
+    @Test
+    fun readsAdsbFlightId() {
+        val b = AprsParser.parse(
+            "ICA39BD74>OGADSB,qAS,AVX944:/150904h4631.07N\\00021.64W^102/360/A=025836 !W12! id2139BD74 +1280fpm FL253.93 A1:FHPLU Sq1773",
+        )
+        assertNotNull(b)
+        assertEquals("FHPLU", b.callsign)
+        assertNull(AprsParser.parse("FLRDD1234>OGFLR,qAS,LFNL:/123456h4347.95N/00346.92E'299/054/A=000892 id06DD1234")!!.callsign)
+    }
 }

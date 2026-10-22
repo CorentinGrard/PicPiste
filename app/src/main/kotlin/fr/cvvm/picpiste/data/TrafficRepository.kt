@@ -48,6 +48,12 @@ import kotlinx.coroutines.withContext
 /** What the replay is playing, for the top bar. */
 data class ReplayInfo(val file: String?, val nowMs: Long?, val message: String?)
 
+/**
+ * The OGN device database in use, for the settings: [devices] 0 means no names at all.
+ * [downloading] while a download runs, [failed] when the last one failed.
+ */
+data class DdbStatus(val devices: Int, val updatedAtMs: Long, val downloading: Boolean = false, val failed: Boolean = false)
+
 /** The phone's own GPS, whatever the traffic source: used by the airfield editor. */
 data class PhoneFix(val geo: GeoPoint, val accuracyM: Double?, val timeMs: Long)
 
@@ -65,7 +71,23 @@ class TrafficRepository(private val context: Context) {
     private val engineDispatcher = Dispatchers.Default.limitedParallelism(1)
     private val scope = CoroutineScope(SupervisorJob() + engineDispatcher)
     private var engine = PicPisteEngine(airfields.current.value)
+    @Volatile
     private var liveDdb: DeviceDatabase = DeviceDatabase.EMPTY
+
+    /** Shipped copy, downloaded copy, downloads (also used by [DdbRefreshWorker]). */
+    val ddbStore = DdbRepository(
+        cacheFile = File(context.filesDir, "ogn-ddb.tsv.gz"),
+        // Not ".gz": the Android build unpacks and renames those.
+        bundled = { context.assets.open("ogn-ddb.dat") },
+    )
+    private val _ddbStatus = MutableStateFlow(DdbStatus(0, 0))
+    val ddbStatus: StateFlow<DdbStatus> = _ddbStatus.asStateFlow()
+    private var ddbJob: Job? = null
+
+    /** What the current engine was made for: kept when the app comes back to it. */
+    private var engineFor: Pair<Source, Airfield>? = null
+    private val mainHandler = android.os.Handler(Looper.getMainLooper())
+    private val delayedStop = Runnable { stop() }
     private val speaker = AlertSpeaker(context)
 
     /** Wall clock, or the replay's virtual clock. */
@@ -100,13 +122,19 @@ class TrafficRepository(private val context: Context) {
     /** Call from the main thread. */
     fun acquire() {
         users++
-        if (users == 1) start()
+        if (users != 1) return
+        // Back within the grace period: still running, nothing was missed.
+        mainHandler.removeCallbacks(delayedStop)
+        if (job == null) start()
     }
 
-    /** Call from the main thread. */
+    /**
+     * Call from the main thread. Keeps running [STOP_GRACE_MS] after the last user left, so a
+     * quick look at another app misses no beacon.
+     */
     fun release() {
         users = (users - 1).coerceAtLeast(0)
-        if (users == 0) stop()
+        if (users == 0) mainHandler.postDelayed(delayedStop, STOP_GRACE_MS)
     }
 
     /** After the location permission was granted. */
@@ -123,11 +151,15 @@ class TrafficRepository(private val context: Context) {
         job = scope.launch {
             launch { loadDdb() }
             launch {
-                // A new source or a new airfield: start over with a fresh engine.
+                // A new source or a new airfield: start over with a fresh engine. Coming back
+                // to the same live airfield keeps the aircraft and the landed list.
                 combine(prefs.source, airfields.current, airfields.configured) { s, a, ok -> Triple(s, a, ok) }.collectLatest { (source, field, configured) ->
                     clock = System::currentTimeMillis
                     _replay.value = ReplayInfo(null, null, null)
-                    engine = PicPisteEngine(field, settings()).apply { ddb = liveDdb }
+                    if (source != Source.LIVE || engineFor != source to field) {
+                        engine = PicPisteEngine(field, settings()).apply { ddb = liveDdb }
+                        engineFor = source to field
+                    }
                     // No airfield chosen yet (welcome screen): no traffic, no network.
                     if (!configured) return@collectLatest
                     when (source) {
@@ -153,19 +185,62 @@ class TrafficRepository(private val context: Context) {
     private fun stop() {
         job?.cancel()
         job = null
+        ddbJob?.cancel()
+        ddbJob = null
         stopLocation()
         TrackingService.stop(context)
     }
 
     private fun settings() = TrafficSettings(ceilingAglM = prefs.ceilingAglM.value.toDouble())
 
+    /**
+     * Names come from the OGN device database: the newest copy on the phone at once (the one
+     * shipped with the app on a fresh install), then a download when it is over a week old,
+     * retried until it works (weak signal at the field).
+     */
     private suspend fun loadDdb() {
-        val db = withContext(Dispatchers.IO) {
-            DdbRepository(File(context.cacheDir, "ogn-ddb.json")).load()
+        if (liveDdb.size == 0) {
+            useDdb(withContext(Dispatchers.IO) {
+                File(context.cacheDir, "ogn-ddb.json").delete() // the 5 MB JSON kept by 0.9.1 and before
+                ddbStore.loadLocal()
+            })
         }
-        Log.i(TAG, "OGN device database: ${db.size} devices")
-        liveDdb = db
-        if (prefs.source.value != Source.DEMO) engine.ddb = db
+        var waitMs = 15_000L
+        while (ddbStore.isStale(liveDdb)) {
+            if (downloadDdb()) return
+            delay(waitMs)
+            waitMs = (waitMs * 2).coerceAtMost(5 * 60_000L)
+        }
+    }
+
+    /** Settings button: download now, whatever the age of the copy. */
+    fun refreshDdbNow() {
+        if (_ddbStatus.value.downloading) return
+        ddbJob = scope.launch { downloadDdb() }
+    }
+
+    /** A background download finished ([DdbRefreshWorker]). */
+    fun onDdbDownloaded() {
+        scope.launch { useDdb(withContext(Dispatchers.IO) { ddbStore.loadLocal() }) }
+    }
+
+    private suspend fun downloadDdb(): Boolean {
+        _ddbStatus.value = _ddbStatus.value.copy(downloading = true, failed = false)
+        val db = withContext(Dispatchers.IO) {
+            runCatching { ddbStore.download() }.onFailure { Log.w(TAG, "OGN device database not downloaded: $it") }.getOrNull()
+        }
+        if (db != null) useDdb(db) else _ddbStatus.value = _ddbStatus.value.copy(downloading = false, failed = true)
+        return db != null
+    }
+
+    /** Runs on the engine thread. */
+    private fun useDdb(db: DeviceDatabase) {
+        Log.i(TAG, "OGN device database: ${db.size} devices, from ${db.updatedAtMs}")
+        if (db.size > 0 && db.updatedAtMs >= liveDdb.updatedAtMs) {
+            liveDdb = db
+            if (prefs.source.value != Source.DEMO) engine.ddb = db
+        }
+        _ddbStatus.value = DdbStatus(liveDdb.size, liveDdb.updatedAtMs)
     }
 
     private suspend fun runLive() {
@@ -306,5 +381,8 @@ class TrafficRepository(private val context: Context) {
 
     companion object {
         private const val TAG = "PicPiste"
+
+        /** How long the feed keeps running after the app leaves the screen. */
+        const val STOP_GRACE_MS = 2 * 60_000L
     }
 }

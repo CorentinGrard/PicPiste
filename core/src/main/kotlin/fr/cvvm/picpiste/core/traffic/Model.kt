@@ -53,15 +53,21 @@ data class Identity(
     val registration: String?,
     val cn: String?,
     val model: String?,
-    /** Owner asked not to be identified, or the device is unknown to OGN. */
+    /** Owner asked not to be identified, or nothing names the aircraft. */
     val anonymous: Boolean,
+    /** ADS-B flight ID, for aircraft unknown to the OGN device database. */
+    val callsign: String? = null,
 ) {
-    /** Short label for the radar: competition number, else the last 2 letters of the registration. */
+    /**
+     * Short label for the radar: competition number, else the last 2 letters of the registration,
+     * else the ADS-B callsign.
+     */
     val label: String
         get() = when {
             anonymous -> "??"
             !cn.isNullOrBlank() -> cn
             !registration.isNullOrBlank() -> registration.takeLast(2)
+            !callsign.isNullOrBlank() -> callsign
             else -> "??"
         }
 }

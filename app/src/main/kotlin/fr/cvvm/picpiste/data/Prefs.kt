@@ -31,6 +31,16 @@ enum class Theme(@StringRes val labelRes: Int) {
     }
 }
 
+/**
+ * Vertical reference for the aircraft heights shown. Both come from the aircraft's GPS:
+ * altitude is above mean sea level (an altimeter set to QNH), height is above the airfield
+ * (set to QFE).
+ */
+enum class AltitudeRef(@StringRes val labelRes: Int) {
+    ALTITUDE(R.string.altitude_ref_qnh),
+    HEIGHT(R.string.altitude_ref_qfe),
+}
+
 /** What the airfield editor shows under the airfield. */
 enum class MapBackground(@StringRes val labelRes: Int) {
     PHOTO(R.string.map_photo),
@@ -57,6 +67,9 @@ class Prefs(context: Context) {
     private val _zoom = MutableStateFlow(sp.getFloat(KEY_ZOOM_RADIUS, 1_500f).toDouble().coerceIn(MIN_RADIUS_M, MAX_RADIUS_M))
     private val _replaySpeed = MutableStateFlow(sp.getInt(KEY_REPLAY_SPEED, 4))
     private val _theme = MutableStateFlow(runCatching { Theme.valueOf(sp.getString(KEY_THEME, null) ?: "") }.getOrDefault(Theme.AUTO))
+    private val _altitudeRef = MutableStateFlow(
+        runCatching { AltitudeRef.valueOf(sp.getString(KEY_ALTITUDE_REF, null) ?: "") }.getOrDefault(AltitudeRef.ALTITUDE),
+    )
     private val _mapBackground = MutableStateFlow(
         runCatching { MapBackground.valueOf(sp.getString(KEY_MAP_BACKGROUND, null) ?: "") }.getOrDefault(MapBackground.PHOTO),
     )
@@ -73,6 +86,12 @@ class Prefs(context: Context) {
     /** Auto follows the phone's dark theme setting. */
     val theme: StateFlow<Theme> = _theme.asStateFlow()
     val mapBackground: StateFlow<MapBackground> = _mapBackground.asStateFlow()
+    val altitudeRef: StateFlow<AltitudeRef> = _altitudeRef.asStateFlow()
+
+    fun setAltitudeRef(v: AltitudeRef) {
+        sp.edit().putString(KEY_ALTITUDE_REF, v.name).apply()
+        _altitudeRef.value = v
+    }
 
     fun setMapBackground(v: MapBackground) {
         sp.edit().putString(KEY_MAP_BACKGROUND, v.name).apply()
@@ -132,6 +151,7 @@ class Prefs(context: Context) {
         private const val KEY_REPLAY_SPEED = "replaySpeed"
         private const val KEY_THEME = "theme"
         private const val KEY_MAP_BACKGROUND = "mapBackground"
+        private const val KEY_ALTITUDE_REF = "altitudeRef"
 
         /** Zoom button presets, metres from the centre to the nearest edge of the map. */
         val ZOOM_RADII_M = listOf(700.0, 1_500.0, 4_000.0)

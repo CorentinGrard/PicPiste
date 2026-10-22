@@ -3,6 +3,7 @@ package fr.cvvm.picpiste
 import android.app.Application
 import android.content.res.Configuration
 import fr.cvvm.picpiste.core.i18n.Texts
+import fr.cvvm.picpiste.data.DdbRefreshWorker
 import fr.cvvm.picpiste.data.TrafficRepository
 
 class PicPisteApp : Application() {
@@ -11,6 +12,7 @@ class PicPisteApp : Application() {
     override fun onCreate() {
         super.onCreate()
         useLanguageOf(resources.configuration)
+        DdbRefreshWorker.schedule(this)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

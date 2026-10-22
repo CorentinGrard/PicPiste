@@ -86,4 +86,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.car.app)
     implementation(libs.androidx.car.app.projected)
+    implementation(libs.androidx.work.runtime)
 }

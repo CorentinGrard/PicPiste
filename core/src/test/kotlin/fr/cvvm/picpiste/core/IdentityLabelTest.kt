@@ -7,8 +7,8 @@ import kotlin.test.assertEquals
 
 /** Radar label: competition number first, else the last 2 letters of the registration. */
 class IdentityLabelTest {
-    private fun id(registration: String?, cn: String?, anonymous: Boolean = false) =
-        Identity("DD0A01", AircraftType.GLIDER, registration, cn, null, anonymous)
+    private fun id(registration: String?, cn: String?, anonymous: Boolean = false, callsign: String? = null) =
+        Identity("DD0A01", AircraftType.GLIDER, registration, cn, null, anonymous, callsign)
 
     @Test
     fun competitionNumberWins() = assertEquals("AB", id("F-CXYZ", "AB").label)
@@ -24,4 +24,10 @@ class IdentityLabelTest {
 
     @Test
     fun anonymousHidesEverything() = assertEquals("??", id("F-CXYZ", "AB", anonymous = true).label)
+
+    @Test
+    fun adsbCallsignWhenUnknownToOgn() = assertEquals("FHPLU", id(null, null, callsign = "FHPLU").label)
+
+    @Test
+    fun registrationBeatsCallsign() = assertEquals("YZ", id("F-CXYZ", null, callsign = "AFR12").label)
 }

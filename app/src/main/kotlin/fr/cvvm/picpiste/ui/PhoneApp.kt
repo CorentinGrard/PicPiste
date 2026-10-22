@@ -79,6 +79,7 @@ import fr.cvvm.picpiste.core.geo.Sun
 import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.core.traffic.AircraftState
 import fr.cvvm.picpiste.core.traffic.FlightStatus
+import fr.cvvm.picpiste.data.AltitudeRef
 import fr.cvvm.picpiste.data.Prefs
 import fr.cvvm.picpiste.data.ReplayInfo
 import fr.cvvm.picpiste.data.Source
@@ -200,7 +201,7 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
 
         selected?.let { addr ->
             val a = snap.aircraft.firstOrNull { it.address == addr }
-            if (a == null) selected = null else DetailSheet(a) { selected = null }
+            if (a == null) selected = null else DetailSheet(a, repo.prefs.altitudeRef.collectAsStateWithLifecycle().value) { selected = null }
         }
         if (showSettings) {
             SettingsDialog(
@@ -258,6 +259,7 @@ private fun Pill(text: String, dot: Color? = null) {
 private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, selected: String?, onZoom: (Double) -> Unit, onSelect: (String?) -> Unit) {
     val context = LocalContext.current
     val renderer = remember { RadarRenderer(context) }
+    val altitudeRef by repo.prefs.altitudeRef.collectAsStateWithLifecycle()
     val density = LocalDensity.current.density
     Canvas(
         Modifier
@@ -276,6 +278,7 @@ private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, sele
     ) {
         drawIntoCanvas { canvas ->
             renderer.colors = Palette.current
+            renderer.altitudeRef = altitudeRef
             renderer.draw(canvas.nativeCanvas, 0f, 0f, size.width, size.height, snap, radiusM, density, selected)
         }
     }
@@ -442,7 +445,7 @@ private fun LandedRow(a: AircraftState, now: Long, onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DetailSheet(a: AircraftState, onDismiss: () -> Unit) {
+private fun DetailSheet(a: AircraftState, altitudeRef: AltitudeRef, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c(Palette.BG)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -470,7 +473,12 @@ private fun DetailSheet(a: AircraftState, onDismiss: () -> Unit) {
             }
             val f = a.fix
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Stat(stringResource(R.string.stat_height), "${f.aglM.coerceAtLeast(0.0).toInt()} m", stringResource(R.string.stat_qnh, f.altitudeM.toInt()), Modifier.weight(1f))
+                val altitude = f.altitudeM.toInt()
+                val height = f.aglM.coerceAtLeast(0.0).toInt()
+                when (altitudeRef) {
+                    AltitudeRef.ALTITUDE -> Stat(stringResource(R.string.stat_altitude), "$altitude m", stringResource(R.string.stat_qfe, height), Modifier.weight(1f))
+                    AltitudeRef.HEIGHT -> Stat(stringResource(R.string.stat_height), "$height m", stringResource(R.string.stat_qnh, altitude), Modifier.weight(1f))
+                }
                 Stat(stringResource(R.string.stat_vario), f.climbMs?.let { String.format(Texts.current.locale, "%+.1f m/s", it) } ?: "—", "", Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -495,6 +503,14 @@ private fun Stat(label: String, value: String, sub: String, modifier: Modifier) 
     }
 }
 
+/** "2 d ago", "5 h ago", "just now". */
+@Composable
+private fun formatAge(ms: Long): String = when {
+    ms < 3600_000 -> stringResource(R.string.age_now)
+    ms < 24 * 3600_000 -> stringResource(R.string.age_hours, (ms / 3600_000).toInt())
+    else -> stringResource(R.string.age_days, (ms / (24 * 3600_000)).toInt())
+}
+
 @Composable
 private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, onAddAirfield: () -> Unit, onDismiss: () -> Unit) {
     val airfield by repo.airfields.current.collectAsStateWithLifecycle()
@@ -505,7 +521,9 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
     val record by repo.prefs.record.collectAsStateWithLifecycle()
     val speed by repo.prefs.replaySpeed.collectAsStateWithLifecycle()
     val ceiling by repo.prefs.ceilingAglM.collectAsStateWithLifecycle()
+    val altitudeRef by repo.prefs.altitudeRef.collectAsStateWithLifecycle()
     val theme by repo.prefs.theme.collectAsStateWithLifecycle()
+    val ddb by repo.ddbStatus.collectAsStateWithLifecycle()
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) } },
@@ -564,6 +582,28 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                 }
                 if (BuildConfig.DEV_TOOLS) {
                     SettingSwitch(stringResource(R.string.record_day), stringResource(R.string.record_day_hint), record) { repo.prefs.setRecord(it) }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.altitude_ref), color = c(Palette.TEXT), fontSize = 16.sp)
+                    Choice(AltitudeRef.entries.map { stringResource(it.labelRes) }, altitudeRef.ordinal) { repo.prefs.setAltitudeRef(AltitudeRef.entries[it]) }
+                    Text(stringResource(R.string.altitude_ref_hint), color = c(Palette.MUTED), fontSize = 13.sp)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.ddb_title), color = c(Palette.TEXT), fontSize = 16.sp)
+                    val ageMs = System.currentTimeMillis() - ddb.updatedAtMs
+                    // No names, or a month without update: worth a look.
+                    val warn = ddb.devices == 0 || ageMs > 30L * 24 * 3600_000
+                    Text(
+                        when {
+                            ddb.downloading -> stringResource(R.string.ddb_downloading)
+                            ddb.devices == 0 -> stringResource(R.string.ddb_none)
+                            else -> stringResource(R.string.ddb_status, ddb.devices, formatAge(ageMs))
+                        } + if (ddb.failed) "\n" + stringResource(R.string.ddb_failed) else "",
+                        color = c(if (warn) Palette.RED_TEXT else Palette.MUTED), fontSize = 13.sp,
+                    )
+                    TextButton(onClick = { repo.refreshDdbNow() }, enabled = !ddb.downloading) {
+                        Text(stringResource(R.string.ddb_update))
+                    }
                 }
                 SettingSwitch(stringResource(R.string.voice_alert), stringResource(R.string.voice_alert_hint), sound) { repo.prefs.setSound(it) }
                 Column {

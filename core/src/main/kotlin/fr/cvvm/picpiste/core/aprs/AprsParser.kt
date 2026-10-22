@@ -38,6 +38,8 @@ data class AircraftBeacon(
     val receiver: String?,
     /** `hhmmss` UTC time from the beacon. */
     val timeHms: String,
+    /** ADS-B flight ID (`A1:FHPLU`, `A1:AFR123`): often the registration without its dash. */
+    val callsign: String? = null,
 )
 
 /**
@@ -57,6 +59,7 @@ object AprsParser {
     private val precision = Regex("""!W(\d)(\d)!""")
     private val id = Regex("""\bid([0-9A-Fa-f]{2})([0-9A-Fa-f]{6})\b""")
     private val climb = Regex("""([+-]\d+)fpm""")
+    private val flightId = Regex("""\bA1:([A-Za-z0-9]{2,8})\b""")
 
     fun parse(line: String): AircraftBeacon? {
         if (line.isEmpty() || line[0] == '#') return null
@@ -94,6 +97,7 @@ object AprsParser {
             climbMs = climb.find(comment)?.groupValues?.get(1)?.toInt()?.times(FPM_TO_MS),
             receiver = g[3].split(',').lastOrNull { it.isNotEmpty() && !it.startsWith("q") },
             timeHms = g[4],
+            callsign = flightId.find(comment)?.groupValues?.get(1)?.uppercase(),
         )
     }
 }

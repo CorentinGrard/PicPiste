@@ -38,3 +38,12 @@ tasks.register<JavaExec>("record") {
         .orEmpty()
     args(rootProject.file("recordings").absolutePath, airfield)
 }
+
+// Refreshes the OGN device database shipped with the app: ./gradlew :core:updateDdb
+tasks.register<JavaExec>("updateDdb") {
+    group = "picpiste"
+    description = "Downloads the OGN device database into the app's assets"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("fr.cvvm.picpiste.core.ddb.DdbBundleMainKt")
+    args(rootProject.file("app/src/main/assets/ogn-ddb.dat").absolutePath)
+}

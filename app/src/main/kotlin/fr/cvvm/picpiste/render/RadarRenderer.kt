@@ -1,5 +1,6 @@
 package fr.cvvm.picpiste.render
 
+import fr.cvvm.picpiste.data.AltitudeRef
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
@@ -33,6 +34,9 @@ import kotlin.math.min
 class RadarRenderer(private val context: Context) {
     /** Colours to draw with: the phone's theme, or the car's day / night. */
     var colors: Colors = Colors.DARK
+
+    /** Aircraft labels show altitude (QNH) or height above the field (QFE). */
+    var altitudeRef: AltitudeRef = AltitudeRef.ALTITUDE
 
     private companion object {
         const val STARTER_LENGTH_M = 30.0
@@ -360,8 +364,13 @@ class RadarRenderer(private val context: Context) {
     private fun tagSub(a: AircraftState): String = when {
         a.signalLost -> context.getString(R.string.signal_lost_ago, (a.ageMs / 1000).toInt())
         !a.status.isAirborne && a.status != FlightStatus.TAKEOFF -> ""
-        a.status == FlightStatus.FINAL && a.etaS != null -> "${a.fix.aglM.coerceAtLeast(0.0).toInt()} m · ${formatEta(a.etaS!!)}"
-        else -> "${a.fix.aglM.coerceAtLeast(0.0).toInt()} m"
+        a.status == FlightStatus.FINAL && a.etaS != null -> "${verticalM(a)} m · ${formatEta(a.etaS!!)}"
+        else -> "${verticalM(a)} m"
+    }
+
+    private fun verticalM(a: AircraftState): Int = when (altitudeRef) {
+        AltitudeRef.ALTITUDE -> a.fix.altitudeM.toInt()
+        AltitudeRef.HEIGHT -> a.fix.aglM.coerceAtLeast(0.0).toInt()
     }
 
     private fun tagWidth(a: AircraftState, dp: Float): Float {

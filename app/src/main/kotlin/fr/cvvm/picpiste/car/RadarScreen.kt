@@ -151,6 +151,7 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
             // The car decides day or night (headlights, time of day), not the phone's theme.
             val colors = if (carContext.isDarkMode) Colors.DARK else Colors.LIGHT
             renderer.colors = colors
+            renderer.altitudeRef = repo.prefs.altitudeRef.value
             overlay.colors = colors
             canvas.drawColor(colors.BG)
             if (!repo.airfields.configured.value) {

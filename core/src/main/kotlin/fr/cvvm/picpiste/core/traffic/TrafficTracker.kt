@@ -30,6 +30,8 @@ class TrafficTracker(
         var type = AircraftType.UNKNOWN
         /** Stealth bit of the latest beacon: the pilot asked not to be identified. */
         var stealth = false
+        /** Latest ADS-B flight ID heard. */
+        var callsign: String? = null
         var lastTimeHms = ""
         var c = Classification(FlightStatus.AIRBORNE)
         var hasStatus = false
@@ -54,6 +56,7 @@ class TrafficTracker(
         track.lastTimeHms = b.timeHms
         if (b.aircraftType != AircraftType.UNKNOWN) track.type = b.aircraftType
         track.stealth = b.stealth
+        if (b.callsign != null) track.callsign = b.callsign
 
         val geo = GeoPoint(b.lat, b.lon)
         val pos = airfield.frame.toLocal(geo)
@@ -172,7 +175,9 @@ class TrafficTracker(
                     registration = dev?.registration?.takeIf { it.isNotBlank() && dev.isIdentified },
                     cn = dev?.cn?.takeIf { it.isNotBlank() && dev.isIdentified },
                     model = dev?.model?.takeIf { it.isNotBlank() && it != "Unknown" && dev.isIdentified },
-                    anonymous = t.stealth || dev == null || !dev.isIdentified,
+                    // Unknown to OGN: the ADS-B callsign still names it (unless no-ident).
+                    callsign = t.callsign.takeIf { !t.stealth && dev == null },
+                    anonymous = t.stealth || (dev == null && t.callsign == null) || (dev != null && !dev.isIdentified),
                 ),
                 fix = fix,
                 trail = t.fixes.map { it.pos },
