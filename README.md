@@ -68,3 +68,22 @@ L'app n'étant pas sur le Play Store, il faut l'autoriser une fois :
 
 Construction, tests, CI et clé de signature : [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md).
 Spécifications : [docs/SPECS.md](docs/SPECS.md).
+
+## Licence et données
+
+PicPiste est un logiciel libre, sous licence **GNU GPL v3** ([LICENSE](LICENSE)) : vous
+pouvez l'utiliser, l'étudier, le modifier et le redistribuer, à condition de publier vos
+modifications sous la même licence. Il est fourni sans aucune garantie : c'est une aide à la
+vigilance, qui ne remplace pas l'observation visuelle.
+
+Données utilisées :
+
+- **Positions des aéronefs** : [Open Glider Network](https://www.glidernet.org), sous licence
+  ODbL, selon les [règles d'usage OGN](https://www.glidernet.org/ogn-data-usage/) (choix de
+  confidentialité de la base respectés, aucune donnée redistribuée).
+- **Noms des aéronefs** : [base des appareils OGN](https://ddb.glidernet.org), sous licence
+  ODC-BY. Une copie est livrée avec l'app et mise à jour chaque jour.
+- **Terrains** : © les contributeurs d'[OpenStreetMap](https://www.openstreetmap.org/copyright),
+  sous licence ODbL.
+- **Altitude des terrains** : [Open-Meteo](https://open-meteo.com).
+- **Fonds de carte de l'éditeur** : photos aériennes © IGN, plan © OpenStreetMap.

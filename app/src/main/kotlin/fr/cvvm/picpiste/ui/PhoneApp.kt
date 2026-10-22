@@ -503,6 +503,20 @@ private fun Stat(label: String, value: String, sub: String, modifier: Modifier) 
     }
 }
 
+/** Version, licence and data credits (GPL notice, ODbL and ODC-BY attributions). */
+@Composable
+private fun About() {
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(stringResource(R.string.about_title), color = c(Palette.TEXT), fontSize = 16.sp)
+        Text(stringResource(R.string.about_text, BuildConfig.VERSION_NAME), color = c(Palette.MUTED), fontSize = 13.sp)
+        Text(stringResource(R.string.credits_text), color = c(Palette.MUTED), fontSize = 13.sp)
+        TextButton(onClick = { uri.openUri(SOURCE_URL) }) { Text(stringResource(R.string.about_source)) }
+    }
+}
+
+private const val SOURCE_URL = "https://github.com/CorentinGrard/PicPiste"
+
 /** "2 d ago", "5 h ago", "just now". */
 @Composable
 private fun formatAge(ms: Long): String = when {
@@ -614,6 +628,7 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                         valueRange = 200f..1000f,
                     )
                 }
+                About()
             }
         },
     )

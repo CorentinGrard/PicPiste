@@ -60,6 +60,10 @@
     <string name="age_now">just now</string>
     <string name="age_hours">%1$d h ago</string>
     <string name="age_days">%1$d d ago</string>
+    <string name="about_title">About</string>
+    <string name="about_text">PicPiste %1$s · © 2026 Corentin Grard. Free software under the GNU GPL v3 licence, without any warranty.</string>
+    <string name="credits_text">Aircraft positions: Open Glider Network (ODbL). Aircraft names: OGN device database (ODC-BY). Airfields: ©\u00A0OpenStreetMap contributors (ODbL). Airfield elevation: Open-Meteo. Aerial photos: ©\u00A0IGN.</string>
+    <string name="about_source">Source code and licence</string>
     <string name="voice_alert">Voice alert</string>
     <string name="voice_alert_hint">Speaks up when the cart is on a runway and a glider is in the circuit.</string>
     <string name="ceiling">Display ceiling: %1$d m above ground</string>
