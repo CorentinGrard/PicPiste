@@ -129,6 +129,7 @@
   10 s au plus), à chaque image (téléphone à la fréquence de l'écran, voiture 30 i/s).
   Affichage seulement : statuts et alertes restent sur les positions reçues.
 - Traînées en lignes qui s'estompent (`TRAIL_ALPHA`, `TRAIL_PIECES`).
+- 1.1.1 : cercles du radar à des distances rondes, trois au plus (`RING_STEPS_M`).
 
 ### Points ouverts 1.1
 
