@@ -41,6 +41,8 @@ class RadarRenderer(private val context: Context) {
     private companion object {
         /** The trail fades in this many steps. */
         const val TRAIL_PIECES = 12
+        const val MAX_RINGS = 3
+        val RING_STEPS_M = listOf(100.0, 200.0, 250.0, 500.0, 1_000.0, 2_000.0, 2_500.0, 5_000.0)
         /** Opacity of the trail next to the aircraft (of 255). */
         const val TRAIL_ALPHA = 115f
         const val STARTER_LENGTH_M = 30.0
@@ -152,12 +154,21 @@ class RadarRenderer(private val context: Context) {
         text.textSize = 11 * dp
         text.color = colors.FAINT
         text.textAlign = Paint.Align.LEFT
-        for (r in listOf(radiusM / 2, radiusM)) {
+        // Fixed round distances, so a glider "between the 1 and 1.5 km rings" means the same at
+        // any zoom; at most three rings, further apart as the view widens.
+        val step = ringStepM(radiusM)
+        var r = step
+        while (r <= radiusM * 1.001) {
             val rp = (r * scale).toFloat()
             canvas.drawCircle(cx, cy, rp, stroke)
             canvas.drawText(if (r >= 1000) "${trim(r / 1000)} km" else "${r.toInt()} m", cx + 4 * dp, cy - rp + 13 * dp, text)
+            r += step
         }
     }
+
+    /** The smallest round step that keeps [MAX_RINGS] rings or fewer inside the view. */
+    private fun ringStepM(radiusM: Double): Double =
+        RING_STEPS_M.firstOrNull { radiusM / it < MAX_RINGS + 1 } ?: RING_STEPS_M.last()
 
     private fun polyPath(poly: Polygon): Path {
         path.reset()
