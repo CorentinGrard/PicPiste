@@ -147,6 +147,7 @@ class TrafficRepository(private val context: Context) {
                     val snap = engine.snapshot(now)
                     _snapshot.value = snap
                     speaker.update(snap.alert, prefs.sound.value, System.currentTimeMillis())
+                    // The radar moves aircraft on between snapshots itself, at every frame.
                     delay(500)
                 }
             }

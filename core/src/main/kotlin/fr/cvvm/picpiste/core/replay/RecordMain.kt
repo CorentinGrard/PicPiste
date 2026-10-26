@@ -38,8 +38,10 @@ fun main(args: Array<String>) = runBlocking {
             is AprsEvent.Connected -> println("Connecté à ${e.server}")
             is AprsEvent.Disconnected -> println("Déconnecté (${e.reason}), nouvel essai dans ${e.retryInMs / 1000} s")
             is AprsEvent.Line -> {
-                val b = AprsParser.parse(e.text) ?: return@collect
-                if (b.noTrack) return@collect
+                // Positions, and the status messages where trackers give their name.
+                val b = AprsParser.parse(e.text)
+                if (b == null && AprsParser.parseStatus(e.text) == null) return@collect
+                if (b?.noTrack == true) return@collect
                 val today = LocalDate.now(ZoneId.of("Europe/Paris"))
                 if (today != day) {
                     out?.close()
@@ -49,7 +51,7 @@ fun main(args: Array<String>) = runBlocking {
                 Recording.write(out!!, e.receivedAtMs, e.text)
                 if (++count % 100 == 0) {
                     out!!.flush()
-                    println("$count positions")
+                    println("$count messages")
                 }
             }
             AprsEvent.Connecting -> Unit

@@ -13,7 +13,6 @@
     <string name="landed_fallback">posé</string>
     <string name="just_now">à l\'instant</string>
     <string name="minutes_short">%1$d min</string>
-    <string name="minutes_ago">il y a %1$d min</string>
     <string name="detail_status">STATUT</string>
     <string name="signal_lost">Signal perdu</string>
     <string name="signal_lost_ago">signal perdu · %1$d s</string>
@@ -57,10 +56,7 @@
     <string name="ceiling">Plafond d\'affichage : %1$d m sol</string>
     <string name="car_arrivals">ARRIVÉES</string>
     <string name="car_landed">POSÉS</string>
-    <string name="circuit_clear">Circuit libre</string>
-    <string name="nobody_in_circuit">Personne dans le circuit</string>
-    <string name="landed_title">Posés</string>
-    <string name="no_landings">Aucun atterrissage pour l\'instant</string>
+    <string name="car_more">+%1$d autres</string>
     <string name="tracking_channel">Suivi du trafic</string>
     <string name="tracking_text">Suivi du trafic autour du terrain</string>
     <string name="cannot_open_file">Impossible d\'ouvrir ce fichier.</string>

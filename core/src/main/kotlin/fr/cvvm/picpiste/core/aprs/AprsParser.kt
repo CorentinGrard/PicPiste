@@ -40,6 +40,21 @@ data class AircraftBeacon(
     val timeHms: String,
     /** ADS-B flight ID (`A1:FHPLU`, `A1:AFR123`): often the registration without its dash. */
     val callsign: String? = null,
+    /** Rate of turn, degrees per second (positive = turning right), null when not given. */
+    val turnDegS: Double? = null,
+)
+
+/**
+ * What a device says about itself in an APRS status message (`>` instead of a position):
+ * OGN trackers send `Reg=F-CXYZ`, FANET and Meshtastic devices `Name="Pilot"`. Only useful
+ * for devices missing from the OGN device database.
+ */
+data class DeviceStatus(
+    /** Hex device address, upper case, 6 digits. */
+    val address: String,
+    val registration: String? = null,
+    /** Pilot or device name chosen by the owner. */
+    val name: String? = null,
 )
 
 /**
@@ -58,7 +73,14 @@ object AprsParser {
     )
     private val precision = Regex("""!W(\d)(\d)!""")
     private val id = Regex("""\bid([0-9A-Fa-f]{2})([0-9A-Fa-f]{6})\b""")
+    /** Naviter (SeeYou Navigator, Oudie) uses 16 bits of flags: `id0440FD0DD6`. */
+    private val naviterId = Regex("""\bid([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})\b""")
+    private val status = Regex("""^[A-Z]{3}([0-9A-Fa-f]{6})>[A-Za-z0-9-]+(?:,[^:,]+)*:>(?:\d{6}h)?(.*)$""")
+    private val statusReg = Regex("""\bReg=([A-Za-z0-9-]{2,10})\b""")
+    private val statusName = Regex("""\b(?:Name|Pilot)=(?:"([^"]*)"|(\S+))""")
     private val climb = Regex("""([+-]\d+)fpm""")
+    /** `+1.0rot` is half a turn per minute, 3°/s (checked against the tracks in live data). */
+    private val rot = Regex("""([+-]\d+(?:\.\d+)?)rot\b""")
     private val flightId = Regex("""\bA1:([A-Za-z0-9]{2,8})\b""")
 
     fun parse(line: String): AircraftBeacon? {
@@ -66,9 +88,14 @@ object AprsParser {
         val m = position.matchEntire(line.trimEnd()) ?: return null
         val g = m.groupValues
         val comment = g[14]
-        val idMatch = id.find(comment) ?: return null // receivers and other stations have no id field
-
-        val flags = idMatch.groupValues[1].toInt(16)
+        // Receivers and other stations have no id field.
+        val idMatch = id.find(comment)
+        val naviter = if (idMatch == null) naviterId.find(comment) ?: return null else null
+        val address = (idMatch ?: naviter!!).groupValues[2].uppercase()
+        // Same meaning as the OGN flags byte: stealth, no-track, aircraft type, address type.
+        val flags = idMatch?.groupValues?.get(1)?.toInt(16) ?: naviter!!.groupValues[1].toInt(16).let { d ->
+            (d shr 8 and 0xC0) or ((d shr 10 and 0x0F) shl 2) or ((d shr 4 and 0x3F).coerceAtMost(3))
+        }
         val prec = precision.find(comment)
         val latExtra = prec?.groupValues?.get(1)?.toDouble()?.div(1000) ?: 0.0
         val lonExtra = prec?.groupValues?.get(2)?.toDouble()?.div(1000) ?: 0.0
@@ -83,7 +110,7 @@ object AprsParser {
         val altFt = g[13].takeIf { it.isNotEmpty() }?.toInt() ?: return null
 
         return AircraftBeacon(
-            address = idMatch.groupValues[2].uppercase(),
+            address = address,
             addressType = AddressType.entries[flags and 0x03],
             aircraftType = AircraftType.fromCode((flags shr 2) and 0x0F),
             stealth = flags and 0x80 != 0,
@@ -98,6 +125,21 @@ object AprsParser {
             receiver = g[3].split(',').lastOrNull { it.isNotEmpty() && !it.startsWith("q") },
             timeHms = g[4],
             callsign = flightId.find(comment)?.groupValues?.get(1)?.uppercase(),
+            turnDegS = rot.find(comment)?.groupValues?.get(1)?.toDouble()?.times(3.0),
         )
+    }
+
+    /**
+     * A device's status message naming it, e.g.
+     * `FNTFC070C>OGNFNT,qAS,LSXI1:>063852h Name="Paul" sF1 cr4 7.4dB` or
+     * `OGNE40112>OGNTRK,qAS,EPWJ:>063858h Reg=F-CXYZ`. Null when it names nothing.
+     */
+    fun parseStatus(line: String): DeviceStatus? {
+        val m = status.matchEntire(line.trimEnd()) ?: return null
+        val text = m.groupValues[2]
+        val reg = statusReg.find(text)?.groupValues?.get(1)?.uppercase()
+        val name = statusName.find(text)?.let { it.groupValues[1].ifEmpty { it.groupValues[2] } }?.trim()?.takeIf { it.isNotEmpty() }
+        if (reg == null && name == null) return null
+        return DeviceStatus(m.groupValues[1].uppercase(), reg, name)
     }
 }

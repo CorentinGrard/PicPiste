@@ -1,7 +1,10 @@
 package fr.cvvm.picpiste.car
 
+import android.animation.ValueAnimator
 import android.graphics.Rect
 import android.util.Log
+import android.view.Choreographer
+import android.view.animation.DecelerateInterpolator
 import androidx.car.app.AppManager
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
@@ -27,7 +30,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * Main car screen. The template only carries the buttons (posés, zoom);
+ * Main car screen. The template only carries the zoom buttons;
  * everything else is drawn on the map surface, as in the design.
  */
 class RadarScreen(carContext: CarContext) : Screen(carContext) {
@@ -40,9 +43,30 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
     private var last: Snapshot = repo.snapshot.value
     private var job: Job? = null
 
-    /** Glider picked in the "Posés" list, highlighted on the radar for a while. */
-    private var selected: String? = null
-    private var selectedAtMs = 0L
+    /** Radius drawn on screen: follows the setting, gliding to it after a zoom button. */
+    private var shownRadiusM = repo.prefs.zoomRadiusM.value
+    private var zoomAnim: ValueAnimator? = null
+    private var buttonZoom = false
+
+    /** While something flies, redraw at the car's frame rate: aircraft glide between OGN positions. */
+    private var started = false
+    private var framing = false
+    private var lastFrameMs = 0L
+    private val frameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            framing = false
+            if (!started || last.aircraft.none { it.predicted }) return
+            val now = System.currentTimeMillis()
+            if (now - lastFrameMs >= FRAME_MS) draw()
+            scheduleFrame()
+        }
+    }
+
+    private fun scheduleFrame() {
+        if (framing) return
+        framing = true
+        Choreographer.getInstance().postFrameCallback(frameCallback)
+    }
 
     private val callback = object : SurfaceCallback {
         override fun onSurfaceAvailable(container: SurfaceContainer) {
@@ -74,57 +98,68 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
             }
 
             override fun onStart(owner: LifecycleOwner) {
+                started = true
                 job = lifecycleScope.launch {
-                    combine(repo.snapshot, repo.prefs.zoomRadiusM) { s, _ -> s }.collect {
-                        last = it
+                    combine(repo.snapshot, repo.prefs.zoomRadiusM) { s, z -> s to z }.collect { (snap, zoom) ->
+                        last = snap
+                        // Pinch and other changes apply at once; a button press animates.
+                        if (!buttonZoom && zoomAnim?.isRunning != true) shownRadiusM = zoom
                         draw()
+                        scheduleFrame()
                     }
                 }
             }
 
             override fun onStop(owner: LifecycleOwner) {
+                started = false
                 job?.cancel()
+                zoomAnim?.cancel()
             }
         })
     }
 
     override fun onGetTemplate(): Template {
+        // The template needs one action strip: the zoom icons, small, so the map keeps its room.
+        // Landings are listed in the side panel, not behind a button.
         val strip = ActionStrip.Builder()
             .addAction(
                 Action.Builder()
-                    .setTitle(carContext.getString(R.string.landed_title))
-                    .setOnClickListener { screenManager.push(LandedScreen(carContext, ::showOnRadar)) }
+                    .setIcon(icon(R.drawable.ic_zoom_out))
+                    .setOnClickListener { zoomSmoothly(1 / 1.5) }
                     .build(),
             )
-            .build()
-        // Map buttons: zoom in and out; PAN lets hosts send pinch gestures.
-        val mapStrip = ActionStrip.Builder()
-            .addAction(Action.PAN)
             .addAction(
                 Action.Builder()
                     .setIcon(icon(R.drawable.ic_zoom_in))
-                    .setOnClickListener { repo.prefs.zoomBy(1.5) }
-                    .build(),
-            )
-            .addAction(
-                Action.Builder()
-                    .setIcon(icon(R.drawable.ic_zoom_out))
-                    .setOnClickListener { repo.prefs.zoomBy(1 / 1.5) }
+                    .setOnClickListener { zoomSmoothly(1.5) }
                     .build(),
             )
             .build()
+        // PAN lets hosts send pinch gestures.
+        val mapStrip = ActionStrip.Builder().addAction(Action.PAN).build()
         return NavigationTemplate.Builder()
             .setActionStrip(strip)
             .setMapActionStrip(mapStrip)
             .build()
     }
 
-    private fun showOnRadar(address: String) {
-        selected = address
-        selectedAtMs = System.currentTimeMillis()
-        // Zoom out if the glider would be off screen.
-        val a = last.aircraft.firstOrNull { it.address == address } ?: return
-        if (a.distanceM > repo.prefs.zoomRadiusM.value * 0.85) repo.prefs.setZoomRadius(a.distanceM * 1.25)
+    /** Zoom button: changes the setting, then glides the drawn radius to it. */
+    private fun zoomSmoothly(factor: Double) {
+        val from = shownRadiusM
+        // The new setting reaches the collector at once: tell it to leave the drawn radius alone.
+        zoomAnim?.cancel()
+        buttonZoom = true
+        repo.prefs.zoomBy(factor)
+        buttonZoom = false
+        val to = repo.prefs.zoomRadiusM.value
+        if (from == to) return
+        zoomAnim = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = ZOOM_ANIM_MS
+            interpolator = DecelerateInterpolator()
+            // Geometric steps, so zooming in and out feel the same speed.
+            addUpdateListener { shownRadiusM = from * Math.pow(to / from, it.animatedFraction.toDouble()); draw() }
+            start()
+        }
     }
 
     private fun icon(res: Int) = CarIcon.Builder(IconCompat.createWithResource(carContext, res)).build()
@@ -158,13 +193,29 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
                 overlay.drawSetupMessage(canvas, area.left.toFloat(), area.top.toFloat(), area.width().toFloat(), area.height().toFloat(), dp)
                 return
             }
+            // The host keeps a band across the whole top for its buttons, though they only sit in
+            // the top-right corner. Draw under it, with the same margin as at the bottom: the
+            // panel gets its full height and the radar circle grows, clear of the buttons.
+            val top = (container.height - area.bottom).coerceIn(0, area.top).toFloat()
+            val height = area.bottom - top
+            val radius = shownRadiusM
+            lastFrameMs = System.currentTimeMillis()
+            val since = (lastFrameMs - last.timeMs).coerceAtLeast(0)
+            if (height > area.width() * 1.2f) {
+                // Portrait screen: the map on top, the lists below it across the full width.
+                val mapH = minOf(area.width().toFloat(), height * 0.55f)
+                renderer.draw(canvas, area.left.toFloat(), top, area.width().toFloat(), mapH, last, radius, dp, null, sinceSnapshotMs = since)
+                overlay.drawPanel(canvas, area.left.toFloat(), top + mapH, area.width().toFloat(), height - mapH, last, dp)
+                overlay.drawBanner(canvas, area.left.toFloat(), area.top.toFloat(), area.width().toFloat(), last, dp)
+                overlay.drawRunwayBorder(canvas, w, h, last, dp)
+                return
+            }
             val panelW = (area.width() * 0.31f).coerceIn(260 * dp, 420 * dp)
-            overlay.drawPanel(canvas, area.left.toFloat(), area.top.toFloat(), panelW, area.height().toFloat(), last, dp)
+            overlay.drawPanel(canvas, area.left.toFloat(), top, panelW, height, last, dp)
             val mapLeft = area.left + panelW
             val mapW = area.right - mapLeft
-            val radius = repo.prefs.zoomRadiusM.value
-            if (selected != null && System.currentTimeMillis() - selectedAtMs > SELECTION_MS) selected = null
-            renderer.draw(canvas, mapLeft, area.top.toFloat(), mapW, area.height().toFloat(), last, radius, dp, selected)
+            renderer.draw(canvas, mapLeft, top, mapW, height, last, radius, dp, null, sinceSnapshotMs = since)
+            // The alert banner stays below the buttons, so its time is never hidden.
             overlay.drawBanner(canvas, mapLeft, area.top.toFloat(), mapW, last, dp)
             overlay.drawRunwayBorder(canvas, w, h, last, dp)
         } finally {
@@ -173,6 +224,8 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
     }
 
     private companion object {
-        const val SELECTION_MS = 60_000L
+        const val ZOOM_ANIM_MS = 300L
+        /** Car screens show 30 frames a second. */
+        const val FRAME_MS = 33L
     }
 }

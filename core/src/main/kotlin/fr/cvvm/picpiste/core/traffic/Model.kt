@@ -5,6 +5,7 @@ import fr.cvvm.picpiste.core.airfield.RunwayEnd
 import fr.cvvm.picpiste.core.airfield.RunwayThird
 import fr.cvvm.picpiste.core.aprs.AircraftType
 import fr.cvvm.picpiste.core.geo.GeoPoint
+import fr.cvvm.picpiste.core.geo.LocalFrame
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.i18n.Texts
 
@@ -37,6 +38,7 @@ private val AIRBORNE_STATUSES = setOf(
 
 /** One position of one aircraft, in the airfield's local frame. */
 data class Fix(
+    /** When the aircraft sent it (its own GPS time), not when it reached the phone. */
     val timeMs: Long,
     val pos: Vec2,
     val geo: GeoPoint,
@@ -45,6 +47,8 @@ data class Fix(
     val groundSpeedKmh: Double,
     val trackDeg: Double?,
     val climbMs: Double?,
+    /** Degrees per second, positive turning right. */
+    val turnDegS: Double? = null,
 )
 
 data class Identity(
@@ -57,10 +61,12 @@ data class Identity(
     val anonymous: Boolean,
     /** ADS-B flight ID, for aircraft unknown to the OGN device database. */
     val callsign: String? = null,
+    /** Name the device gives itself (pilot name on a FANET or OGN tracker), when OGN does not know it. */
+    val name: String? = null,
 ) {
     /**
      * Short label for the radar: competition number, else the last 2 letters of the registration,
-     * else the ADS-B callsign.
+     * else the ADS-B callsign, else the first word of the device's own name.
      */
     val label: String
         get() = when {
@@ -68,8 +74,13 @@ data class Identity(
             !cn.isNullOrBlank() -> cn
             !registration.isNullOrBlank() -> registration.takeLast(2)
             !callsign.isNullOrBlank() -> callsign
+            !name.isNullOrBlank() -> name.trim().substringBefore(' ').take(MAX_NAME)
             else -> "??"
         }
+
+    private companion object {
+        const val MAX_NAME = 10
+    }
 }
 
 data class AircraftState(
@@ -89,8 +100,18 @@ data class AircraftState(
     val landedThird: RunwayThird?,
     /** Below the display ceiling (or on the field): drawn. Above it, still used for the alerts. */
     val shown: Boolean = true,
+    /** Flying and heard recently: drawn where it should be now, see [shownAt]. */
+    val predicted: Boolean = false,
 ) {
     val address get() = identity.address
+
+    /**
+     * Where to draw it [sinceSnapshotMs] after the snapshot: moved on from its last position
+     * by its speed and turn (see [Prediction]), or where it was heard. Display only: statuses
+     * and alerts use the positions actually received.
+     */
+    fun shownAt(sinceSnapshotMs: Long, frame: LocalFrame): Pair<Vec2, Double?> =
+        if (predicted) Prediction.ahead(fix, (ageMs + sinceSnapshotMs) / 1000.0, frame) else fix.pos to fix.trackDeg
 
     /** Landing or takeoff runway end, as written in the phone language: "22", "14G". */
     val runwayRef: String? get() = runwayEnd?.let { end -> runway?.ref(end) }?.let(Texts.current::runwayRef)

@@ -110,6 +110,35 @@
   le même terrain garde le radar et la liste « Posés ».
 - Licence GPL v3, crédits des données dans Réglages → À propos.
 
+## Version 1.1 (26 oct. 2026) — après le premier essai terrain
+
+- **Android Auto** : plus de bouton « Posés » ; la liste est dans le panneau de gauche, toujours
+  affichée, sous les arrivées (« +N autres » si elle déborde). Plus de « Circuit libre » : une
+  liste vide suffit (la carte « Pas de données OGN » reste). Zoom −/+ dans la barre du haut,
+  animé ; la carte passe sous la bande réservée aux boutons (ils se cachent seuls). Écrans
+  portrait : carte en haut, listes dessous. Vérifié au DHU en 800×480, 6", 720p, 1080p
+  (160 et 240 dpi), large, portrait 1080×1920.
+- **Téléphone en paysage** : menu et listes à gauche, carte pleine hauteur à droite, comme
+  dans la voiture.
+- **Noms des appareils personnels** : messages d'état `Reg=` / `Name=` / `Pilot=` (traqueurs
+  OGN, FANET, Meshtastic) pour les appareils absents de la base OGN ; jamais si no-ident.
+  Positions Naviter (SeeYou Navigator, Oudie, identifiant sur 10 chiffres) lues.
+- **Retard OGN** (mesuré : 2 s en médiane, 5 s au pire ; une position toutes les 3 s, jusqu'à
+  13 s) : l'âge des positions et les ETA partent de l'heure du balisage, pas de sa réception.
+  `Prediction` avance chaque aircraft en vol (vitesse, taux de virage `rot` = 3°/s par unité,
+  10 s au plus), à chaque image (téléphone à la fréquence de l'écran, voiture 30 i/s).
+  Affichage seulement : statuts et alertes restent sur les positions reçues.
+- Traînées en lignes qui s'estompent (`TRAIL_ALPHA`, `TRAIL_PIECES`).
+
+### Points ouverts 1.1
+
+- **Plantage voiture** si l'app est mise à jour pendant une session Android Auto : le nouveau
+  processus reçoit l'ancienne surface (`getFrame() called on a context with no surface`,
+  dans `lockHardwareCanvas`). Arrive aussi avec une mise à jour Play pendant que le téléphone
+  est branché.
+- Mesurer le retard réel des stations autour du terrain avec `./gradlew :core:record`.
+- Plus tard : récepteur FLARM dans la golfette (moins de 1 s de retard).
+
 ## Reste à faire
 
 - **Mode clair en plein soleil** : à essayer dehors, ajuster les couleurs si besoin

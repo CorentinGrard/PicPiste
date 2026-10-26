@@ -76,7 +76,8 @@ class PicPisteEngine(
 
     fun onLine(line: String, receivedAtMs: Long) {
         connection = connection.copy(lastLineAtMs = receivedAtMs)
-        AprsParser.parse(line)?.let { tracker.onBeacon(it, receivedAtMs) }
+        val beacon = AprsParser.parse(line)
+        if (beacon != null) tracker.onBeacon(beacon, receivedAtMs) else AprsParser.parseStatus(line)?.let { tracker.onStatus(it, receivedAtMs) }
     }
 
     fun onCartPosition(geo: GeoPoint, accuracyM: Double?, timeMs: Long) {

@@ -39,6 +39,10 @@ class RadarRenderer(private val context: Context) {
     var altitudeRef: AltitudeRef = AltitudeRef.ALTITUDE
 
     private companion object {
+        /** The trail fades in this many steps. */
+        const val TRAIL_PIECES = 12
+        /** Opacity of the trail next to the aircraft (of 255). */
+        const val TRAIL_ALPHA = 115f
         const val STARTER_LENGTH_M = 30.0
         const val STARTER_WIDTH_M = 14.0
     }
@@ -78,6 +82,11 @@ class RadarRenderer(private val context: Context) {
     private val sansBold = Typeface.create("sans-serif", Typeface.BOLD)
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val trail = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.BUTT
+        strokeJoin = Paint.Join.ROUND
+    }
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeJoin = Paint.Join.ROUND
@@ -112,6 +121,8 @@ class RadarRenderer(private val context: Context) {
         selected: String? = null,
         showNorth: Boolean = true,
         showScale: Boolean = true,
+        /** Time since [snap] was made: moving aircraft are drawn where they are by then. */
+        sinceSnapshotMs: Long = 0,
     ) {
         canvas.save()
         canvas.clipRect(left, top, left + width, top + height)
@@ -126,7 +137,7 @@ class RadarRenderer(private val context: Context) {
 
         drawRings(canvas, radiusM, dp)
         drawAirfield(canvas, snap, dp)
-        drawTraffic(canvas, snap, dp, selected)
+        drawTraffic(canvas, snap, dp, selected, sinceSnapshotMs)
         drawCart(canvas, snap, dp)
         if (showNorth) drawNorth(canvas, left + 16 * dp, top + 16 * dp, dp)
         if (showScale) drawScale(canvas, left + 16 * dp, top + height - 16 * dp, width, dp)
@@ -273,7 +284,7 @@ class RadarRenderer(private val context: Context) {
         canvas.restore()
     }
 
-    private fun drawTraffic(canvas: Canvas, snap: Snapshot, dp: Float, selected: String?) {
+    private fun drawTraffic(canvas: Canvas, snap: Snapshot, dp: Float, selected: String?, sinceSnapshotMs: Long) {
         val order = snap.aircraft.sortedBy {
             when {
                 it.signalLost -> 0
@@ -284,21 +295,33 @@ class RadarRenderer(private val context: Context) {
         }
         val newHits = ArrayList<Hit>(order.size)
         for (a in order) {
-            val x = sx(a.fix.pos)
-            val y = sy(a.fix.pos)
+            val (shownPos, shownTrack) = a.shownAt(sinceSnapshotMs, snap.airfield.frame)
+            val x = sx(shownPos)
+            val y = sy(shownPos)
             val color = colors.of(a)
 
-            // Trail of the last 2 minutes
-            if (a.status.isAirborne && !a.signalLost) {
-                fill.color = color
-                val n = a.trail.size
-                a.trail.forEachIndexed { i, p ->
-                    if (i % 2 == 0 && i < n - 1) {
-                        fill.alpha = (40 + 140 * i / n.coerceAtLeast(1))
-                        canvas.drawCircle(sx(p), sy(p), 1.6f * dp, fill)
+            // Trail of the last 2 minutes: a line fading out towards its oldest end, joined to
+            // the aircraft where it is drawn now.
+            if (a.status.isAirborne && !a.signalLost && a.trail.isNotEmpty()) {
+                trail.color = color
+                trail.strokeWidth = 1.6f * dp
+                // A few pieces, each one path, so the line has no darker joints; older pieces fainter.
+                val n = a.trail.size + 1 // the last point is the aircraft itself
+                val pieces = minOf(TRAIL_PIECES, n - 1)
+                for (k in 0 until pieces) {
+                    val from = k * (n - 1) / pieces
+                    val to = (k + 1) * (n - 1) / pieces
+                    path.reset()
+                    for (i in from..to) {
+                        val px = if (i < a.trail.size) sx(a.trail[i]) else x
+                        val py = if (i < a.trail.size) sy(a.trail[i]) else y
+                        if (i == from) path.moveTo(px, py) else path.lineTo(px, py)
                     }
+                    // Light, and fading fast: only the last part of the track really shows.
+                    val f = (k + 1f) / pieces
+                    trail.alpha = (TRAIL_ALPHA * f * f * f).toInt()
+                    canvas.drawPath(path, trail)
                 }
-                fill.alpha = 255
             }
 
             if (!view.contains(x, y)) {
@@ -310,7 +333,7 @@ class RadarRenderer(private val context: Context) {
                 stroke.strokeWidth = 2.5f * dp
                 canvas.drawCircle(x, y, 18 * dp, stroke)
             }
-            drawIcon(canvas, a, x, y, color, dp)
+            drawIcon(canvas, a, shownTrack, x, y, color, dp)
             drawTag(canvas, a, x + 14 * dp, y, color, dp, selected == a.address)
             newHits += Hit(a.address, x, y)
         }
@@ -396,9 +419,9 @@ class RadarRenderer(private val context: Context) {
         close()
     }
 
-    private fun drawIcon(canvas: Canvas, a: AircraftState, x: Float, y: Float, color: Int, dp: Float) {
+    private fun drawIcon(canvas: Canvas, a: AircraftState, trackDeg: Double?, x: Float, y: Float, color: Int, dp: Float) {
         val size = (if (a.status.isAirborne || a.status == FlightStatus.TAKEOFF) 26 else 22) * dp
-        val angle = a.fix.trackDeg?.let { track ->
+        val angle = trackDeg?.let { track ->
             val d = turned(airfield!!.frame.directionOf(track))
             Math.toDegrees(atan2(d.x, d.y)).toFloat() // screen y is flipped: up = +y local
         } ?: 0f

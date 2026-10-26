@@ -17,6 +17,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -46,6 +48,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -179,16 +183,33 @@ fun PhoneApp(repo: TrafficRepository, incoming: Uri? = null, onIncomingHandled: 
                 .background(c(Palette.BG))
                 .then(if (border != null) Modifier.border(8.dp, c(border)) else Modifier),
         ) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                TopBar(snap, onSettings = { showSettings = true })
-                Box(Modifier.fillMaxWidth().weight(1.15f)) {
+            val map = @Composable { modifier: Modifier ->
+                Box(modifier) {
                     Radar(repo, snap, radius, selected, onZoom = { repo.prefs.zoomBy(it) }) { selected = it }
                     ZoomButton(Prefs.zoomLabel(radius), Modifier.align(Alignment.TopEnd).padding(12.dp)) {
                         repo.prefs.cycleZoom()
                     }
                     if (snap.alert.level == AlertLevel.DANGER || snap.alert.level == AlertLevel.CAUTION) AlertBanner(snap)
                 }
-                Lists(snap, Modifier.weight(1f)) { selected = it }
+            }
+            BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+                if (maxWidth > maxHeight) {
+                    // Landscape: as in the car, lists and menu on the left, the map full height on the right.
+                    val sideW = (maxWidth * 0.42f).coerceIn(300.dp, 440.dp)
+                    Row(Modifier.fillMaxSize()) {
+                        Column(Modifier.fillMaxHeight().width(sideW)) {
+                            TopBar(snap, onSettings = { showSettings = true })
+                            Lists(snap, Modifier.weight(1f), landscape = true) { selected = it }
+                        }
+                        map(Modifier.fillMaxHeight().weight(1f))
+                    }
+                } else {
+                    Column(Modifier.fillMaxSize()) {
+                        TopBar(snap, onSettings = { showSettings = true })
+                        map(Modifier.fillMaxWidth().weight(1.15f))
+                        Lists(snap, Modifier.weight(1f)) { selected = it }
+                    }
+                }
             }
         }
 
@@ -249,6 +270,12 @@ private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, sele
     val renderer = remember { RadarRenderer(context) }
     val altitudeRef by repo.prefs.altitudeRef.collectAsStateWithLifecycle()
     val density = LocalDensity.current.density
+    // While something flies, redraw every frame: aircraft glide between OGN positions.
+    val moving = snap.aircraft.any { it.predicted }
+    var frameMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(moving) {
+        while (moving) withFrameMillis { frameMs = System.currentTimeMillis() }
+    }
     Canvas(
         Modifier
             .fillMaxSize()
@@ -267,7 +294,10 @@ private fun Radar(repo: TrafficRepository, snap: Snapshot, radiusM: Double, sele
         drawIntoCanvas { canvas ->
             renderer.colors = Palette.current
             renderer.altitudeRef = altitudeRef
-            renderer.draw(canvas.nativeCanvas, 0f, 0f, size.width, size.height, snap, radiusM, density, selected)
+            renderer.draw(
+                canvas.nativeCanvas, 0f, 0f, size.width, size.height, snap, radiusM, density, selected,
+                sinceSnapshotMs = (frameMs - snap.timeMs).coerceAtLeast(0),
+            )
         }
     }
 }
@@ -325,12 +355,12 @@ private fun silence(ms: Long): String = (ms / 1000).let { s ->
 }
 
 @Composable
-private fun Lists(snap: Snapshot, modifier: Modifier, onSelect: (String) -> Unit) {
+private fun Lists(snap: Snapshot, modifier: Modifier, landscape: Boolean = false, onSelect: (String) -> Unit) {
     var tab by rememberSaveable { mutableStateOf(0) }
     Column(
         modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+            .clip(if (landscape) RoundedCornerShape(topEnd = 20.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
             .background(c(Palette.SURFACE))
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -439,7 +469,7 @@ private fun DetailSheet(a: AircraftState, altitudeRef: AltitudeRef, onDismiss: (
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(a.identity.label, color = c(Palette.TEXT), fontSize = 44.sp, fontWeight = FontWeight.Bold, fontFamily = Condensed)
                 Text(
-                    listOfNotNull(a.identity.registration, a.identity.model, a.identity.type.label.lowercase()).joinToString(" · "),
+                    listOfNotNull(a.identity.registration, a.identity.name, a.identity.model, a.identity.type.label.lowercase()).joinToString(" · "),
                     color = c(Palette.MUTED), fontSize = 16.sp,
                 )
             }

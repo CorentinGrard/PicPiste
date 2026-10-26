@@ -49,59 +49,78 @@ class CarOverlay(private val context: Context) {
         y += 44 * dp
 
         y = drawSection(canvas, context.getString(R.string.car_arrivals), x0, y, dp)
-        val maxRows = ((top + height - y - 110 * dp) / (68 * dp)).toInt().coerceIn(1, 5)
-        if (snap.arrivals.isEmpty()) {
-            // "Circuit clear" only while OGN data is flowing; otherwise an empty list proves nothing.
-            val live = snap.connection.isLive(snap.timeMs)
+        val bottom = top + height - 8 * dp
+        // Arrivals first, keeping room for the landed title and two rows.
+        val reserve = 26 * dp + 2 * LANDED_STEP * dp
+        val maxRows = ((bottom - y - reserve) / (68 * dp)).toInt().coerceIn(1, 5)
+        if (snap.arrivals.isEmpty() && !snap.connection.isLive(snap.timeMs)) {
+            // No OGN data: an empty list proves nothing, say so. With data, an empty list says it all.
             rect.set(x0, y, x1, y + 58 * dp)
             fill.color = colors.SURFACE
             canvas.drawRoundRect(rect, 10 * dp, 10 * dp, fill)
             text.typeface = sansBold
             text.textSize = 18 * dp
-            text.color = if (live) colors.OK else colors.CIRCUIT
-            canvas.drawText(context.getString(if (live) R.string.circuit_clear else R.string.car_no_data), x0 + 14 * dp, y + 25 * dp, text)
+            text.color = colors.CIRCUIT
+            canvas.drawText(context.getString(R.string.car_no_data), x0 + 14 * dp, y + 25 * dp, text)
             text.typeface = sans
             text.textSize = 13 * dp
             text.color = colors.MUTED
-            canvas.drawText(context.getString(if (live) R.string.nobody_in_circuit else R.string.car_look_sky), x0 + 14 * dp, y + 45 * dp, text)
+            canvas.drawText(context.getString(R.string.car_look_sky), x0 + 14 * dp, y + 45 * dp, text)
             y += 68 * dp
         } else {
+            if (snap.arrivals.isEmpty()) y += 12 * dp
             for (a in snap.arrivals.take(maxRows)) {
                 drawArrival(canvas, a, x0, y, x1 - x0, dp, highlight = a.status == FlightStatus.FINAL, danger = snap.alert.threat?.address == a.address && snap.alert.level == AlertLevel.DANGER)
                 y += 68 * dp
             }
         }
 
-        val landed = snap.landed.take(2)
-        if (landed.isNotEmpty() && y + 40 * dp < top + height) {
+        // Every landing that fits, most recent first; the rest as "+3 more".
+        // The landed list is always there, empty or not, so the driver knows where to look.
+        if (y + 26 * dp <= bottom) {
             y += 4 * dp
             y = drawSection(canvas, context.getString(R.string.car_landed), x0, y, dp)
-            for (a in landed) {
-                if (y + 44 * dp > top + height) break
-                rect.set(x0, y, x1, y + 40 * dp)
-                fill.color = colors.SURFACE
-                canvas.drawRoundRect(rect, 10 * dp, 10 * dp, fill)
-                fill.color = colors.LANDED
-                canvas.drawCircle(x0 + 16 * dp, y + 20 * dp, 6 * dp, fill)
-                text.typeface = condensedBold
-                text.textSize = 19 * dp
-                text.color = colors.TEXT
-                canvas.drawText(a.identity.label, x0 + 30 * dp, y + 27 * dp, text)
-                val labelW = text.measureText(a.identity.label)
+            val fit = ((bottom - y + (LANDED_STEP - LANDED_ROW) * dp) / (LANDED_STEP * dp)).toInt()
+            val shown = if (snap.landed.size > fit) (fit - 1).coerceAtLeast(0) else snap.landed.size
+            for (a in snap.landed.take(shown)) {
+                drawLanded(canvas, a, x0, y, x1 - x0, snap.timeMs, dp)
+                y += LANDED_STEP * dp
+            }
+            if (shown < snap.landed.size) {
                 text.typeface = sans
                 text.textSize = 15 * dp
-                val ago = a.landedAtMs?.let { minutesAgo(snap.timeMs - it) } ?: ""
                 text.color = colors.MUTED
-                text.textAlign = Paint.Align.RIGHT
-                canvas.drawText(ago, x1 - 12 * dp, y + 26 * dp, text)
                 text.textAlign = Paint.Align.LEFT
-                text.color = colors.TEXT_2
-                val room = x1 - 12 * dp - text.measureText(ago) - 10 * dp - (x0 + 38 * dp + labelW)
-                val where = TextUtils.ellipsize(" · ${a.landedText ?: context.getString(R.string.landed_fallback)}", text, room, TextUtils.TruncateAt.END)
-                canvas.drawText(where, 0, where.length, x0 + 32 * dp + labelW, y + 26 * dp, text)
-                y += 48 * dp
+                canvas.drawText(context.getString(R.string.car_more, snap.landed.size - shown), x0 + 14 * dp, y + 24 * dp, text)
             }
         }
+    }
+
+    private fun drawLanded(canvas: Canvas, a: AircraftState, x0: Float, y: Float, w: Float, now: Long, dp: Float) {
+        val x1 = x0 + w
+        val mid = y + LANDED_ROW * dp / 2
+        rect.set(x0, y, x1, y + LANDED_ROW * dp)
+        fill.color = colors.SURFACE
+        canvas.drawRoundRect(rect, 10 * dp, 10 * dp, fill)
+        fill.color = colors.LANDED
+        canvas.drawCircle(x0 + 16 * dp, mid, 6 * dp, fill)
+        text.typeface = condensedBold
+        text.textSize = 19 * dp
+        text.color = colors.TEXT
+        text.textAlign = Paint.Align.LEFT
+        canvas.drawText(a.identity.label, x0 + 30 * dp, mid + 7 * dp, text)
+        val labelW = text.measureText(a.identity.label)
+        text.typeface = sans
+        text.textSize = 15 * dp
+        val ago = a.landedAtMs?.let { minutesAgo(now - it) } ?: ""
+        text.color = colors.MUTED
+        text.textAlign = Paint.Align.RIGHT
+        canvas.drawText(ago, x1 - 12 * dp, mid + 6 * dp, text)
+        text.textAlign = Paint.Align.LEFT
+        text.color = colors.TEXT_2
+        val room = x1 - 12 * dp - text.measureText(ago) - 10 * dp - (x0 + 38 * dp + labelW)
+        val where = TextUtils.ellipsize(" · ${a.landedText ?: context.getString(R.string.landed_fallback)}", text, room, TextUtils.TruncateAt.END)
+        canvas.drawText(where, 0, where.length, x0 + 32 * dp + labelW, mid + 6 * dp, text)
     }
 
     private fun drawSection(canvas: Canvas, title: String, x: Float, y: Float, dp: Float): Float {
@@ -228,6 +247,12 @@ class CarOverlay(private val context: Context) {
         val msg = TextUtils.ellipsize(context.getString(R.string.car_setup), text, width - 48 * dp, TextUtils.TruncateAt.END)
         canvas.drawText(msg, 0, msg.length, left + width / 2, top + height / 2, text)
         text.textAlign = Paint.Align.LEFT
+    }
+
+    private companion object {
+        /** Landed row height and row pitch, in dp. */
+        const val LANDED_ROW = 38f
+        const val LANDED_STEP = 44f
     }
 
     private fun minutesAgo(ms: Long): String = (ms / 60_000).toInt().let {

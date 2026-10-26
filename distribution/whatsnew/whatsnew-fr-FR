@@ -1,6 +1,5 @@
-Noms des aéronefs dès l'installation, même sans réseau au terrain ; base OGN mise à jour chaque jour en Wi-Fi.
-Trafic ADS-B : indicatif affiché au lieu de « ?? ».
-Nouveau réglage : altitude (QNH) ou hauteur (QFE).
-Revenir dans l'app ne vide plus le radar ni la liste « Posés ».
-Terrain fourni avec l'app : piste principale horizontale.
-Logiciel libre (GPL v3), crédits dans Réglages → À propos.
+Android Auto : posés listés à côté de la carte, carte plus grande, zoom fluide, écrans portrait.
+Les aéronefs bougent en continu, à leur position actuelle ; ETA corrigées du retard OGN.
+Traqueurs personnels (OGN, FANET) : leur nom au lieu de « ?? » ; trafic SeeYou Navigator affiché.
+Téléphone en paysage : listes à gauche, comme dans la voiture.
+Traînées qui s'estompent.

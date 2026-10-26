@@ -15,7 +15,6 @@
     <string name="landed_fallback">landed</string>
     <string name="just_now">just now</string>
     <string name="minutes_short">%1$d min</string>
-    <string name="minutes_ago">%1$d min ago</string>
     <string name="detail_status">STATUS</string>
     <string name="signal_lost">Signal lost</string>
     <string name="signal_lost_ago">signal lost · %1$d s</string>
@@ -59,10 +58,7 @@
     <string name="ceiling">Display ceiling: %1$d m above ground</string>
     <string name="car_arrivals">ARRIVALS</string>
     <string name="car_landed">LANDED</string>
-    <string name="circuit_clear">Circuit clear</string>
-    <string name="nobody_in_circuit">Nobody in the circuit</string>
-    <string name="landed_title">Landed</string>
-    <string name="no_landings">No landings yet</string>
+    <string name="car_more">+%1$d more</string>
     <string name="tracking_channel">Traffic tracking</string>
     <string name="tracking_text">Tracking traffic around the airfield</string>
     <string name="cannot_open_file">Cannot open this file.</string>

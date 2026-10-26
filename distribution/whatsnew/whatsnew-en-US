@@ -1,6 +1,5 @@
-Aircraft names from first install, even without signal at the field; OGN database refreshed daily on Wi-Fi.
-ADS-B traffic: callsign shown instead of "??".
-New setting: altitude (QNH) or height (QFE).
-Coming back to the app no longer empties the radar or the landed list.
-Bundled airfield: main runway horizontal.
-Free software (GPL v3), credits in Settings → About.
+Android Auto: landings listed beside the map, bigger map, smooth zoom, portrait screens.
+Aircraft move smoothly and are shown where they are now; ETAs corrected for the OGN delay.
+Personal trackers (OGN tracker, FANET) show their name instead of "??"; SeeYou Navigator traffic shown.
+Phone in landscape: lists on the left, like in the car.
+Fading trails.
