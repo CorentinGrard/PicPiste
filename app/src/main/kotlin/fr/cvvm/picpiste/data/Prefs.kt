@@ -48,6 +48,7 @@ class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("picpiste", Context.MODE_PRIVATE)
 
     private val _sound = MutableStateFlow(sp.getBoolean(KEY_SOUND, true))
+    private val _adsb = MutableStateFlow(sp.getBoolean(KEY_ADSB, true))
     private val _ceiling = MutableStateFlow(sp.getInt(KEY_CEILING, 400))
     private val _zoom = MutableStateFlow(sp.getFloat(KEY_ZOOM_RADIUS, 1_500f).toDouble().coerceIn(MIN_RADIUS_M, MAX_RADIUS_M))
     private val _theme = MutableStateFlow(runCatching { Theme.valueOf(sp.getString(KEY_THEME, null) ?: "") }.getOrDefault(Theme.AUTO))
@@ -59,7 +60,9 @@ class Prefs(context: Context) {
     )
 
     val sound: StateFlow<Boolean> = _sound.asStateFlow()
-    /** Display ceiling, metres above the field. */
+    /** ADS-B traffic from adsb.lol too, not only what OGN relays. */
+    val adsb: StateFlow<Boolean> = _adsb.asStateFlow()
+    /** Display ceiling, metres above the field; [NO_CEILING_M] and above: none. */
     val ceilingAglM: StateFlow<Int> = _ceiling.asStateFlow()
     /** Radar zoom: metres from the centre to the nearest edge of the map. */
     val zoomRadiusM: StateFlow<Double> = _zoom.asStateFlow()
@@ -88,6 +91,11 @@ class Prefs(context: Context) {
         _sound.value = v
     }
 
+    fun setAdsb(v: Boolean) {
+        sp.edit().putBoolean(KEY_ADSB, v).apply()
+        _adsb.value = v
+    }
+
     fun setCeiling(v: Int) {
         sp.edit().putInt(KEY_CEILING, v).apply()
         _ceiling.value = v
@@ -108,11 +116,15 @@ class Prefs(context: Context) {
 
     companion object {
         private const val KEY_SOUND = "sound"
+        private const val KEY_ADSB = "adsb"
         private const val KEY_CEILING = "ceiling"
         private const val KEY_ZOOM_RADIUS = "zoomRadius"
         private const val KEY_THEME = "theme"
         private const val KEY_MAP_BACKGROUND = "mapBackground"
         private const val KEY_ALTITUDE_REF = "altitudeRef"
+
+        /** The ceiling slider's last step: no ceiling, every aircraft is shown. */
+        const val NO_CEILING_M = 3_000
 
         /** Zoom button presets, metres from the centre to the nearest edge of the map. */
         val ZOOM_RADII_M = listOf(700.0, 1_500.0, 4_000.0)

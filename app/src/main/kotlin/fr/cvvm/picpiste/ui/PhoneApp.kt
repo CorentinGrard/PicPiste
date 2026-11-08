@@ -549,6 +549,7 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
     val airfields by repo.airfields.all.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val sound by repo.prefs.sound.collectAsStateWithLifecycle()
+    val adsb by repo.prefs.adsb.collectAsStateWithLifecycle()
     val ceiling by repo.prefs.ceilingAglM.collectAsStateWithLifecycle()
     val altitudeRef by repo.prefs.altitudeRef.collectAsStateWithLifecycle()
     val theme by repo.prefs.theme.collectAsStateWithLifecycle()
@@ -615,12 +616,17 @@ private fun SettingsDialog(repo: TrafficRepository, onEditAirfield: () -> Unit, 
                     }
                 }
                 SettingSwitch(stringResource(R.string.voice_alert), stringResource(R.string.voice_alert_hint), sound) { repo.prefs.setSound(it) }
+                SettingSwitch(stringResource(R.string.adsb), stringResource(R.string.adsb_hint), adsb) { repo.prefs.setAdsb(it) }
                 Column {
-                    Text(stringResource(R.string.ceiling, ceiling), color = c(Palette.TEXT), fontSize = 16.sp)
+                    Text(
+                        if (ceiling >= Prefs.NO_CEILING_M) stringResource(R.string.ceiling_none) else stringResource(R.string.ceiling, ceiling),
+                        color = c(Palette.TEXT), fontSize = 16.sp,
+                    )
+                    // 50 m steps up to 1 000 m, 250 m above, the last step is "no ceiling".
                     Slider(
-                        value = ceiling.toFloat(),
-                        onValueChange = { repo.prefs.setCeiling((it / 50).toInt() * 50) },
-                        valueRange = 200f..1000f,
+                        value = ceiling.toFloat().coerceAtMost(Prefs.NO_CEILING_M.toFloat()),
+                        onValueChange = { v -> repo.prefs.setCeiling(if (v < 1000f) (v / 50).toInt() * 50 else (v / 250).toInt() * 250) },
+                        valueRange = 200f..Prefs.NO_CEILING_M.toFloat(),
                     )
                 }
                 About()

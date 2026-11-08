@@ -1,9 +1,11 @@
 package fr.cvvm.picpiste.core
 
+import fr.cvvm.picpiste.core.adsb.AdsbLol
 import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.airfield.AlertZone
 import fr.cvvm.picpiste.core.aprs.AprsEvent
 import fr.cvvm.picpiste.core.aprs.AprsParser
+import fr.cvvm.picpiste.core.aprs.DeviceStatus
 import fr.cvvm.picpiste.core.cart.AlertEngine
 import fr.cvvm.picpiste.core.cart.CartAlert
 import fr.cvvm.picpiste.core.cart.RunwayPresenceDetector
@@ -53,6 +55,9 @@ class PicPisteEngine(
     private var connection = ConnectionState(false, null, null)
     private var cart: CartState? = null
 
+    /** When each aircraft was last heard through OGN: then its adsb.lol positions are not needed. */
+    private val heardOnOgn = HashMap<String, Long>()
+
     var settings: TrafficSettings
         get() = tracker.settings
         set(value) {
@@ -77,7 +82,27 @@ class PicPisteEngine(
     fun onLine(line: String, receivedAtMs: Long) {
         connection = connection.copy(lastLineAtMs = receivedAtMs)
         val beacon = AprsParser.parse(line)
-        if (beacon != null) tracker.onBeacon(beacon, receivedAtMs) else AprsParser.parseStatus(line)?.let { tracker.onStatus(it, receivedAtMs) }
+        if (beacon != null) {
+            heardOnOgn[beacon.address] = receivedAtMs
+            tracker.onBeacon(beacon, receivedAtMs)
+        } else {
+            AprsParser.parseStatus(line)?.let { tracker.onStatus(it, receivedAtMs) }
+        }
+    }
+
+    /**
+     * An adsb.lol answer. An aircraft OGN heard in the last [OGN_PRECEDENCE_MS] keeps OGN's
+     * positions: the two sources' altitudes differ a little, mixing them would make it jump.
+     */
+    fun onAdsbLol(text: String, receivedAtMs: Long) {
+        for (a in AdsbLol.parse(text)) {
+            val address = a.beacon.address
+            if (heardOnOgn[address]?.let { receivedAtMs - it < OGN_PRECEDENCE_MS } == true) continue
+            a.registration?.let { tracker.onStatus(DeviceStatus(address, registration = it), receivedAtMs) }
+            // Rolling on the ground: on the field, in the scale the heights are measured in.
+            val beacon = if (a.onGround) a.beacon.copy(altitudeM = tracker.calibration.fieldAltitudeM) else a.beacon
+            tracker.onBeacon(beacon, receivedAtMs, calibrate = false)
+        }
     }
 
     fun onCartPosition(geo: GeoPoint, accuracyM: Double?, timeMs: Long) {
@@ -92,6 +117,7 @@ class PicPisteEngine(
     }
 
     fun snapshot(nowMs: Long): Snapshot {
+        heardOnOgn.values.removeAll { nowMs - it > OGN_PRECEDENCE_MS }
         // Alerts look at everything tracked; the display ceiling only hides aircraft from the screen.
         val tracked = tracker.snapshot(nowMs)
         val aircraft = tracked.filter { it.shown }
@@ -114,5 +140,10 @@ class PicPisteEngine(
             cart = cart,
             alert = AlertEngine.evaluate(cart?.zones.orEmpty(), tracked, airfield),
         )
+    }
+
+    companion object {
+        /** OGN positions of an aircraft count over adsb.lol's for this long after the last one. */
+        const val OGN_PRECEDENCE_MS = 15_000L
     }
 }

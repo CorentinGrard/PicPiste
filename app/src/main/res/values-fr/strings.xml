@@ -49,11 +49,14 @@
     <string name="age_days">il y a %1$d j</string>
     <string name="about_title">À propos</string>
     <string name="about_text">PicPiste %1$s · © 2026 Corentin Grard. Logiciel libre sous licence GNU GPL v3, sans aucune garantie.</string>
-    <string name="credits_text">Positions des aéronefs : Open Glider Network (ODbL)\nNoms des aéronefs : base OGN (ODC-BY)\nTerrains : ©\u00A0les contributeurs d\'OpenStreetMap (ODbL)\nAltitude des terrains : Open-Meteo\nPhotos aériennes : ©\u00A0IGN</string>
+    <string name="credits_text">Positions des aéronefs : Open Glider Network (ODbL), adsb.lol (ODbL)\nNoms des aéronefs : base OGN (ODC-BY)\nTerrains : ©\u00A0les contributeurs d\'OpenStreetMap (ODbL)\nAltitude des terrains : Open-Meteo\nPhotos aériennes : ©\u00A0IGN</string>
     <string name="about_source">Code source et licence</string>
     <string name="voice_alert">Alerte vocale</string>
     <string name="voice_alert_hint">Annonce quand la golfette est sur une piste et qu\'un planeur est dans le circuit.</string>
     <string name="ceiling">Plafond d\'affichage : %1$d m sol</string>
+    <string name="ceiling_none">Plafond d\'affichage : aucun, tous les aéronefs sont affichés</string>
+    <string name="adsb">Trafic ADS-B (adsb.lol)</string>
+    <string name="adsb_hint">Affiche aussi les aéronefs captés par le réseau adsb.lol : avions de ligne, hélicoptères, avions légers équipés ADS-B. Une requête toutes les 5 s, quelques Ko.</string>
     <string name="car_arrivals">ARRIVÉES</string>
     <string name="car_landed">POSÉS</string>
     <string name="car_more">+%1$d autres</string>

@@ -57,7 +57,11 @@ class TrafficTracker(
         statuses[s.address] = DeviceStatus(s.address, s.registration ?: old?.registration, s.name ?: old?.name) to receivedAtMs
     }
 
-    fun onBeacon(b: AircraftBeacon, receivedAtMs: Long) {
+    /**
+     * [calibrate] false: the altitude is not on OGN's scale (adsb.lol), so it must not move the
+     * field altitude worked out from aircraft on the ground.
+     */
+    fun onBeacon(b: AircraftBeacon, receivedAtMs: Long, calibrate: Boolean = true) {
         if (b.noTrack) return
         val dev = ddb.lookup(b.address)
         if (dev != null && !dev.isTracked) return
@@ -74,7 +78,7 @@ class TrafficTracker(
 
         val geo = GeoPoint(b.lat, b.lon)
         val pos = airfield.frame.toLocal(geo)
-        calibration.onFix(b.address, pos, b.altitudeM, b.groundSpeedKmh)
+        if (calibrate) calibration.onFix(b.address, pos, b.altitudeM, b.groundSpeedKmh)
         val fix = Fix(
             timeMs = sentAtMs,
             pos = pos,

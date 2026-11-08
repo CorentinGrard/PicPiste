@@ -109,6 +109,17 @@ object AprsParser {
         "A6" to AircraftType.JET,
     )
 
+    /**
+     * Type of an aircraft from its ADS-B emitter category ("A3", "A7"…) and the type its source
+     * gives ([given]): a precise category (helicopter, glider…) wins, then [given], then the
+     * category's broad type (powered, jet).
+     */
+    fun typeOfCategory(category: String?, given: AircraftType): AircraftType =
+        CATEGORY_TYPES[category]
+            ?: given.takeUnless { it == AircraftType.UNKNOWN }
+            ?: CATEGORY_FALLBACK[category]
+            ?: given
+
     fun parse(line: String): AircraftBeacon? {
         if (line.isEmpty() || line[0] == '#') return null
         val m = position.matchEntire(line.trimEnd()) ?: return null
@@ -137,11 +148,7 @@ object AprsParser {
 
         val adsb = flightId.find(comment)
         val category = adsb?.groupValues?.get(1)
-        val ognType = AircraftType.fromCode((flags shr 2) and 0x0F)
-        val type = CATEGORY_TYPES[category]
-            ?: ognType.takeUnless { it == AircraftType.UNKNOWN }
-            ?: CATEGORY_FALLBACK[category]
-            ?: ognType
+        val type = typeOfCategory(category, AircraftType.fromCode((flags shr 2) and 0x0F))
 
         return AircraftBeacon(
             address = address,

@@ -14,12 +14,14 @@ import android.location.LocationManager
 import android.os.Looper
 import android.util.Log
 import fr.cvvm.picpiste.core.PicPisteEngine
+import fr.cvvm.picpiste.core.adsb.AdsbLol
 import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.aprs.AprsClient
 import fr.cvvm.picpiste.core.aprs.AprsEvent
 import fr.cvvm.picpiste.core.ddb.DdbRepository
 import fr.cvvm.picpiste.core.ddb.DeviceDatabase
+import fr.cvvm.picpiste.core.ddb.httpGet
 import fr.cvvm.picpiste.core.geo.GeoPoint
 import fr.cvvm.picpiste.core.traffic.TrafficSettings
 import java.io.File
@@ -141,6 +143,11 @@ class TrafficRepository(private val context: Context) {
                 }
             }
             launch {
+                // ADS-B from adsb.lol beside OGN, while the setting is on.
+                combine(airfields.current, airfields.configured, prefs.adsb) { a, ok, on -> Triple(a, ok, on) }
+                    .collectLatest { (field, configured, on) -> if (configured && on) runAdsbLol(field) }
+            }
+            launch {
                 while (true) {
                     val now = System.currentTimeMillis()
                     engine.settings = settings()
@@ -163,7 +170,27 @@ class TrafficRepository(private val context: Context) {
         TrackingService.stop(context)
     }
 
-    private fun settings() = TrafficSettings(ceilingAglM = prefs.ceilingAglM.value.toDouble())
+    private fun settings() = TrafficSettings(
+        ceilingAglM = prefs.ceilingAglM.value.let { if (it >= Prefs.NO_CEILING_M) Double.MAX_VALUE else it.toDouble() },
+    )
+
+    /**
+     * Asks adsb.lol for the aircraft around [field] every few seconds, until cancelled. A failed
+     * request (no network, the service busy) waits longer each time, up to a minute.
+     */
+    private suspend fun runAdsbLol(field: Airfield) {
+        val ref = field.reference
+        val url = AdsbLol.url(ref.lat, ref.lon, AprsClient.FEED_RADIUS_KM)
+        var waitMs = AdsbLol.POLL_EVERY_MS
+        while (true) {
+            val text = withContext(Dispatchers.IO) {
+                runCatching { httpGet(url, timeoutMs = 10_000) }.onFailure { Log.i(TAG, "adsb.lol: $it") }.getOrNull()
+            }
+            if (text != null) engine.onAdsbLol(text, System.currentTimeMillis())
+            waitMs = if (text != null) AdsbLol.POLL_EVERY_MS else (waitMs * 2).coerceAtMost(60_000L)
+            delay(waitMs)
+        }
+    }
 
     /**
      * Names come from the OGN device database: the newest copy on the phone at once (the one
