@@ -1,2 +1,2 @@
-Corrigé : certains terrains ne pouvaient pas être ajoutés (« Erreur : » sans détail), dont Paris-Charles-de-Gaulle : une piste sans numéro dans OpenStreetMap, orientée vers l'ouest.
-Les terrains très étendus (Edwards…) se chargent, sans leurs pistes lointaines.
+Radar : une icône par type d'aéronef (planeur, avion, avion de ligne, hélicoptère, delta, parapente, parachute, ballon, dirigeable, drone).
+Le trafic ADS-B relayé par OGN affiche son indicatif au lieu de « ?? », et les hélicoptères et planeurs vus en ADS-B ont la bonne icône.

@@ -1,2 +1,2 @@
-Fixed: some airfields could not be added ("Error:" with no detail), Paris-Charles-de-Gaulle among them: a runway with no number in OpenStreetMap, pointing west.
-Airfields spread over a very large area (Edwards…) now load, without their far-away runways.
+Radar: an icon for each kind of aircraft (glider, plane, airliner, helicopter, hang glider, paraglider, parachute, balloon, airship, drone).
+ADS-B traffic relayed by OGN shows its flight number instead of "??", and helicopters and gliders seen by ADS-B get the right icon.

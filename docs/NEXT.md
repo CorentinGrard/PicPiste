@@ -161,6 +161,12 @@
   Testé sur 800 terrains publiés tirés au hasard dans le monde : tous se chargent, sauf deux
   sans piste de 150 m, que le prochain build ne publiera plus.
 
+- **1.2.2** : une icône par type d'aéronef (`render/AircraftIcons.kt`, chemins SVG ; aperçu :
+  `python3 tools/aircraft-icons-preview.py > icons.html`) ; ballon et station restent droits.
+  ADS-B relayé par OGN : indicatif et type lus pour toutes les catégories d'émetteur (`A3:`
+  avion de ligne, `A7:` hélicoptère, `B1:` planeur…), plus seulement `A1:`. Autour de LFNL,
+  OGN ne relaie presque pas d'ADS-B (un seul avion en une minute) : à compléter par adsb.lol.
+
 ### Points ouverts 1.2
 
 - Activer Pages (réglages → Pages → GitHub Actions) et lancer le workflow une première fois.
