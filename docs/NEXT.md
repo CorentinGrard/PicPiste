@@ -155,6 +155,12 @@
 - **Service de suivi** : si Android refuse la localisation en arrière-plan (téléphone verrouillé
   au branchement Android Auto), service court puis arrêt, au lieu d'un plantage de l'app.
 
+- **1.2.1** : une piste sans numéro dans OSM, orientée vers l'ouest (cap 185–360°), faisait
+  planter l'import (« Erreur : » vide) : l'autre bout valait « 37 » et plus (`runwayNumber`
+  ramène le cap dans 0–360°). Pistes à plus de 15 km du terrain écartées (Edwards AFB).
+  Testé sur 800 terrains publiés tirés au hasard dans le monde : tous se chargent, sauf deux
+  sans piste de 150 m, que le prochain build ne publiera plus.
+
 ### Points ouverts 1.2
 
 - Activer Pages (réglages → Pages → GitHub Actions) et lancer le workflow une première fois.

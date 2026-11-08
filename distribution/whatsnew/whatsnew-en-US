@@ -1,3 +1,2 @@
-Airfields: every airfield in the world with a runway is ready to download, big airports included (Marseille, Paris…), even when OpenStreetMap is busy.
-Radar: a landing glider is no longer drawn past the end of the runway.
-Android Auto: no longer closes when the phone is locked as the car connects.
+Fixed: some airfields could not be added ("Error:" with no detail), Paris-Charles-de-Gaulle among them: a runway with no number in OpenStreetMap, pointing west.
+Airfields spread over a very large area (Edwards…) now load, without their far-away runways.

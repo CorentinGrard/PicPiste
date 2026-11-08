@@ -1,3 +1,2 @@
-Terrains : tous les terrains du monde avec une piste sont prêts à télécharger, grands aéroports compris (Marseille, Paris…), même quand OpenStreetMap est surchargé.
-Radar : un planeur qui se pose n'est plus dessiné au-delà du bout de piste.
-Android Auto : ne se ferme plus quand le téléphone est verrouillé au branchement.
+Corrigé : certains terrains ne pouvaient pas être ajoutés (« Erreur : » sans détail), dont Paris-Charles-de-Gaulle : une piste sans numéro dans OpenStreetMap, orientée vers l'ouest.
+Les terrains très étendus (Edwards…) se chargent, sans leurs pistes lointaines.
