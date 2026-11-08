@@ -38,7 +38,10 @@ data class AircraftBeacon(
     val receiver: String?,
     /** `hhmmss` UTC time from the beacon. */
     val timeHms: String,
-    /** ADS-B flight ID (`A1:FHPLU`, `A1:AFR123`): often the registration without its dash. */
+    /**
+     * ADS-B flight ID (`A1:FHPLU`, `A3:EJU4627`): often the registration without its dash, or
+     * the airline flight number.
+     */
     val callsign: String? = null,
     /** Rate of turn, degrees per second (positive = turning right), null when not given. */
     val turnDegS: Double? = null,
@@ -81,7 +84,30 @@ object AprsParser {
     private val climb = Regex("""([+-]\d+)fpm""")
     /** `+1.0rot` is half a turn per minute, 3°/s (checked against the tracks in live data). */
     private val rot = Regex("""([+-]\d+(?:\.\d+)?)rot\b""")
-    private val flightId = Regex("""\bA1:([A-Za-z0-9]{2,8})\b""")
+    /** ADS-B emitter category (A1 light … A7 rotorcraft, B1 glider…), then the flight ID. */
+    private val flightId = Regex("""\b([A-C][0-7]):([A-Za-z0-9]{2,8})\b""")
+
+    /**
+     * ADS-B categories more precise than the type OGN gives such aircraft (powered or jet):
+     * the aircraft itself says it is a helicopter, a glider…
+     */
+    private val CATEGORY_TYPES = mapOf(
+        "A7" to AircraftType.HELICOPTER,
+        "B1" to AircraftType.GLIDER,
+        "B2" to AircraftType.BALLOON,
+        "B3" to AircraftType.SKYDIVER,
+        "B6" to AircraftType.UAV,
+    )
+
+    /** Other categories, only when OGN gives no type. */
+    private val CATEGORY_FALLBACK = mapOf(
+        "A1" to AircraftType.POWERED,
+        "A2" to AircraftType.POWERED,
+        "A3" to AircraftType.JET,
+        "A4" to AircraftType.JET,
+        "A5" to AircraftType.JET,
+        "A6" to AircraftType.JET,
+    )
 
     fun parse(line: String): AircraftBeacon? {
         if (line.isEmpty() || line[0] == '#') return null
@@ -109,10 +135,18 @@ object AprsParser {
         val speedKt = g[12].takeIf { it.isNotEmpty() }?.toInt() ?: 0
         val altFt = g[13].takeIf { it.isNotEmpty() }?.toInt() ?: return null
 
+        val adsb = flightId.find(comment)
+        val category = adsb?.groupValues?.get(1)
+        val ognType = AircraftType.fromCode((flags shr 2) and 0x0F)
+        val type = CATEGORY_TYPES[category]
+            ?: ognType.takeUnless { it == AircraftType.UNKNOWN }
+            ?: CATEGORY_FALLBACK[category]
+            ?: ognType
+
         return AircraftBeacon(
             address = address,
             addressType = AddressType.entries[flags and 0x03],
-            aircraftType = AircraftType.fromCode((flags shr 2) and 0x0F),
+            aircraftType = type,
             stealth = flags and 0x80 != 0,
             noTrack = flags and 0x40 != 0,
             lat = lat,
@@ -124,7 +158,7 @@ object AprsParser {
             climbMs = climb.find(comment)?.groupValues?.get(1)?.toInt()?.times(FPM_TO_MS),
             receiver = g[3].split(',').lastOrNull { it.isNotEmpty() && !it.startsWith("q") },
             timeHms = g[4],
-            callsign = flightId.find(comment)?.groupValues?.get(1)?.uppercase(),
+            callsign = adsb?.groupValues?.get(2)?.uppercase(),
             turnDegS = rot.find(comment)?.groupValues?.get(1)?.toDouble()?.times(3.0),
         )
     }

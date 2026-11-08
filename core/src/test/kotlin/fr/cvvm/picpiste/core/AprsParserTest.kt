@@ -74,4 +74,32 @@ class AprsParserTest {
         assertEquals("FHPLU", b.callsign)
         assertNull(AprsParser.parse("FLRDD1234>OGFLR,qAS,LFNL:/123456h4347.95N/00346.92E'299/054/A=000892 id06DD1234")!!.callsign)
     }
+
+    @Test
+    fun readsEveryAdsbCategory() {
+        // Heard near Paris-CDG: an airliner, category A3, typed "jet" by OGN.
+        val jet = AprsParser.parse(
+            "ICA44046D>OGADSB,qAS,AVX1217:/180510h4902.95N/00246.90E^043/277/A=006391 !W62! id2544046D +3328fpm FL062.14 A3:EJU4627 Sq5607",
+        )!!
+        assertEquals("EJU4627", jet.callsign)
+        assertEquals(AircraftType.JET, jet.aircraftType)
+
+        // The same line as a helicopter (A7): the category is more precise than OGN's type.
+        val heli = AprsParser.parse(
+            "ICA3964E4>OGADSB,qAS,AVX1217:/180510h4902.95N/00246.90E^043/120/A=001500 !W62! id213964E4 +0fpm A7:FGZHE",
+        )!!
+        assertEquals("FGZHE", heli.callsign)
+        assertEquals(AircraftType.HELICOPTER, heli.aircraftType)
+
+        // No type from OGN (id01: flags 0): the category gives one.
+        val untyped = AprsParser.parse(
+            "ICA3964E4>OGADSB,qAS,AVX1217:/180510h4902.95N/00246.90E^043/120/A=001500 !W62! id013964E4 +0fpm A1:FGZHE",
+        )!!
+        assertEquals(AircraftType.POWERED, untyped.aircraftType)
+
+        // A light aircraft stays as OGN typed it.
+        assertEquals(AircraftType.POWERED, AprsParser.parse(
+            "ICA39BD74>OGADSB,qAS,AVX944:/150904h4631.07N\\00021.64W^102/360/A=025836 !W12! id2139BD74 +1280fpm FL253.93 A1:FHPLU Sq1773",
+        )!!.aircraftType)
+    }
 }
