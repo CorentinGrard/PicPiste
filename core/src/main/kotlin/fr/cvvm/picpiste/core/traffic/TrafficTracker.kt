@@ -206,7 +206,10 @@ class TrafficTracker(
             val dev = ddb.lookup(t.address)?.takeUnless { t.stealth }
             val lost = age > settings.lostAfterMs
             // Moving aircraft are drawn where they should be now; lost ones where they were last heard.
-            val moving = !lost && (t.c.status.isAirborne || t.c.status == FlightStatus.TAKEOFF)
+            // On the ground (landing or takeoff roll) the speed changes fast: drawn where heard too,
+            // or a braking glider would be drawn past the end of the runway.
+            val onGround = fix.aglM < StatusEngine.GROUND_AGL_M
+            val moving = !lost && !onGround && (t.c.status.isAirborne || t.c.status == FlightStatus.TAKEOFF)
             // Unknown to OGN: what the device says about itself (unless no-ident).
             val self = statuses[t.address]?.first?.takeIf { !t.stealth && dev == null }
             AircraftState(

@@ -19,8 +19,11 @@ object Prediction {
     const val MAX_TURN_DEG_S = 25.0
     private const val STEP_S = 0.25
 
-    /** Position and heading [ageS] seconds after [fix], flying on at its speed and rate of turn. */
-    fun ahead(fix: Fix, ageS: Double, frame: LocalFrame): Pair<Vec2, Double?> {
+    /**
+     * Position and heading [ageS] seconds after [fix], flying on at its speed and rate of turn,
+     * never more than [maxDistM] from where it was heard (a landing stops at the runway's end).
+     */
+    fun ahead(fix: Fix, ageS: Double, frame: LocalFrame, maxDistM: Double = Double.MAX_VALUE): Pair<Vec2, Double?> {
         val track = fix.trackDeg ?: return fix.pos to null
         if (fix.groundSpeedKmh < MIN_KMH || ageS <= 0) return fix.pos to track
         val speedMs = fix.groundSpeedKmh / 3.6
@@ -28,9 +31,12 @@ object Prediction {
         var pos = fix.pos
         var heading = track
         var left = min(ageS, MAX_S)
-        while (left > 0) {
+        var travelled = 0.0
+        while (left > 0 && travelled < maxDistM) {
             val dt = min(STEP_S, left)
-            pos += frame.directionOf(heading + turn * dt / 2) * (speedMs * dt)
+            val step = min(speedMs * dt, maxDistM - travelled)
+            pos += frame.directionOf(heading + turn * dt / 2) * step
+            travelled += step
             heading += turn * dt
             left -= dt
         }

@@ -1,11 +1,17 @@
 package fr.cvvm.picpiste.core
 
 import fr.cvvm.picpiste.core.airfield.Airfield
+import fr.cvvm.picpiste.core.airfield.Runway
+import fr.cvvm.picpiste.core.airfield.RunwayEnd
 import fr.cvvm.picpiste.core.aprs.AircraftType
 import fr.cvvm.picpiste.core.aprs.AprsFormatter
 import fr.cvvm.picpiste.core.aprs.AprsParser
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
+import fr.cvvm.picpiste.core.traffic.AircraftState
+import fr.cvvm.picpiste.core.traffic.Fix
+import fr.cvvm.picpiste.core.traffic.FlightStatus
+import fr.cvvm.picpiste.core.traffic.Identity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -90,6 +96,55 @@ class LatencyTest {
         val a = lost.snapshot(t0 + 90_000).aircraft.single()
         assertTrue(a.signalLost)
         assertEquals(a.fix.pos, a.shownPos)
+    }
+
+    private val main: Runway = lfnl.runways.maxBy { it.length }
+
+    @Test
+    fun landingRollIsNotMovedOn() {
+        val e = PicPisteEngine(lfnl)
+        e.onLine(beacon(t0, at = Vec2(0.0, 0.0), aglM = 300.0), t0 + 2_000)
+        // Rolling on the runway after flying: landing roll, still "final", braking.
+        val mid = (main.thresholdA + main.thresholdB) * 0.5
+        e.onLine(beacon(t0 + 3_000, at = mid, kmh = 60.0, track = main.headingA, aglM = 0.0), t0 + 5_000)
+        val a = e.snapshot(t0 + 8_500).aircraft.single()
+        assertEquals(FlightStatus.FINAL, a.status)
+        assertEquals(a.fix.pos, a.shownPos)
+    }
+
+    /** Low on final towards end A, [beforeFarEndM] before the B threshold, heard [ageMs] ago at 90 km/h. */
+    private fun lowFinal(beforeFarEndM: Double, ageMs: Long, status: FlightStatus = FlightStatus.FINAL): AircraftState {
+        val pos = main.thresholdA + main.dirA * (main.length - beforeFarEndM)
+        val fix = Fix(
+            timeMs = t0, pos = pos, geo = lfnl.frame.toGeo(pos), altitudeM = lfnl.elevationM + 40.0, aglM = 40.0,
+            groundSpeedKmh = 90.0, trackDeg = main.headingA, climbMs = -1.0,
+        )
+        return AircraftState(
+            identity = Identity("DD0A01", AircraftType.GLIDER, null, null, null, anonymous = true),
+            fix = fix, trail = listOf(pos), status = status, runway = main, runwayEnd = RunwayEnd.A, etaS = 0.0,
+            signalLost = false, ageMs = ageMs, distanceM = pos.length, landedAtMs = null, landedRunway = null,
+            landedThird = null, predicted = true,
+        )
+    }
+
+    @Test
+    fun finalStopsAtTheFarEndOfTheRunway() {
+        // 10 s at 90 km/h would be 250 m on: it stops at the far threshold, 100 m on.
+        val a = lowFinal(beforeFarEndM = 100.0, ageMs = 10_000)
+        assertEquals(100.0, (a.shownPos - a.fix.pos).length, 1.0)
+        assertEquals(main.length, main.along(a.shownPos), 1.0)
+        // Already past it (rolling out beyond the threshold): not moved at all.
+        val past = lowFinal(beforeFarEndM = -20.0, ageMs = 10_000)
+        assertEquals(past.fix.pos, past.shownPos)
+    }
+
+    @Test
+    fun finalFarFromTheEndIsMovedOnAsUsual() {
+        val a = lowFinal(beforeFarEndM = main.length + 1_000.0, ageMs = 4_000)
+        assertEquals(100.0, (a.shownPos - a.fix.pos).length, 1.0) // 25 m/s × 4 s
+        // Not on final: no runway limit.
+        val circuit = lowFinal(beforeFarEndM = 100.0, ageMs = 10_000, status = FlightStatus.CIRCUIT)
+        assertEquals(250.0, (circuit.shownPos - circuit.fix.pos).length, 1.0)
     }
 
     @Test

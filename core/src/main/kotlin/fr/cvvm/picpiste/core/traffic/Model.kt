@@ -108,10 +108,21 @@ data class AircraftState(
     /**
      * Where to draw it [sinceSnapshotMs] after the snapshot: moved on from its last position
      * by its speed and turn (see [Prediction]), or where it was heard. Display only: statuses
-     * and alerts use the positions actually received.
+     * and alerts use the positions actually received. On final, never past the far end of the
+     * landing runway: the last position may be the last one before touchdown.
      */
-    fun shownAt(sinceSnapshotMs: Long, frame: LocalFrame): Pair<Vec2, Double?> =
-        if (predicted) Prediction.ahead(fix, (ageMs + sinceSnapshotMs) / 1000.0, frame) else fix.pos to fix.trackDeg
+    fun shownAt(sinceSnapshotMs: Long, frame: LocalFrame): Pair<Vec2, Double?> {
+        if (!predicted) return fix.pos to fix.trackDeg
+        val rw = runway
+        val end = runwayEnd
+        val maxDistM = if (status == FlightStatus.FINAL && rw != null && end != null) {
+            val along = (fix.pos - rw.threshold(end)) dot rw.landingDir(end) // negative before the threshold
+            (rw.length - along).coerceAtLeast(0.0)
+        } else {
+            Double.MAX_VALUE
+        }
+        return Prediction.ahead(fix, (ageMs + sinceSnapshotMs) / 1000.0, frame, maxDistM)
+    }
 
     /** Landing or takeoff runway end, as written in the phone language: "22", "14G". */
     val runwayRef: String? get() = runwayEnd?.let { end -> runway?.ref(end) }?.let(Texts.current::runwayRef)
