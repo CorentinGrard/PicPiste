@@ -13,7 +13,6 @@ import fr.cvvm.picpiste.core.Snapshot
 import fr.cvvm.picpiste.core.airfield.Airfield
 import fr.cvvm.picpiste.core.airfield.Runway
 import fr.cvvm.picpiste.core.airfield.RunwayEnd
-import fr.cvvm.picpiste.core.aprs.AircraftType
 import fr.cvvm.picpiste.core.cart.formatEta
 import fr.cvvm.picpiste.core.geo.Polygon
 import fr.cvvm.picpiste.core.geo.Vec2
@@ -417,22 +416,18 @@ class RadarRenderer(private val context: Context) {
         return wMain + wSub + 10 * dp
     }
 
-    /** Low-wing single-engine plane seen from above, nose up, in a 40 × 40 box (propeller drawn apart). */
-    private val planePath = Path().apply {
-        val right = floatArrayOf(
-            20f, 4.2f, 21.3f, 4.6f, 22.2f, 6.2f, 22.6f, 11.6f, // cowling
-            34.6f, 12.6f, 35.8f, 13.6f, 36f, 16.6f, 35.2f, 17.6f, 22.6f, 18.6f, // wing
-            21.5f, 28.4f, 27.4f, 29.4f, 28f, 30.6f, 27.4f, 32.2f, 21.2f, 32.6f, 20f, 32.6f, // tail
-        )
-        moveTo(right[0], right[1])
-        for (i in 2 until right.size step 2) lineTo(right[i], right[i + 1])
-        for (i in right.size - 4 downTo 2 step 2) lineTo(40f - right[i], right[i + 1]) // mirrored left half
-        close()
+    /** Lines of the aircraft icons (rotors, ropes…), in the icon's own 40 × 40 units. */
+    private val iconLine = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
     }
 
+    /** The aircraft's icon (AircraftIcons), along its track unless it has none (balloon…). */
     private fun drawIcon(canvas: Canvas, a: AircraftState, trackDeg: Double?, x: Float, y: Float, color: Int, dp: Float) {
         val size = (if (a.status.isAirborne || a.status == FlightStatus.TAKEOFF) 26 else 22) * dp
-        val angle = trackDeg?.let { track ->
+        val icon = AircraftIcons.of(a.identity.type)
+        val angle = trackDeg?.takeIf { icon.turns }?.let { track ->
             val d = turned(airfield!!.frame.directionOf(track))
             Math.toDegrees(atan2(d.x, d.y)).toFloat() // screen y is flipped: up = +y local
         } ?: 0f
@@ -443,21 +438,17 @@ class RadarRenderer(private val context: Context) {
         canvas.scale(k, k)
         canvas.translate(-20f, -20f)
         fill.color = color
-        if (a.signalLost) fill.alpha = 200
-        when (a.identity.type) {
-            AircraftType.GLIDER, AircraftType.HANG_GLIDER, AircraftType.UNKNOWN -> {
-                rect.set(2f, 13f, 38f, 16.5f); canvas.drawRoundRect(rect, 1.5f, 1.5f, fill)
-                rect.set(18.5f, 5f, 21.5f, 35f); canvas.drawRoundRect(rect, 1.5f, 1.5f, fill)
-                rect.set(13f, 31f, 27f, 33.5f); canvas.drawRoundRect(rect, 1f, 1f, fill)
-            }
-            AircraftType.TOW_PLANE, AircraftType.POWERED, AircraftType.DROP_PLANE, AircraftType.JET -> {
-                canvas.drawPath(planePath, fill)
-                rect.set(13.5f, 2.4f, 26.5f, 3.9f); canvas.drawRoundRect(rect, 0.75f, 0.75f, fill)
-            }
-            else -> {
-                path.reset()
-                path.moveTo(20f, 6f); path.lineTo(36f, 30f); path.lineTo(20f, 25f); path.lineTo(4f, 30f); path.close()
-                canvas.drawPath(path, fill)
+        iconLine.color = color
+        if (a.signalLost) {
+            fill.alpha = 200
+            iconLine.alpha = 200
+        }
+        for (part in icon.parts) {
+            if (part.stroke > 0f) {
+                iconLine.strokeWidth = part.stroke
+                canvas.drawPath(part.path, iconLine)
+            } else {
+                canvas.drawPath(part.path, fill)
             }
         }
         fill.alpha = 255
