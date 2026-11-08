@@ -58,7 +58,7 @@
         <service
             android:name=".data.TrackingService"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="location|shortService" />
 
         <!-- Android Auto: navigation category, so we may draw the radar ourselves. -->
         <service

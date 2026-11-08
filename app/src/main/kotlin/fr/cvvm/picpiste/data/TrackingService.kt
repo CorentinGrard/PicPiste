@@ -40,7 +40,13 @@ class TrackingService : Service() {
         try {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } catch (e: Exception) {
+            // Android 14+ refuses location from the background (phone locked when Android Auto
+            // connects). Stopping before startForeground() would make Android kill the whole
+            // app, car screen included: keep the promise with a short service, then stop.
             Log.w(TAG, "Cannot run in the foreground", e)
+            runCatching { startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE) }
+                .onFailure { Log.w(TAG, "Short service refused too", it) }
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
         return START_NOT_STICKY
