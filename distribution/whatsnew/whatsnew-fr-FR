@@ -1,2 +1,2 @@
-Radar : une icône par type d'aéronef (planeur, avion, avion de ligne, hélicoptère, delta, parapente, parachute, ballon, dirigeable, drone).
-Le trafic ADS-B relayé par OGN affiche son indicatif au lieu de « ?? », et les hélicoptères et planeurs vus en ADS-B ont la bonne icône.
+Trafic ADS-B du réseau adsb.lol en plus (réglage, activé par défaut) : avions de ligne, hélicoptères et avions légers près des grands aéroports, où OGN n'en relaie presque pas.
+Plafond d'affichage : un dernier cran « aucun », pour voir tous les aéronefs.

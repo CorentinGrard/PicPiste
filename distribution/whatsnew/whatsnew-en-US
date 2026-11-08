@@ -1,2 +1,2 @@
-Radar: an icon for each kind of aircraft (glider, plane, airliner, helicopter, hang glider, paraglider, parachute, balloon, airship, drone).
-ADS-B traffic relayed by OGN shows its flight number instead of "??", and helicopters and gliders seen by ADS-B get the right icon.
+ADS-B traffic from the adsb.lol network as well (setting, on by default): airliners, helicopters and light aircraft near big airports, where OGN relays almost none.
+Display ceiling: a new last step, "none", to show every aircraft.

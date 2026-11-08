@@ -167,6 +167,15 @@
   avion de ligne, `A7:` hélicoptère, `B1:` planeur…), plus seulement `A1:`. Autour de LFNL,
   OGN ne relaie presque pas d'ADS-B (un seul avion en une minute) : à compléter par adsb.lol.
 
+- **1.2.3** (essai) : trafic ADS-B d'adsb.lol (`core/adsb/AdsbLol.kt`, réseau ouvert, ODbL),
+  une requête toutes les 5 s dans le rayon du flux OGN (6 km), réglage « Trafic ADS-B »
+  activé par défaut. Mesuré à LFPG : OGN ne relayait aucun aéronef à moins de 6 km (le plus
+  proche à 11,8 km, en altitude), adsb.lol en voyait 3 en approche. Altitude : pression +
+  QNH affiché par l'équipage (`nav_qnh`, sinon celui des autres), sinon GNSS ; au sol : sur
+  le terrain ; jamais utilisée pour caler l'altitude du terrain. Un aéronef entendu par OGN
+  depuis moins de 15 s garde les positions OGN. Plafond d'affichage : dernier cran « aucun ».
+  À voir : conditions d'usage et limites de l'API adsb.lol si l'app est diffusée largement.
+
 ### Points ouverts 1.2
 
 - Activer Pages (réglages → Pages → GitHub Actions) et lancer le workflow une première fois.
