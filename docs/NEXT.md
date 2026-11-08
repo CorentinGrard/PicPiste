@@ -140,6 +140,28 @@
 - Mesurer le retard réel des stations autour du terrain avec `./gradlew :core:record`.
 - Plus tard : récepteur FLARM dans la golfette (moins de 1 s de retard).
 
+## Version 1.2 (8 nov. 2026)
+
+- **Tous les terrains du monde** : le workflow Airfields extrait chaque lundi les terrains
+  d'OpenStreetMap (extraits Geofabrik, un job par continent) et publie un fichier par terrain
+  sur GitHub Pages (`a/<CODE>.json.gz`, ~120 Mo en tout) et `index.json`. L'app le prend en
+  premier, sinon OpenStreetMap en direct. Voir DEVELOPPEMENT.md.
+- **Grands aéroports** (LFML, LFPG) : Overpass attendu 90 s (il répondait en 50 s, l'app
+  abandonnait à 35 s) ; l'API OSM, qui refuse plus de 50 000 nœuds, est interrogée par
+  quarts (jusqu'à 16 requêtes), chaque morceau réduit aux éléments du terrain. Message
+  « terrain trop grand » au lieu de « OpenStreetMap ne répond pas ».
+- **Prédiction** : plus d'avance au sol (roulage à l'atterrissage ou au décollage) ; en finale,
+  jamais au-delà du bout de la piste.
+- **Service de suivi** : si Android refuse la localisation en arrière-plan (téléphone verrouillé
+  au branchement Android Auto), service court puis arrêt, au lieu d'un plantage de l'app.
+
+### Points ouverts 1.2
+
+- Activer Pages (réglages → Pages → GitHub Actions) et lancer le workflow une première fois.
+- Écran d'accueil : chercher un terrain par nom ou « autour de moi » avec `index.json`
+  (terrains sans code : environ la moitié).
+- Service de suivi : rien ne le relance en localisation quand le téléphone est déverrouillé.
+
 ## Reste à faire
 
 - **Mode clair en plein soleil** : à essayer dehors, ajuster les couleurs si besoin
