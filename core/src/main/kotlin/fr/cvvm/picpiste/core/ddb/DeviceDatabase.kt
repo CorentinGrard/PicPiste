@@ -144,6 +144,9 @@ class DdbRepository(
     }
 }
 
+/** The server answered, but not with a success: [code] says why (400 = bad request). */
+class HttpStatusException(val code: Int) : java.io.IOException("HTTP $code")
+
 fun httpGet(url: String, timeoutMs: Int = 20_000): String {
     val conn = URI(url).toURL().openConnection() as HttpURLConnection
     conn.connectTimeout = timeoutMs
@@ -151,7 +154,7 @@ fun httpGet(url: String, timeoutMs: Int = 20_000): String {
     // OSM services (Nominatim, OSM API) ask apps to say who they are.
     conn.setRequestProperty("User-Agent", "PicPiste (Android, https://github.com/CorentinGrard/PicPiste)")
     try {
-        if (conn.responseCode !in 200..299) error("HTTP ${conn.responseCode}")
+        if (conn.responseCode !in 200..299) throw HttpStatusException(conn.responseCode)
         return conn.inputStream.bufferedReader().use { it.readText() }
     } finally {
         conn.disconnect()

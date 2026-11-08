@@ -7,6 +7,8 @@ import fr.cvvm.picpiste.core.airfield.OsmImport
 import fr.cvvm.picpiste.core.airfield.RunwayEnd
 import fr.cvvm.picpiste.core.airfield.problems
 import fr.cvvm.picpiste.core.airfield.refHeading
+import fr.cvvm.picpiste.core.ddb.HttpStatusException
+import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
 import fr.cvvm.picpiste.core.geo.normalizeDeg
 import java.io.IOException
@@ -142,6 +144,7 @@ class OsmImportTest {
             post = { _, _ -> fixture("LFNL") },
             get = { url -> gets += url; """{"elevation":[181.0]}""" },
             servers = listOf("overpass"),
+            published = emptyList(),
         )
         val r = d.download(" lfnl ")
         assertEquals("LFNL", r.config.icao)
@@ -164,19 +167,104 @@ class OsmImportTest {
                 }
             },
             servers = listOf("busy"),
+            published = emptyList(),
         )
         val r = d.download("LFLE")
         assertEquals(setOf("14L", "14"), r.config.runways.map { it.ends[0].ref }.toSet())
         assertTrue(gets[1].endsWith("bbox=5.966863,45.552495,5.986498,45.568929"), gets[1])
     }
 
+    /** The airfield found by Nominatim when Overpass is busy, and the OSM API answering with [api]. */
+    private fun busyOverpass(api: (bbox: List<Double>) -> String) = AirfieldDownloader(
+        post = { _, _ -> "# 502 Gateway Timeout" },
+        get = { url ->
+            when {
+                url.startsWith(AirfieldDownloader.NOMINATIM_URL) ->
+                    """[{"category":"aeroway","type":"aerodrome","boundingbox":["45.5554951","45.5659287","5.9698634","5.9834984"]}]"""
+                url.startsWith(AirfieldDownloader.OSM_API_URL) -> api(url.substringAfter("bbox=").split(',').map { it.toDouble() })
+                else -> """{"elevation":[296.0]}"""
+            }
+        },
+        servers = listOf("busy"),
+        published = emptyList(),
+    )
+
+    @Test
+    fun downloaderSplitsABigAirportForTheOsmApi() {
+        val whole = busyOverpass { fixture("api-LFLE") }.download("LFLE")
+        val boxes = mutableListOf<List<Double>>()
+        // "Too many nodes" for the whole box (0.0196° wide), fine for its quarters.
+        val tiled = busyOverpass { b ->
+            boxes += b
+            if (b[2] - b[0] > 0.015) throw HttpStatusException(400) else fixture("api-LFLE")
+        }.download("LFLE")
+        assertEquals(1 + 4, boxes.size)
+        // The four quarters cover the whole box, without overlapping.
+        assertEquals(boxes[0][0], boxes.drop(1).minOf { it[0] }, 1e-6)
+        assertEquals(boxes[0][2], boxes.drop(1).maxOf { it[2] }, 1e-6)
+        assertEquals(boxes[0][1], boxes.drop(1).minOf { it[1] }, 1e-6)
+        assertEquals(boxes[0][3], boxes.drop(1).maxOf { it[3] }, 1e-6)
+        // Each tile here holds the whole airfield: merged, nothing is there twice, nothing is lost.
+        assertEquals(whole.config, tiled.config)
+        assertTrue(tiled.config.taxiways.isNotEmpty())
+    }
+
+    @Test
+    fun downloaderSaysWhenAnAirportIsTooBigForTheOsmApi() {
+        var calls = 0
+        val e = assertFailsWith<AirfieldImportException> {
+            busyOverpass { calls++; throw HttpStatusException(400) }.download("LFLE")
+        }
+        assertEquals(Texts.current.airfieldTooBig, e.message)
+        assertTrue(calls <= AirfieldDownloader.MAX_TILES, "$calls requests")
+        // Another HTTP error (rate limit…) is not about size.
+        val limited = assertFailsWith<AirfieldImportException> { busyOverpass { throw HttpStatusException(509) }.download("LFLE") }
+        assertEquals(Texts.current.osmNotResponding, limited.message)
+    }
+
+    @Test
+    fun downloaderTakesThePublishedFileFirst() {
+        val asked = mutableListOf<String>()
+        val d = AirfieldDownloader(
+            post = { _, _ -> error("no Overpass when the file is published") },
+            get = { """{"elevation":[181.0]}""" },
+            servers = listOf("overpass"),
+            published = listOf("https://down/a/", "https://copy/a/"),
+            getPublished = { url ->
+                asked += url
+                if (url.startsWith("https://down/")) throw IOException("offline") else fixture("LFNL")
+            },
+        )
+        val r = d.download("lfnl")
+        assertEquals("LFNL", r.config.icao)
+        // The first copy down: the next one.
+        assertEquals(listOf("https://down/a/LFNL.json.gz", "https://copy/a/LFNL.json.gz"), asked)
+    }
+
+    @Test
+    fun downloaderGoesToOpenStreetMapWhenTheAirfieldIsNotPublished() {
+        val asked = mutableListOf<String>()
+        var posts = 0
+        val d = AirfieldDownloader(
+            post = { _, _ -> posts++; fixture("LFNL") },
+            get = { """{"elevation":[181.0]}""" },
+            servers = listOf("overpass"),
+            published = listOf("https://pages/a/", "https://copy/a/"),
+            getPublished = { url -> asked += url; throw HttpStatusException(404) },
+        )
+        assertEquals("LFNL", d.download("LFNL").config.icao)
+        assertEquals(1, posts)
+        // Not published: another copy has the same files, no need to ask it.
+        assertEquals(listOf("https://pages/a/LFNL.json.gz"), asked)
+    }
+
     @Test
     fun downloaderGivesUpWithAMessage() {
-        val d = AirfieldDownloader(post = { _, _ -> "# 502 Gateway Timeout" }, get = { throw IOException("offline") }, servers = listOf("a"))
+        val d = AirfieldDownloader(post = { _, _ -> "# 502 Gateway Timeout" }, get = { throw IOException("offline") }, servers = listOf("a"), published = emptyList())
         val e = assertFailsWith<AirfieldImportException> { d.download("LFNL") }
         assertTrue(e.message!!.startsWith("OpenStreetMap is not responding"), e.message)
         assertFailsWith<AirfieldImportException> { d.download("LF NL!") }
-        val unknown = AirfieldDownloader(post = { _, _ -> """{"elements":[]}""" }, servers = listOf("a"))
+        val unknown = AirfieldDownloader(post = { _, _ -> """{"elements":[]}""" }, servers = listOf("a"), published = emptyList())
         assertEquals("No airfield “ZZZZ” in OpenStreetMap.", assertFailsWith<AirfieldImportException> { unknown.download("ZZZZ") }.message)
     }
 }

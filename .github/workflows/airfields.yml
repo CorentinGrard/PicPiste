@@ -1,0 +1,117 @@
+name: Airfields
+
+# Every week, all the world's airfields from OpenStreetMap: Geofabrik extracts of each
+# continent, reduced to their aeroway features (tools/airfields), one file per airfield,
+# published on GitHub Pages. Nothing is published unless every continent went through:
+# last week's files stay online.
+
+on:
+  schedule:
+    - cron: "23 2 * * 1" # Mondays 02:23 UTC; Geofabrik extracts are from the day before
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: airfields
+  cancel-in-progress: false
+
+env:
+  USER_AGENT: PicPiste airfields (https://github.com/CorentinGrard/PicPiste)
+
+jobs:
+  extract:
+    name: Extract ${{ matrix.region }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      # One continent missing would silently drop its airfields: all or nothing.
+      fail-fast: true
+      max-parallel: 3 # be gentle with Geofabrik
+      matrix:
+        # Geofabrik's top-level regions: together, the whole planet.
+        region: [africa, antarctica, asia, australia-oceania, central-america, europe, north-america, russia, south-america]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Builder image
+        run: docker build -t airfields-builder tools/airfields
+
+      # The extract goes to /mnt, the runner's scratch disk: Europe is 35 GB, more than / has free.
+      - name: Download ${{ matrix.region }}
+        run: |
+          sudo mkdir -p /mnt/osm && sudo chown "$USER" /mnt/osm
+          cd /mnt/osm
+          url="https://download.geofabrik.de/${{ matrix.region }}-latest.osm.pbf"
+          size=$(curl -fsIL -A "$USER_AGENT" "$url" | awk 'tolower($1) == "content-length:" { s = $2 } END { print s + 0 }')
+          free=$(df --output=avail -B1 /mnt/osm | tail -1)
+          echo "Extract: $((size / 1000000)) MB, free on /mnt: $((free / 1000000)) MB"
+          if [ "$size" -eq 0 ] || [ $((size + size / 10)) -gt "$free" ]; then
+            echo "::error::Not enough room for ${{ matrix.region }} on /mnt"
+            exit 1
+          fi
+          curl -fL --retry 5 --retry-delay 60 --no-progress-meter -A "$USER_AGENT" -o in.osm.pbf "$url"
+          curl -fsL --retry 5 -A "$USER_AGENT" "$url.md5" | sed 's/ .*/  in.osm.pbf/' | md5sum -c
+
+      - name: Keep the aeroway features
+        run: |
+          docker run --rm -v /mnt/osm:/work airfields-builder extract in.osm.pbf ${{ matrix.region }}.osm.pbf
+          rm /mnt/osm/in.osm.pbf
+          ls -l /mnt/osm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: region-${{ matrix.region }}
+          path: /mnt/osm/${{ matrix.region }}.osm.pbf
+          retention-days: 7
+          compression-level: 0 # PBF is already compressed
+
+  build:
+    needs: extract
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: region-*
+          path: regions
+          merge-multiple: true
+
+      - name: One file per airfield
+        run: |
+          docker build -t airfields-builder tools/airfields
+          docker run --rm -v "$PWD:/work" airfields-builder build site regions/*.osm.pbf
+          sudo chown -R "$USER" site
+
+      # GitHub Pages refuses sites over 1 GB.
+      - name: Size check
+        run: |
+          bytes=$(du -sb site | cut -f1)
+          files=$(find site -type f | wc -l)
+          echo "Site: $((bytes / 1000000)) MB in $files files"
+          echo "### Airfields: $((bytes / 1000000)) MB, $files files" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$bytes" -gt 950000000 ]; then
+            echo "::error::Site over 950 MB: too big for GitHub Pages"
+            exit 1
+          fi
+          test -s site/a/LFNL.json.gz && test -s site/a/LFML.json.gz
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

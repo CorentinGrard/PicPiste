@@ -64,6 +64,7 @@ sealed class Texts(val locale: Locale) {
     // OpenStreetMap import
     abstract fun invalidCode(code: String): String
     abstract val osmNotResponding: String
+    abstract val airfieldTooBig: String
     abstract fun noAirfield(code: String): String
     abstract fun noPosition(code: String): String
     abstract fun noRunways(code: String): String
@@ -171,6 +172,7 @@ sealed class Texts(val locale: Locale) {
 
         override fun invalidCode(code: String) = "Invalid code “$code”: 3 to 7 letters or digits, e.g. LFPT."
         override val osmNotResponding = "OpenStreetMap is not responding (servers busy or no network). Try again in a minute."
+        override val airfieldTooBig = "This airfield is too big to download while the OpenStreetMap search server is busy. Try again later."
         override fun noAirfield(code: String) = "No airfield “$code” in OpenStreetMap."
         override fun noPosition(code: String) = "Airfield “$code” has no position in OpenStreetMap."
         override fun noRunways(code: String) = "Airfield “$code” has no runway drawn in OpenStreetMap."
@@ -276,6 +278,7 @@ sealed class Texts(val locale: Locale) {
 
         override fun invalidCode(code: String) = "Code « $code » invalide : 3 à 7 lettres ou chiffres, par ex. LFPT."
         override val osmNotResponding = "OpenStreetMap ne répond pas (serveurs occupés ou pas de réseau). Réessayez dans une minute."
+        override val airfieldTooBig = "Ce terrain est trop grand pour être téléchargé pendant que le serveur de recherche OpenStreetMap est occupé. Réessayez plus tard."
         override fun noAirfield(code: String) = "Aucun terrain « $code » dans OpenStreetMap."
         override fun noPosition(code: String) = "Terrain « $code » sans position dans OpenStreetMap."
         override fun noRunways(code: String) = "Le terrain « $code » n'a aucune piste dessinée dans OpenStreetMap."

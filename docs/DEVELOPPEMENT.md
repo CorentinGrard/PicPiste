@@ -45,6 +45,34 @@ les noms dès l'installation. La CI la met à jour avant chaque construction ; �
 `./gradlew :core:updateDdb`. Extension `.dat` et pas `.gz` : la construction Android
 décompresse et renomme les `.gz` des assets.
 
+## Terrains du monde entier
+
+Chaque lundi, le workflow **Airfields** (`.github/workflows/airfields.yml`) extrait tous les
+terrains du monde d'OpenStreetMap : les extraits Geofabrik de chaque continent (90 Go en tout,
+un job par continent), réduits aux pistes, taxiways, aires, hangars et manches à air
+(`tools/airfields/airfields.py extract`), puis un fichier par terrain avec une piste
+(`build`) : `a/<CODE>.json.gz`, au format de la réponse Overpass que l'app sait déjà lire, et
+`index.json` (tous les terrains : nom, position, plus longue piste, codes). Rien n'est publié
+si un continent manque : les fichiers de la semaine d'avant restent en ligne.
+
+Publié sur **GitHub Pages** : `https://corentingrard.github.io/PicPiste/` (environ 120 Mo,
+limite 1 Go). L'app (`AirfieldDownloader`) prend le fichier publié ; un terrain absent (sans
+code, ou ajouté dans OSM depuis) ou Pages injoignable : OpenStreetMap en direct, comme avant.
+
+À la main, avec Docker :
+
+```bash
+docker build -t picpiste-airfields-builder tools/airfields
+docker run --rm -v "$PWD:/work" picpiste-airfields-builder extract france-latest.osm.pbf france.osm.pbf
+docker run --rm -v "$PWD:/work" picpiste-airfields-builder build site france.osm.pbf
+```
+
+Mise en place (une fois) : réglages du dépôt → Pages → Source : **GitHub Actions**, puis
+Actions → Airfields → Run workflow.
+
+Données © les contributeurs OpenStreetMap, licence ODbL : les fichiers publiés sont une base
+dérivée sous la même licence.
+
 ## CI et versions
 
 GitHub Actions (`.github/workflows/ci.yml`) lance les tests du moteur et construit l'APK
