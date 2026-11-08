@@ -47,6 +47,9 @@ FEATURE_KEYS = {"aeroway", "building", "runway", "surface", "width", "length", "
 CODE = re.compile(r"^[A-Z0-9]{3,7}$")
 CODE_KEYS = ("icao", "ref", "faa")
 
+# As in OsmImport: shorter runways are left out, so an airfield with none is not published.
+MIN_RUNWAY_M = 150.0
+
 # As in OsmImport.query.
 AROUND_OUTLINE_M = 150.0
 AROUND_POINT_M = 2500.0
@@ -158,6 +161,16 @@ def aerodrome_geometry(kind, oid, ways, nodes, relations):
     return g, AROUND_OUTLINE_M
 
 
+def runway_length(g):
+    """Metres: a centre line's length, or the long side of an outline (closed way)."""
+    if isinstance(g, LineString) and g.is_closed and len(g.coords) >= 4:
+        r = shapely.minimum_rotated_rectangle(Polygon(g.coords))
+        if isinstance(r, Polygon):
+            xs = list(r.exterior.coords)
+            return max(math.dist(xs[0], xs[1]), math.dist(xs[1], xs[2]))
+    return g.length
+
+
 def geometry_json(coords):
     return [{"lat": round(lat, 7), "lon": round(lon, 7)} for lat, lon in coords]
 
@@ -206,10 +219,10 @@ def build(out_dir, paths):
             continue
         here = local.geom(geom)
         mine = [int(i) for i in candidates if here.distance(local.geom(feature_geoms[i])) <= around]
-        runways = [local.geom(feature_geoms[i]).length for i in mine
+        runways = [runway_length(local.geom(feature_geoms[i])) for i in mine
                    if features[i][0] == "w" and ways[features[i][1]][0].get("aeroway") == "runway"
                    and ways[features[i][1]][0].get("runway") != "displaced_threshold"]
-        if not runways:
+        if not runways or max(runways) < MIN_RUNWAY_M:
             continue  # the app needs a runway
         found.append((kind, oid, tags, (centre.y, centre.x), max(runways), mine))
     log(f"{len(found)} aerodromes with a runway")

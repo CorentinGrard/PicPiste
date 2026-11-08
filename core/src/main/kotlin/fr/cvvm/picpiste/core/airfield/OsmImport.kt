@@ -33,7 +33,13 @@ class AirfieldImportException(message: String, cause: Throwable? = null) : Excep
 object OsmImport {
     /** OSM surface values drawn as grass. */
     private val SOFT = setOf("grass", "dirt", "ground", "earth", "unpaved", "turf", "sand", "gravel", "fine_gravel", "compacted")
-    private const val MIN_RUNWAY_M = 150.0
+    const val MIN_RUNWAY_M = 150.0
+    /**
+     * Runways further than this from the aerodrome's middle are left out: some aerodromes cover
+     * a whole range (Edwards AFB, 20 km across), more than the radar shows and than an
+     * airfield file accepts (20 km, see problems()).
+     */
+    private const val MAX_RUNWAY_DISTANCE_M = 15_000.0
     private const val DEFAULT_PAVED_WIDTH_M = 25.0
     private const val DEFAULT_GRASS_WIDTH_M = 50.0
     /** Hangars, aprons… further than this outside the airfield outline belong to someone else. */
@@ -103,6 +109,7 @@ object OsmImport {
         val frame = LocalFrame(origin, 0.0)
 
         val runways = buildRunways(elements, frame)
+            .filter { b -> b.config.ends.all { frame.toLocal(it.threshold.geo()).length <= MAX_RUNWAY_DISTANCE_M } }
         if (runways.isEmpty()) throw AirfieldImportException(Texts.current.noRunways(c))
         if (runways.any { it.guessedRefs }) warnings += Texts.current.refsGuessed
         if (runways.any { it.guessedWidth }) warnings += Texts.current.widthUnknown

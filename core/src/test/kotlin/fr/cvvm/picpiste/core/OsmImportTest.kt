@@ -7,6 +7,7 @@ import fr.cvvm.picpiste.core.airfield.OsmImport
 import fr.cvvm.picpiste.core.airfield.RunwayEnd
 import fr.cvvm.picpiste.core.airfield.problems
 import fr.cvvm.picpiste.core.airfield.refHeading
+import fr.cvvm.picpiste.core.airfield.runwayNumber
 import fr.cvvm.picpiste.core.ddb.HttpStatusException
 import fr.cvvm.picpiste.core.i18n.Texts
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
@@ -95,6 +96,42 @@ class OsmImportTest {
         assertTrue(r.config.boundary.size > 20, "boundary ${r.config.boundary.size} points")
         // Crossing runways: no "grass between runways" strips, just the two runways.
         assertEquals(2, a.runwayZone.size)
+    }
+
+    /** The weekly published files (tools/airfields) for two big airports. */
+    @Test
+    fun bigAirportsFromThePublishedFiles() {
+        val cdg = Airfield(import("LFPG", elevation = 119.0).config)
+        assertConsistent(cdg)
+        // Four parallel runways, and a grass strip with no designator in OSM, pointing west:
+        // its other end was "heading + 180", over 360 ("37"), and the import crashed.
+        assertEquals(setOf("08L", "08R", "09L", "09R"), cdg.runways.filter { !it.isGrass }.map { it.ref(RunwayEnd.A) }.toSet())
+        assertEquals(1, cdg.runways.count { it.isGrass })
+
+        val mrs = Airfield(import("LFML", elevation = 21.0).config)
+        assertConsistent(mrs)
+        assertEquals(setOf("13L", "13R"), mrs.runways.map { it.ref(RunwayEnd.A) }.toSet())
+    }
+
+    @Test
+    fun runwaysFarFromTheAerodromeAreLeftOut() {
+        // An aerodrome node, a runway beside it, and one 30 km away (a range, or a tagging error).
+        val near = """{"type":"way","id":1,"tags":{"aeroway":"runway","ref":"09/27"},"geometry":[{"lat":45.0,"lon":5.0},{"lat":45.0,"lon":5.01}]}"""
+        val far = """{"type":"way","id":2,"tags":{"aeroway":"runway","ref":"18/36"},"geometry":[{"lat":45.27,"lon":5.0},{"lat":45.28,"lon":5.0}]}"""
+        val ad = """{"type":"node","id":3,"lat":45.0,"lon":5.005,"tags":{"aeroway":"aerodrome","icao":"ZZZZ"}}"""
+        val r = OsmImport.build("ZZZZ", """{"elements":[$near,$far,$ad]}""", 200.0)
+        assertEquals(listOf("09"), r.config.runways.map { it.ends[0].ref })
+        assertEquals(emptyList(), r.config.problems())
+    }
+
+    @Test
+    fun runwayNumbersFromAnyHeading() {
+        assertEquals(4, runwayNumber(42.0))
+        assertEquals(36, runwayNumber(3.0))
+        assertEquals(36, runwayNumber(358.0))
+        // The other end of a runway heading 265°: 445°, that is 085°.
+        assertEquals(9, runwayNumber(265.0 + 180))
+        assertEquals(36, runwayNumber(-2.0))
     }
 
     @Test

@@ -103,7 +103,8 @@ fun Welcome(
                 }.mapCatching { it?.let { (config, warnings) -> save(config, warnings) } ?: emptyList() }
             }
             busy = false
-            result.onSuccess(onReady).onFailure { error = (it as? AirfieldImportException)?.message ?: context.getString(R.string.error_detail, it.message ?: "") }
+            // A bug has no message for the screen: at least its kind ("NullPointerException").
+            result.onSuccess(onReady).onFailure { error = (it as? AirfieldImportException)?.message ?: context.getString(R.string.error_detail, it.message ?: it::class.java.simpleName) }
         }
     }
 

@@ -5,6 +5,7 @@ import fr.cvvm.picpiste.core.geo.LocalFrame
 import fr.cvvm.picpiste.core.geo.Polygon
 import fr.cvvm.picpiste.core.geo.Vec2
 import fr.cvvm.picpiste.core.geo.angleDiffDeg
+import fr.cvvm.picpiste.core.geo.normalizeDeg
 import fr.cvvm.picpiste.core.i18n.Texts
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -351,8 +352,11 @@ enum class RunwayThird {
     val label: String get() = Texts.current.third(this)
 }
 
-/** Rounds a heading to its runway number, for sanity checks (42° → 4). */
-fun runwayNumber(headingDeg: Double): Int = ((headingDeg / 10).roundToInt().let { if (it == 0) 36 else it })
+/**
+ * Rounds a heading to its runway number, 1 to 36 (42° → 4, 3° → 36). Any heading: the
+ * opposite end of a runway is often worked out as heading + 180, past 360.
+ */
+fun runwayNumber(headingDeg: Double): Int = (normalizeDeg(headingDeg) / 10).roundToInt().let { if (it == 0) 36 else it }
 
 /** Two-digit designator for a heading: 42° → "04", 318° → "32". */
 fun runwayRef(headingDeg: Double): String = runwayNumber(headingDeg).toString().padStart(2, '0')
