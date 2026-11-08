@@ -26,8 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
-      # One continent missing would silently drop its airfields: all or nothing.
-      fail-fast: true
+      # A failed continent does not stop the others: "Re-run failed jobs" redoes only it.
+      # Still all or nothing: the build only runs once every continent went through.
+      fail-fast: false
       max-parallel: 3 # be gentle with Geofabrik
       matrix:
         # Geofabrik's top-level regions: together, the whole planet.
@@ -41,18 +42,40 @@ jobs:
       # The extract goes to /mnt, the runner's scratch disk: Europe is 35 GB, more than / has free.
       - name: Download ${{ matrix.region }}
         run: |
+          set -euo pipefail
           sudo mkdir -p /mnt/osm && sudo chown "$USER" /mnt/osm
           cd /mnt/osm
           url="https://download.geofabrik.de/${{ matrix.region }}-latest.osm.pbf"
-          size=$(curl -fsIL -A "$USER_AGENT" "$url" | awk 'tolower($1) == "content-length:" { s = $2 } END { print s + 0 }')
+          size=$(curl -fsIL --retry 5 --retry-all-errors -A "$USER_AGENT" "$url" | awk 'tolower($1) == "content-length:" { s = $2 } END { print s + 0 }' || echo 0)
           free=$(df --output=avail -B1 /mnt/osm | tail -1)
           echo "Extract: $((size / 1000000)) MB, free on /mnt: $((free / 1000000)) MB"
           if [ "$size" -eq 0 ] || [ $((size + size / 10)) -gt "$free" ]; then
-            echo "::error::Not enough room for ${{ matrix.region }} on /mnt"
+            echo "::error::No size for ${{ matrix.region }}, or not enough room on /mnt"
             exit 1
           fi
-          curl -fL --retry 5 --retry-delay 60 --no-progress-meter -A "$USER_AGENT" -o in.osm.pbf "$url"
-          curl -fsL --retry 5 -A "$USER_AGENT" "$url.md5" | sed 's/ .*/  in.osm.pbf/' | md5sum -c
+          # The checksum before the file: a newer extract published during the download then
+          # shows as a mismatch, and it starts over. Geofabrik sometimes refuses a request
+          # (busy): each attempt waits and asks again.
+          for attempt in 1 2 3; do
+            md5=$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 30 -A "$USER_AGENT" "$url.md5" | awk '{ print $1 }') || md5=""
+            if ! [[ "$md5" =~ ^[0-9a-f]{32}$ ]]; then
+              echo "No checksum from Geofabrik (attempt $attempt)"
+              sleep 120
+              continue
+            fi
+            if ! curl -fL --retry 5 --retry-all-errors --retry-delay 60 --no-progress-meter -A "$USER_AGENT" -o in.osm.pbf "$url"; then
+              echo "Download failed (attempt $attempt)"
+              sleep 120
+              continue
+            fi
+            if echo "$md5  in.osm.pbf" | md5sum -c; then
+              exit 0
+            fi
+            echo "Checksum mismatch (attempt $attempt): a newer extract published meanwhile?"
+            rm -f in.osm.pbf
+          done
+          echo "::error::Could not download ${{ matrix.region }} from Geofabrik"
+          exit 1
 
       - name: Keep the aeroway features
         run: |
