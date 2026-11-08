@@ -53,17 +53,26 @@ jobs:
             echo "::error::No size for ${{ matrix.region }}, or not enough room on /mnt"
             exit 1
           fi
-          # The checksum before the file: a newer extract published during the download then
-          # shows as a mismatch, and it starts over. Geofabrik sometimes refuses a request
-          # (busy): each attempt waits and asks again.
+          checksum() {
+            curl -fsSL --retry 3 --retry-all-errors --retry-delay 20 -A "$USER_AGENT" "$1" | awk '{ print $1 }' || true
+          }
+          # Geofabrik sends its biggest files (Europe, North America) to a mirror, which alone
+          # has their checksum: both come from where the redirect points. The checksum before
+          # the file: a newer extract published during the download then shows as a mismatch,
+          # and it starts over.
           for attempt in 1 2 3; do
-            md5=$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 30 -A "$USER_AGENT" "$url.md5" | awk '{ print $1 }') || md5=""
+            real=$(curl -fsSIL --retry 3 --retry-all-errors -A "$USER_AGENT" -o /dev/null -w '%{url_effective}' "$url" || echo "$url")
+            md5=$(checksum "$real.md5")
+            if ! [[ "$md5" =~ ^[0-9a-f]{32}$ ]] && [ "$real" != "$url" ]; then
+              md5=$(checksum "$url.md5")
+            fi
             if ! [[ "$md5" =~ ^[0-9a-f]{32}$ ]]; then
-              echo "No checksum from Geofabrik (attempt $attempt)"
+              echo "No checksum for $real (attempt $attempt)"
               sleep 120
               continue
             fi
-            if ! curl -fL --retry 5 --retry-all-errors --retry-delay 60 --no-progress-meter -A "$USER_AGENT" -o in.osm.pbf "$url"; then
+            echo "From $real, md5 $md5"
+            if ! curl -fL --retry 5 --retry-all-errors --retry-delay 60 --no-progress-meter -A "$USER_AGENT" -o in.osm.pbf "$real"; then
               echo "Download failed (attempt $attempt)"
               sleep 120
               continue
