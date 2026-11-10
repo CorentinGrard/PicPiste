@@ -6,7 +6,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import android.os.CancellationSignal
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
@@ -102,11 +105,32 @@ class TrafficRepository(private val context: Context) {
     /** Call from the main thread. */
     fun acquire() {
         users++
-        if (users != 1) return
+        if (users != 1) {
+            // Another screen opened (the phone while the car runs, or the reverse).
+            ensureTracking()
+            return
+        }
         // Back within the grace period: still running, nothing was missed.
         mainHandler.removeCallbacks(delayedStop)
-        if (job == null) start()
+        if (job == null) start() else ensureTracking()
     }
+
+    /**
+     * A service started while the phone is locked (Android Auto plugged in with the screen off)
+     * gets no location: Android starts it without, or refuses it. Starting it again once the
+     * app is in front (a screen opens, the phone is unlocked) gets location back; starting a
+     * service that already runs costs nothing.
+     */
+    private fun ensureTracking() {
+        if (users == 0) return
+        startLocation()
+        TrackingService.start(context)
+    }
+
+    private val unlockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, intent: Intent) = ensureTracking()
+    }
+    private var unlockRegistered = false
 
     /**
      * Call from the main thread. Keeps running [STOP_GRACE_MS] after the last user left, so a
@@ -128,6 +152,10 @@ class TrafficRepository(private val context: Context) {
     private fun start() {
         startLocation()
         TrackingService.start(context)
+        if (!unlockRegistered) {
+            context.registerReceiver(unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), Context.RECEIVER_NOT_EXPORTED)
+            unlockRegistered = true
+        }
         job = scope.launch {
             launch { loadDdb() }
             launch {
@@ -168,6 +196,10 @@ class TrafficRepository(private val context: Context) {
         ddbJob = null
         stopLocation()
         TrackingService.stop(context)
+        if (unlockRegistered) {
+            context.unregisterReceiver(unlockReceiver)
+            unlockRegistered = false
+        }
     }
 
     private fun settings() = TrafficSettings(

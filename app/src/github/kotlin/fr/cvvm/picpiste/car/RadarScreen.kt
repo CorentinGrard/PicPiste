@@ -39,6 +39,7 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
     private val overlay = CarOverlay(carContext)
 
     private var surface: SurfaceContainer? = null
+    private var closing = false
     private var visible: Rect? = null
     private var last: Snapshot = repo.snapshot.value
     private var job: Job? = null
@@ -171,10 +172,20 @@ class RadarScreen(carContext: CarContext) : Screen(carContext) {
         val container = surface ?: return
         val s = container.surface ?: return
         if (!s.isValid) return
+        // Software canvas, not the GPU: after an update during a car session the host hands
+        // the new process the old surface, still tied to the dead one. lockHardwareCanvas()
+        // and HardwareRenderer then abort the whole app (native, nothing to catch); lockCanvas()
+        // throws. The host keeps handing back that same surface, and a frozen radar that looks
+        // live is worse than none: close the car app, and Android Auto opens it again on a
+        // fresh surface. Costs about 16 ms a frame at 30 frames a second, within budget.
         val canvas = try {
-            s.lockHardwareCanvas()
+            s.lockCanvas(null)
         } catch (e: Exception) {
-            Log.w("RadarScreen", "Cannot draw", e)
+            if (!closing) {
+                Log.w("RadarScreen", "Cannot draw on the car surface, closing", e)
+                closing = true
+                carContext.finishCarApp()
+            }
             return
         }
         try {

@@ -118,6 +118,12 @@ Two levels, no more (`AlertEngine`):
 - Landscape: lists on the left (arrivals, then landed), radar on the right; portrait: radar
   on top, lists below. Zoom buttons in the top bar.
 - The car's day / night decides the theme (`CarContext.isDarkMode`), not the phone's setting.
+- The radar is drawn in software (`Surface.lockCanvas`), about 16 ms a frame. After an update
+  during a car session the host hands the new process a surface still tied to the old one; the
+  GPU paths abort the app there, the software path fails cleanly and the car app closes, so
+  Android Auto reopens it on a fresh surface instead of showing a frozen radar.
+- A tracking service started with the phone locked gets no location; it is started again
+  whenever a screen opens or the phone is unlocked.
 - Navigation category, so the radar can be drawn freely. Google refuses it on the Play Store,
   so Android Auto only exists in the GitHub version (`github` flavor); the Play version is the
   phone app alone. See the README for installing it in the car.
