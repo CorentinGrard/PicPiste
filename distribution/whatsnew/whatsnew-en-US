@@ -1,2 +1,2 @@
-ADS-B traffic from the adsb.lol network as well (setting, on by default): airliners, helicopters and light aircraft near big airports, where OGN relays almost none.
-Display ceiling: a new last step, "none", to show every aircraft.
+Runway alerts keep the GPS when the phone was locked as the app started: it comes back as soon as the phone is unlocked.
+Smaller app.
