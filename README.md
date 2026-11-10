@@ -1,80 +1,120 @@
 # PicPiste
 
-**Le radar des planeurs pour la golfette du club.**
+**The glider radar for the club's golf cart.**
 
-PicPiste montre en direct où sont les planeurs autour du terrain, qui va se poser et où,
-et prévient le conducteur de la golfette quand il est sur une piste alors qu'un planeur
-arrive. Sur l'écran Android Auto de la golfette, ou simplement sur le téléphone.
+PicPiste shows live where the gliders are around the airfield, who is about to land and
+where, and warns the golf-cart driver when they are on a runway while a glider is coming in.
+On the cart's Android Auto screen, or simply on the phone.
 
-> PicPiste est une **aide à l'information**, pas un outil de contrôle aérien.
-> Regarder dehors reste la règle.
+<p align="center">
+  <img src="docs/play/screenshots-en/2-radar-arrivals.png" width="280" alt="Radar with the arrivals list" />
+  &nbsp;
+  <img src="docs/play/screenshots-en/1-final-alert.png" width="280" alt="Runway alert: glider on final" />
+</p>
 
-## Ce que fait PicPiste
+> PicPiste is an **awareness aid**, not an air traffic control tool.
+> Looking outside remains the rule.
 
-- **Radar en direct** : tous les planeurs, remorqueurs et autres aéronefs équipés FLARM
-  autour du terrain, mis à jour toutes les quelques secondes.
-- **Statut de chaque planeur** : décollage, remorqué, en vol, circuit, finale, posé —
-  on sait qui arrive et dans combien de temps.
-- **Qui s'est posé où** : touchez un planeur posé pour le voir sur le radar et aller le
-  chercher au bon endroit.
-- **Alerte piste** : si la golfette est sur une piste pendant qu'un planeur est en finale,
-  en circuit ou au décollage, un son et un bandeau rouge préviennent (« Planeur en finale —
-  40 s »). Peu d'alertes, donc des alertes qu'on écoute.
-- **N'importe quel terrain** : choisissez votre terrain par son code OACI, ajustez pistes et
-  bâtiments sur la carte (ou sur place avec le GPS), puis partagez-le aux autres conducteurs.
-- **Mode jour / nuit** automatique, en **français ou en anglais** selon la langue du téléphone.
-- **Respect de la vie privée** : les aéronefs qui ont demandé à ne pas être suivis ne sont
-  pas affichés, ceux qui ont demandé l'anonymat sont affichés sans nom.
+## What PicPiste does
 
-Les données viennent du réseau **OGN (Open Glider Network)**, qui relaie les positions
-FLARM des aéronefs. Il faut un récepteur OGN près du terrain pour voir les planeurs jusqu'au
-sol, et une connexion internet (4G) sur le téléphone.
+- **Live radar**: every glider, tow plane and other FLARM-equipped aircraft around the
+  airfield, updated every few seconds.
+- **Status of each glider**: takeoff, on tow, flying, circuit, final, landed. You know who
+  is coming and how soon.
+- **Who landed where**: tap a landed glider to see it on the radar and pick it up at the
+  right spot.
+- **Runway alert**: if the cart is on a runway while a glider is on final, in the circuit or
+  taking off, a sound and a red banner warn you ("Glider on final 30, 40 s"). Few alerts,
+  so alerts people listen to.
+- **Any airfield**: pick your airfield by its ICAO code, adjust runways and buildings on the
+  map (or on site with the GPS), then share it with the other drivers.
+- **Automatic day / night mode**, in **English or French** following the phone's language.
+- **Privacy**: aircraft that asked not to be tracked are not shown; those that asked for
+  anonymity are shown without a name.
 
-## Installer
+Data comes from the **OGN (Open Glider Network)**, which relays the FLARM positions of
+aircraft. You need an OGN receiver near the airfield to see gliders down to the ground, and
+an internet connection (4G) on the phone.
 
-1. Télécharger le dernier `PicPiste-x.y.apk` depuis les
+## Install
+
+There are two versions, signed with the same key, so one installs over the other:
+
+| | Phone app | Android Auto |
+|---|:---:|:---:|
+| **GitHub** (APK, below) | ✓ | ✓ |
+| **Google Play** (coming soon) | ✓ | — |
+
+Google does not accept PicPiste's Android Auto screen on the Play Store: it draws its own
+radar, which Google only allows for turn-by-turn navigation apps. The Play version is the
+phone app alone. Installing it over the GitHub version removes Android Auto.
+
+### With Obtainium (recommended)
+
+[Obtainium](https://github.com/ImranR98/Obtainium) installs PicPiste from the GitHub releases
+and keeps it up to date.
+
+[<img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="60">](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/CorentinGrard/PicPiste)
+
+### By hand
+
+1. Download the latest `PicPiste-x.y.apk` from the
    [Releases](https://github.com/CorentinGrard/PicPiste/releases).
-2. L'ouvrir sur le téléphone Android et autoriser l'installation (« sources inconnues »).
-3. Les mises à jour s'installent de la même façon, par-dessus l'ancienne version.
+2. Open it on the Android phone and allow installing from unknown sources.
+3. Updates install the same way, over the previous version.
 
-### Activer PicPiste dans Android Auto
+## Enable PicPiste in Android Auto
 
-L'app n'étant pas sur le Play Store, il faut l'autoriser une fois :
+Android Auto only shows apps it believes came from Google Play. During a car session it asks
+the Play Store where each app was installed from, and hides the others. The phone app works
+without any of this; pick one of these options for the car screen:
 
-1. Sur le téléphone : Android Auto → Réglages → taper 10 fois sur « Version » → menu
-   ⋮ → Paramètres pour les développeurs → cocher **Sources inconnues**.
-2. Brancher le téléphone sur la golfette : PicPiste apparaît dans le lanceur Android Auto.
+1. **Android Auto's "Unknown sources"** (simplest, but not accepted by every car or Android
+   Auto version). On the phone: Android Auto → Settings → tap **Version** 10 times → ⋮ menu
+   → Developer settings → tick **Unknown sources**.
+2. **Install through Obtainium as if from Google Play.** Install
+   [Shizuku](https://shizuku.rikka.app/), then in Obtainium's settings turn on **Use Shizuku
+   to install** and **Pretend to be Google Play**, and (re)install PicPiste. Updates keep
+   working the same way.
+3. **[UnknownAuto](https://github.com/GitMag/UnknownAuto)**: a free, open-source tool that
+   makes Android Auto accept apps installed from outside the Play Store, with only the phone.
+   A closed-source alternative is AA Enabler.
 
-## Premiers pas
+Then plug the phone into the cart: PicPiste shows up in the Android Auto launcher. If it
+does not, see the troubleshooting notes in [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md).
 
-1. **Choisir le terrain** : au premier lancement, entrez le code OACI (ex. LFNL, LFLE) ou
-   ouvrez un fichier terrain envoyé par un autre conducteur.
-2. **Vérifier le terrain** : Réglages (⋯) → Terrain → **Modifier**. Touchez une piste, un
-   seuil ou un hangar pour le sélectionner et glissez ses points. Sur place, roulez jusqu'au
-   point et touchez **Placer ce point ici**. Puis **Enregistrer**.
-3. **Partager le terrain** : dans l'éditeur, ⋯ → **Partager** envoie un fichier
-   `PicPiste-XXXX.json`. L'autre conducteur l'ouvre avec PicPiste, vérifie, puis enregistre.
+These tools are third-party projects, not part of PicPiste. Google is also tightening
+sideloading rules from late 2026, so options may change.
 
-## Pour les développeurs
+## Getting started
 
-Construction, tests, CI et clé de signature : [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md).
-Spécifications : [docs/SPECS.md](docs/SPECS.md).
+1. **Pick the airfield**: on first launch, enter the ICAO code (e.g. LFNL, LFLE) or open an
+   airfield file sent by another driver.
+2. **Check the airfield**: Settings (⋯) → Airfield → **Edit**. Tap a runway, a threshold or
+   a hangar to select it and drag its points. On site, drive to the point and tap **Put
+   this point here**. Then **Save**.
+3. **Share the airfield**: in the editor, ⋯ → **Share** sends a `PicPiste-XXXX.json` file.
+   The other driver opens it with PicPiste, checks it, then saves.
 
-## Licence et données
+## For developers
 
-PicPiste est un logiciel libre, sous licence **GNU GPL v3** ([LICENSE](LICENSE)) : vous
-pouvez l'utiliser, l'étudier, le modifier et le redistribuer, à condition de publier vos
-modifications sous la même licence. Il est fourni sans aucune garantie : c'est une aide à la
-vigilance, qui ne remplace pas l'observation visuelle.
+Building, tests, CI and signing key: [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) (French).
+Specifications: [docs/SPECS.md](docs/SPECS.md).
 
-Données utilisées :
+## License and data
 
-- **Positions des aéronefs** : [Open Glider Network](https://www.glidernet.org), sous licence
-  ODbL, selon les [règles d'usage OGN](https://www.glidernet.org/ogn-data-usage/) (choix de
-  confidentialité de la base respectés, aucune donnée redistribuée).
-- **Noms des aéronefs** : [base des appareils OGN](https://ddb.glidernet.org), sous licence
-  ODC-BY. Une copie est livrée avec l'app et mise à jour chaque jour.
-- **Terrains** : © les contributeurs d'[OpenStreetMap](https://www.openstreetmap.org/copyright),
-  sous licence ODbL.
-- **Altitude des terrains** : [Open-Meteo](https://open-meteo.com).
-- **Fonds de carte de l'éditeur** : photos aériennes © IGN, plan © OpenStreetMap.
+PicPiste is free software under the **GNU GPL v3** ([LICENSE](LICENSE)): you may use, study,
+modify and redistribute it, provided you publish your changes under the same license. It
+comes with no warranty: it is an awareness aid and does not replace looking outside.
+
+Data used:
+
+- **Aircraft positions**: [Open Glider Network](https://www.glidernet.org), under the ODbL,
+  following the [OGN data usage rules](https://www.glidernet.org/ogn-data-usage/) (privacy
+  choices in the database respected, no data redistributed).
+- **Aircraft names**: [OGN device database](https://ddb.glidernet.org), under the ODC-BY.
+  A copy ships with the app and is updated daily.
+- **Airfields**: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors,
+  under the ODbL.
+- **Airfield elevation**: [Open-Meteo](https://open-meteo.com).
+- **Editor base maps**: aerial photos © IGN, map © OpenStreetMap.

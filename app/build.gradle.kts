@@ -57,6 +57,15 @@ android {
         }
     }
 
+    // github: the full app, with Android Auto, sideloaded from the GitHub releases.
+    // play: the phone app alone; Google refuses our Android Auto screen (navigation category
+    // without turn-by-turn guidance). Same id and key, so one installs over the other.
+    flavorDimensions += "store"
+    productFlavors {
+        create("github") { dimension = "store" }
+        create("play") { dimension = "store" }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -81,7 +90,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui.tooling.preview)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    implementation(libs.androidx.car.app)
-    implementation(libs.androidx.car.app.projected)
+    "githubImplementation"(libs.androidx.car.app)
+    "githubImplementation"(libs.androidx.car.app.projected)
     implementation(libs.androidx.work.runtime)
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Version Play : pas d'Android Auto, donc pas de mention. -->
+<resources>
+    <string name="theme_hint">Auto : clair le jour, sombre du coucher au lever du soleil au terrain.</string>
+</resources>

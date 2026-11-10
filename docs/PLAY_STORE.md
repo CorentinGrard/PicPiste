@@ -5,8 +5,8 @@ Ce qui est prêt dans le dépôt, et ce qu'il reste à faire dans la Play Consol
 ## Déjà prêt
 
 - **Bundle Play Store** : à chaque tag `v*`, la CI joint `PicPiste-<version>-play.aab` à la
-  release GitHub (à côté de l'APK), même version et même contenu que l'APK.
-  En local : `./gradlew :app:bundleRelease`.
+  release GitHub (à côté de l'APK), même version que l'APK mais **sans Android Auto**
+  (variante `play`). En local : `./gradlew :app:bundlePlayRelease`.
 - **Politique de confidentialité** : `docs/PRIVACY.md`, URL à donner à la Play Console :
   https://github.com/CorentinGrard/PicPiste/blob/main/docs/PRIVACY.md
 - **Visuels** : `docs/play/icon-512.png` (icône 512 × 512) et `docs/play/feature-graphic.png`
@@ -55,9 +55,6 @@ ALERTES DE PISTE
 • Rouge avec annonce vocale : une finale ou un décollage sur votre piste.
 • L'alerte fonctionne aussi écran éteint.
 
-ANDROID AUTO
-• Le radar et les alertes sur l'écran de la voiture.
-
 TOUS LES TERRAINS
 • Import du terrain depuis OpenStreetMap avec son code OACI.
 • Éditeur de pistes et de zones sur fond de carte.
@@ -85,9 +82,6 @@ RUNWAY ALERTS
 • Amber: an aircraft is in the circuit.
 • Red with a voice call: a final or a takeoff on your runway.
 • Alerts keep working with the screen off.
-
-ANDROID AUTO
-• The radar and alerts on the car screen.
 
 ANY AIRFIELD
 • Import the airfield from OpenStreetMap with its ICAO code.
@@ -117,7 +111,7 @@ PicPiste is an aid to vigilance: it does not replace looking outside. Only aircr
     de donnée de l'utilisateur).
   - Suppression des données : désinstaller l'app.
 - **Service de premier plan, type « location »** (déclaration demandée par Google) :
-  « Pendant que le conducteur utilise l'app ou Android Auto, le service garde le GPS actif
+  « Pendant que le conducteur utilise l'app, le service garde le GPS actif
   écran éteint pour savoir si la golfette est sur une piste et déclencher l'alerte (finale,
   décollage). Il s'arrête quand l'app est quittée. » Joindre une courte vidéo : ouvrir l'app,
   éteindre l'écran, la notification PicPiste reste visible.
@@ -127,11 +121,12 @@ PicPiste is an aid to vigilance: it does not replace looking outside. Only aircr
 
 ## Android Auto
 
-L'app se déclare en catégorie **navigation** pour dessiner le radar. Google vérifie les apps
-Android Auto avant publication et pourrait refuser une app de navigation qui ne guide pas
-vers une destination. Si c'est refusé : publier l'app téléphone seule (retirer le service
-voiture de la version Play) et garder la version Android Auto sur GitHub, avec le mode
-développeur d'Android Auto.
+Refusé par Google (novembre 2026) : l'app se déclarait en catégorie **navigation** pour
+dessiner le radar, catégorie réservée au guidage vers une destination. La version Play
+(variante `play`) est donc le téléphone seul : ni service voiture, ni bibliothèque
+Android Auto, ni mention d'Android Auto dans la fiche, les notes de version ou l'app.
+Android Auto reste dans l'APK GitHub (variante `github`) ; options d'installation pour la
+voiture dans le README.
 
 ## Publication automatique
 

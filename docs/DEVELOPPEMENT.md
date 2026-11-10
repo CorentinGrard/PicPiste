@@ -9,7 +9,9 @@ Spécifications : [SPECS.md](SPECS.md) · Ce qui reste à faire : [NEXT.md](NEXT
   moteur de statuts (décollage, remorquage, retour, circuit, finale, posé), golfette sur piste,
   alertes, trafic de démo et rejeu d'enregistrements (pour les tests, rien dans l'app).
 - `app/` — l'app Android : écran téléphone (Compose) et écran Android Auto (catégorie
-  navigation, radar dessiné sur la surface).
+  navigation, radar dessiné sur la surface). Deux variantes :
+  - `github` : l'app complète, avec Android Auto (`app/src/github/`), APK des releases ;
+  - `play` : le téléphone seul, pour le Play Store, qui refuse notre écran Android Auto.
 - `tools/osm_to_airfield.py` — génère `core/src/main/resources/airfields/LFNL.json` (le
   terrain intégré à l'app) depuis un export OpenStreetMap (Overpass).
 
@@ -17,14 +19,15 @@ Spécifications : [SPECS.md](SPECS.md) · Ce qui reste à faire : [NEXT.md](NEXT
 
 ```bash
 ./gradlew :core:test            # tests du moteur
-./gradlew :app:installDebug     # installe sur le téléphone branché en USB
+./gradlew :app:installGithubDebug   # installe sur le téléphone branché en USB (avec Android Auto)
+./gradlew :app:installPlayDebug     # la variante Play Store, sans Android Auto
 ```
 
 Ou ouvrir le dossier dans Android Studio.
 
 ## Tester Android Auto sur l'ordinateur
 
-1. Sur le téléphone, Android Auto → réglages développeur (voir le README) → ⋮ →
+1. Sur le téléphone, Android Auto → réglages développeur (Version × 10) → ⋮ →
    **Démarrer le serveur de l'unité principale**.
 2. `./tools/dhu.sh` : ouvre un écran de voiture (Desktop Head Unit de Google, 1280×720).
    Installation : `sdkmanager "extras;google;auto"` ; la bibliothèque libc++ vient du NDK.

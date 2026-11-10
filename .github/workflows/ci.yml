@@ -46,6 +46,7 @@ jobs:
             echo "No signing key (pull request from a fork?): the APK uses a throwaway debug key."
           fi
 
+      # GitHub APK: the full app, with Android Auto.
       - name: Build APK
         env:
           PICPISTE_KEYSTORE_PASSWORD: ${{ secrets.PICPISTE_KEYSTORE_PASSWORD }}
@@ -57,12 +58,12 @@ jobs:
           echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           VERSION="${GITHUB_REF_NAME#v}"
           [[ "$GITHUB_REF" == refs/tags/v* ]] || VERSION="0.1-${GITHUB_SHA::7}"
-          ./gradlew :app:assembleRelease --console=plain -PversionCode=$VERSION_CODE -PversionName="$VERSION"
+          ./gradlew :app:assembleGithubRelease --console=plain -PversionCode=$VERSION_CODE -PversionName="$VERSION"
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/PicPiste-$VERSION.apk"
+          cp app/build/outputs/apk/github/release/app-github-release.apk "dist/PicPiste-$VERSION.apk"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      # Play Store bundle: same version as the APK.
+      # Play Store bundle: same version as the APK, without Android Auto (refused by Google).
       - name: Build Play Store bundle
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -70,8 +71,8 @@ jobs:
           PICPISTE_KEY_ALIAS: ${{ secrets.PICPISTE_KEY_ALIAS }}
           PICPISTE_KEY_PASSWORD: ${{ secrets.PICPISTE_KEY_PASSWORD }}
         run: |
-          ./gradlew :app:bundleRelease --console=plain -PversionCode=$VERSION_CODE -PversionName="$VERSION"
-          cp app/build/outputs/bundle/release/app-release.aab "dist/PicPiste-$VERSION-play.aab"
+          ./gradlew :app:bundlePlayRelease --console=plain -PversionCode=$VERSION_CODE -PversionName="$VERSION"
+          cp app/build/outputs/bundle/playRelease/app-play-release.aab "dist/PicPiste-$VERSION-play.aab"
 
       - name: Test report
         if: failure()
