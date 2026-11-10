@@ -88,9 +88,9 @@ data class CartAlert(
 }
 
 /**
- * Spec §4.1b: off the runways, nothing. In the runway zone with no traffic, a red border only.
- * On a runway while someone is in the circuit: an amber banner, then red with voice once the
- * landing is close, or at once for a final or a takeoff.
+ * docs/DESIGN.md, "Cart alerts": off the zones, or in one with nothing coming, nothing.
+ * In a zone: an amber banner for someone in the circuit, red with voice for a final or a
+ * takeoff on one of its runways.
  */
 object AlertEngine {
     private val THREATS = setOf(FlightStatus.FINAL, FlightStatus.TAKEOFF, FlightStatus.CIRCUIT)

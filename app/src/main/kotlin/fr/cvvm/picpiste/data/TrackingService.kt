@@ -17,7 +17,7 @@ import fr.cvvm.picpiste.ui.MainActivity
 
 /**
  * Keeps PicPiste alive (OGN connection and GPS) while the phone screen is off.
- * Runs only while the app or Android Auto is in use (spec §5, battery).
+ * Runs only while the app or Android Auto is in use (battery).
  */
 class TrackingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null

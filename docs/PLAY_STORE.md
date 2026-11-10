@@ -1,73 +1,45 @@
-# Publier PicPiste sur le Play Store (test fermé)
+# Publishing PicPiste on the Play Store
 
-Ce qui est prêt dans le dépôt, et ce qu'il reste à faire dans la Play Console.
+What is ready in the repository, and what remains to do in the Play Console.
 
-## Déjà prêt
+## Already ready
 
-- **Bundle Play Store** : à chaque tag `v*`, la CI joint `PicPiste-<version>-play.aab` à la
-  release GitHub (à côté de l'APK), même version que l'APK mais **sans Android Auto**
-  (variante `play`). En local : `./gradlew :app:bundlePlayRelease`.
-- **Politique de confidentialité** : `docs/PRIVACY.md`, URL à donner à la Play Console :
+- **Play Store bundle**: on every `v*` tag, CI attaches `PicPiste-<version>-play.aab` to the
+  GitHub release (next to the APK). Same version as the APK, but **without Android Auto**
+  (`play` flavor). Locally: `./gradlew :app:bundlePlayRelease`.
+- **Privacy policy**: `docs/PRIVACY.md`, URL to give to the Play Console:
   https://github.com/CorentinGrard/PicPiste/blob/main/docs/PRIVACY.md
-- **Visuels** : `docs/play/icon-512.png` (icône 512 × 512) et `docs/play/feature-graphic.png`
-  (bannière 1024 × 500, en français ; `feature-graphic-en.png` pour la fiche anglaise).
-- **Captures d'écran** (1080 × 2160, trafic de démo) : `docs/play/screenshots/` (français)
-  et `docs/play/screenshots-en/` (anglais).
+- **Graphics**: `docs/play/icon-512.png` (512 × 512 icon), `docs/play/feature-graphic-en.png`
+  (1024 × 500 banner, English listing) and `docs/play/feature-graphic.png` (French listing).
+- **Screenshots** (1080 × 2160, demo traffic): `docs/play/screenshots-en/` (English) and
+  `docs/play/screenshots/` (French).
 
-## Étapes dans la Play Console
+## Steps in the Play Console
 
-1. **Compte développeur** (25 $, vérification d'identité). Compte personnel : il faut un
-   **test fermé d'au moins 12 testeurs pendant 14 jours** avant de pouvoir publier en public.
-2. **Créer l'app** : nom « PicPiste », langue par défaut français, application gratuite.
-3. **Signature (important)** : à la première version, choisir *Utiliser une clé existante*
-   et envoyer la clé PicPiste (`~/.picpiste/picpiste-release.jks`) avec l'outil PEPK que la
-   console propose. Google signe alors avec la **même clé** que les APK GitHub : les
-   téléphones déjà installés pourront passer à la version Play sans désinstaller. La clé
-   reste aussi la clé d'envoi (upload) des AAB de la CI.
-4. **Test fermé** → créer une piste, une liste de testeurs (adresses Gmail des membres du
-   club), envoyer l'AAB de la release, puis partager le lien d'inscription aux testeurs.
-5. **Fiche du Play Store** : textes ci-dessous, icône, bannière, au moins 2 captures
-   d'écran de téléphone (radar avec trafic, liste des arrivées, éditeur de terrain).
-6. **Contenu de l'app** : formulaires ci-dessous.
+1. **Developer account** ($25, identity check). Personal account: you need a **closed test
+   with at least 12 testers for 14 days** before publishing publicly.
+2. **Create the app**: name "PicPiste", default language French, free app.
+3. **Signing (important)**: on the first release, choose *Use an existing key* and upload the
+   PicPiste key (`~/.picpiste/picpiste-release.jks`) with the PEPK tool the console offers.
+   Google then signs with the **same key** as the GitHub APKs, so phones that already have
+   PicPiste can switch to the Play version without uninstalling. The key also stays the upload
+   key for the CI bundles.
+4. **Closed test** → create a track and a tester list (Gmail addresses of club members),
+   upload the release bundle, then share the opt-in link with the testers.
+5. **Store listing**: texts below, icon, banner, at least 2 phone screenshots (radar with
+   traffic, arrivals list, airfield editor).
+6. **App content**: forms below.
 
-## Fiche du Play Store
+## Store listing
 
-**Description courte** (80 caractères max)
+**Short description** (80 characters max)
 
-- FR : `Traversez les pistes en sécurité : planeurs en direct et alerte de finale.`
-- EN : `Cross runways safely: live gliders and tow planes, alerts on final.`
+- EN: `Cross runways safely: live gliders and tow planes, alerts on final.`
+- FR: `Traversez les pistes en sécurité : planeurs en direct et alerte de finale.`
 
-**Description complète** (texte brut, à coller tel quel)
+**Full description** (plain text, paste as is)
 
-FR :
-
-```
-Traversez et longez les pistes en sécurité. PicPiste montre au conducteur de la golfette le trafic du terrain en direct et le prévient quand un planeur ou un avion arrive sur sa piste.
-
-RADAR DU TERRAIN
-• Planeurs, remorqueurs et avions autour du terrain, en direct grâce à l'Open Glider Network (OGN).
-• Statut de chaque appareil : décollage, remorqué, circuit, finale (avec la piste la plus probable), posé.
-• Liste des arrivées : qui va se poser, et sur quelle piste.
-
-ALERTES DE PISTE
-• Quand la golfette est sur une piste, PicPiste surveille le trafic pour vous.
-• Orange : un appareil est dans le circuit.
-• Rouge avec annonce vocale : une finale ou un décollage sur votre piste.
-• L'alerte fonctionne aussi écran éteint.
-
-TOUS LES TERRAINS
-• Import du terrain depuis OpenStreetMap avec son code OACI.
-• Éditeur de pistes et de zones sur fond de carte.
-• Partage du terrain avec les autres membres du club par fichier.
-
-GRATUIT, SANS COMPTE, SANS PUBLICITÉ
-• Aucune donnée n'est envoyée au développeur. Votre position reste sur le téléphone.
-
-IMPORTANT
-PicPiste est une aide à la vigilance : il ne remplace pas l'observation visuelle. Seuls les appareils équipés d'une balise (FLARM, OGN…) et à portée d'une station OGN apparaissent.
-```
-
-EN :
+EN:
 
 ```
 Cross and drive along runways safely. PicPiste shows the golf-cart driver the airfield's live traffic and warns them when a glider or an aircraft is coming onto their runway.
@@ -95,52 +67,87 @@ IMPORTANT
 PicPiste is an aid to vigilance: it does not replace looking outside. Only aircraft with a beacon (FLARM, OGN…) and within range of an OGN station are shown.
 ```
 
-**Catégorie** : Cartes et navigation. **Contact** : adresse e-mail du compte.
+FR:
 
-## Contenu de l'app (formulaires)
+```
+Traversez et longez les pistes en sécurité. PicPiste montre au conducteur de la golfette le trafic du terrain en direct et le prévient quand un planeur ou un avion arrive sur sa piste.
 
-- **Politique de confidentialité** : URL ci-dessus.
-- **Accès à l'app** : tout est accessible sans compte. Pour les vérificateurs : « Au premier
-  lancement, saisir LFNL ; le trafic en direct dépend de l'activité du terrain. »
-- **Publicités** : non.
-- **Sécurité des données** :
-  - Données collectées : **aucune** (rien n'est envoyé à un serveur du développeur).
-  - Données partagées : aucune. La position reste sur le téléphone ; les appels aux services
-    tiers (OGN, OpenStreetMap, Open-Meteo, tuiles) n'envoient que la position du terrain.
-  - Chiffrement en transit : oui (HTTPS ; le flux OGN APRS est en clair mais ne contient pas
-    de donnée de l'utilisateur).
-  - Suppression des données : désinstaller l'app.
-- **Service de premier plan, type « location »** (déclaration demandée par Google) :
-  « Pendant que le conducteur utilise l'app, le service garde le GPS actif
-  écran éteint pour savoir si la golfette est sur une piste et déclencher l'alerte (finale,
-  décollage). Il s'arrête quand l'app est quittée. » Joindre une courte vidéo : ouvrir l'app,
-  éteindre l'écran, la notification PicPiste reste visible.
-- **Classification du contenu** : questionnaire IARC, rien de sensible → « Tout public ».
-- **Public cible** : 18 ans et plus (outil pour conducteurs).
-- **App d'actualités / santé / finance** : non.
+RADAR DU TERRAIN
+• Planeurs, remorqueurs et avions autour du terrain, en direct grâce à l'Open Glider Network (OGN).
+• Statut de chaque appareil : décollage, remorqué, circuit, finale (avec la piste la plus probable), posé.
+• Liste des arrivées : qui va se poser, et sur quelle piste.
+
+ALERTES DE PISTE
+• Quand la golfette est sur une piste, PicPiste surveille le trafic pour vous.
+• Orange : un appareil est dans le circuit.
+• Rouge avec annonce vocale : une finale ou un décollage sur votre piste.
+• L'alerte fonctionne aussi écran éteint.
+
+TOUS LES TERRAINS
+• Import du terrain depuis OpenStreetMap avec son code OACI.
+• Éditeur de pistes et de zones sur fond de carte.
+• Partage du terrain avec les autres membres du club par fichier.
+
+GRATUIT, SANS COMPTE, SANS PUBLICITÉ
+• Aucune donnée n'est envoyée au développeur. Votre position reste sur le téléphone.
+
+IMPORTANT
+PicPiste est une aide à la vigilance : il ne remplace pas l'observation visuelle. Seuls les appareils équipés d'une balise (FLARM, OGN…) et à portée d'une station OGN apparaissent.
+```
+
+**Category**: Maps & Navigation. **Contact**: the account's email address.
+
+## App content (forms)
+
+- **Privacy policy**: URL above.
+- **App access**: everything works without an account. For reviewers:
+  - EN: "On first launch, enter LFNL; live traffic depends on activity at the airfield."
+  - FR: « Au premier lancement, saisir LFNL ; le trafic en direct dépend de l'activité du
+    terrain. »
+- **Ads**: no.
+- **Data safety**:
+  - Data collected: **none** (nothing is sent to a developer server).
+  - Data shared: none. The location stays on the phone; calls to third-party services (OGN,
+    OpenStreetMap, Open-Meteo, map tiles) only send the airfield's position.
+  - Encrypted in transit: yes (HTTPS; the OGN APRS feed is plain text but carries no user
+    data).
+  - Data deletion: uninstall the app.
+- **Foreground service, "location" type** (declaration required by Google):
+  - EN: "While the driver uses the app, the service keeps the GPS on with the screen off to
+    know whether the golf cart is on a runway and trigger the alert (final, takeoff). It stops
+    when the app is closed."
+  - FR: « Pendant que le conducteur utilise l'app, le service garde le GPS actif écran éteint
+    pour savoir si la golfette est sur une piste et déclencher l'alerte (finale, décollage).
+    Il s'arrête quand l'app est quittée. »
+  - Attach a short video: open the app, turn the screen off, the PicPiste notification stays
+    visible.
+- **Content rating**: IARC questionnaire, nothing sensitive → "Everyone".
+- **Target audience**: 18 and over (a tool for drivers).
+- **News / health / finance app**: no.
 
 ## Android Auto
 
-Refusé par Google (novembre 2026) : l'app se déclarait en catégorie **navigation** pour
-dessiner le radar, catégorie réservée au guidage vers une destination. La version Play
-(variante `play`) est donc le téléphone seul : ni service voiture, ni bibliothèque
-Android Auto, ni mention d'Android Auto dans la fiche, les notes de version ou l'app.
-Android Auto reste dans l'APK GitHub (variante `github`) ; options d'installation pour la
-voiture dans le README.
+Refused by Google (November 2026): the app declared itself in the **navigation** category to
+draw the radar, a category reserved for turn-by-turn guidance to a destination. The Play
+version (`play` flavor) is therefore the phone app alone: no car service, no Android Auto
+library, and no mention of Android Auto in the listing, the release notes or the app. In the
+Play Console, **Test and release → Advanced settings → Form factors** must not list Android
+Auto. Android Auto stays in the GitHub APK (`github` flavor); the README lists the options to
+get it accepted in the car.
 
-## Publication automatique
+## Automatic publishing
 
-1. **Tag `v*`** → la CI envoie le bundle Play dans le **test interne** (piste `internal`) : pas
-   d'examen Google, disponible en quelques minutes. Notes de version :
-   `distribution/whatsnew/whatsnew-fr-FR` et `whatsnew-en-US` (500 caractères max), à mettre à
-   jour avant chaque tag.
-2. **Vérifier sur le téléphone** la version installée depuis le Play Store (lien d'inscription
-   du test interne) : c'est la version sans outils de développement, signée par Google.
-3. **Actions → Promote → Run workflow** : la même version (même code de version, mêmes notes)
-   passe dans le **test fermé** (piste `alpha`), après examen Google. Cocher *dry run* pour voir
-   ce qui serait publié sans rien changer.
-4. **Production** : à la main dans la Play Console (promouvoir la version du test fermé).
+1. **`v*` tag** → CI uploads the Play bundle to the **internal test** (`internal` track): no
+   Google review, available within minutes. Release notes:
+   `distribution/whatsnew/whatsnew-en-US` and `whatsnew-fr-FR` (500 characters max), to update
+   before each tag.
+2. **Check on the phone** the version installed from the Play Store (internal test opt-in
+   link): it is the Google-signed version, without development tools.
+3. **Actions → Promote → Run workflow**: the same build (same version code, same notes) moves
+   to the **closed test** (`alpha` track), after Google review. Tick *dry run* to see what
+   would be published without changing anything.
+4. **Production**: by hand in the Play Console (promote the closed-test release).
 
-En local : `scripts/play.py --key <fichier.json> tracks` liste ce que contient chaque piste.
-La CI utilise le compte de service `github-play@picpiste-publish.iam.gserviceaccount.com`
-(secret GitHub `PLAY_SERVICE_ACCOUNT_JSON`) ; sans ce secret, l'envoi est ignoré.
+Locally: `scripts/play.py --key <file.json> tracks` lists what each track contains.
+CI uses the service account `github-play@picpiste-publish.iam.gserviceaccount.com`
+(GitHub secret `PLAY_SERVICE_ACCOUNT_JSON`); without that secret, the upload is skipped.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn an Overpass JSON dump of LFNL into the PicPiste airfield config bundled in the app.
 
-Other airfields: the app builds them itself from their code (Réglages → Terrain).
+Other airfields: the app builds them itself from their code (Settings → Airfield).
 
 Usage: python3 -I tools/osm_to_airfield.py lfnl-osm.json > core/src/main/resources/airfields/LFNL.json
 """

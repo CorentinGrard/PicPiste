@@ -81,7 +81,7 @@ without any of this; pick one of these options for the car screen:
    A closed-source alternative is AA Enabler.
 
 Then plug the phone into the cart: PicPiste shows up in the Android Auto launcher. If it
-does not, see the troubleshooting notes in [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md).
+does not, see the notes in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 These tools are third-party projects, not part of PicPiste. Google is also tightening
 sideloading rules from late 2026, so options may change.
@@ -98,8 +98,9 @@ sideloading rules from late 2026, so options may change.
 
 ## For developers
 
-Building, tests, CI and signing key: [docs/DEVELOPPEMENT.md](docs/DEVELOPPEMENT.md) (French).
-Specifications: [docs/SPECS.md](docs/SPECS.md).
+Building, tests, CI and signing key: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Design rules (statuses, alerts, what is shown): [docs/DESIGN.md](docs/DESIGN.md).
+Open points: [GitHub issues](https://github.com/CorentinGrard/PicPiste/issues).
 
 ## License and data
 

@@ -16,7 +16,7 @@ data class Classification(
 )
 
 /**
- * Turns a track into a status. Thresholds follow the spec (§4.1) and are deliberately
+ * Turns a track into a status (docs/DESIGN.md, "Aircraft statuses"). Thresholds are deliberately
  * simple: they are meant to be tuned by replaying real days.
  */
 class StatusEngine(private val airfield: Airfield) {

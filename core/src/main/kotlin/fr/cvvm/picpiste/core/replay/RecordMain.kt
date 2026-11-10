@@ -32,11 +32,11 @@ fun main(args: Array<String>) = runBlocking {
     var day: LocalDate? = null
     var out: java.io.Writer? = null
     var count = 0
-    println("Enregistrement OGN autour de ${airfield.icao} dans ${dir.absolutePath} (Ctrl-C pour arrêter)")
+    println("Recording OGN around ${airfield.icao} into ${dir.absolutePath} (Ctrl-C to stop)")
     client.connectForever().collect { e ->
         when (e) {
-            is AprsEvent.Connected -> println("Connecté à ${e.server}")
-            is AprsEvent.Disconnected -> println("Déconnecté (${e.reason}), nouvel essai dans ${e.retryInMs / 1000} s")
+            is AprsEvent.Connected -> println("Connected to ${e.server}")
+            is AprsEvent.Disconnected -> println("Disconnected (${e.reason}), retrying in ${e.retryInMs / 1000} s")
             is AprsEvent.Line -> {
                 // Positions, and the status messages where trackers give their name.
                 val b = AprsParser.parse(e.text)
@@ -64,7 +64,7 @@ private fun loadAirfield(arg: String): Airfield {
     if (file.isFile) return Airfield.parse(file.readText())
     val code = arg.trim().uppercase()
     return runCatching { Airfield.bundled(code) }.getOrElse {
-        println("Téléchargement du terrain $code depuis OpenStreetMap…")
+        println("Downloading airfield $code from OpenStreetMap…")
         Airfield(AirfieldDownloader().download(code).config)
     }
 }
