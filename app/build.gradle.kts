@@ -52,7 +52,10 @@ android {
             signingConfig = key
         }
         release {
-            isMinifyEnabled = false
+            // R8: smaller app, and Google Play flags apps without obfuscation.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = key
         }
     }
